@@ -61,5 +61,94 @@ drop a hi there if you see me around!</p>
 <p><em>Thanks for visiting my blog! If you enjoyed reading my posts, consider checking out the RSS feed to stay updated with my posts</em></p>
 ]]></content:encoded>
     </item>
+    <item>
+      <title>markdown stuff</title>
+      <link>https://KTS-o7.github.io/bear/posts/markdown_stuff/</link>
+      <pubDate>Sun, 14 Jan 2024 07:07:07 +0100</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/posts/markdown_stuff/</guid>
+      <description>&lt;h2 id=&#34;introduction&#34;&gt;Introduction&lt;/h2&gt;&#xA;&lt;p&gt;This is &lt;strong&gt;bold&lt;/strong&gt; text, and this is &lt;em&gt;emphasized&lt;/em&gt; text.&lt;/p&gt;&#xA;&lt;p&gt;Visit the &lt;a href=&#34;https://gohugo.io&#34;&gt;Hugo&lt;/a&gt; website!&lt;/p&gt;&#xA;&lt;h2 id=&#34;mathematical-examples&#34;&gt;Mathematical Examples&lt;/h2&gt;&#xA;&lt;p&gt;Here are some mathematical expressions rendered using LaTeX:&lt;/p&gt;&#xA;&lt;h3 id=&#34;inline-math&#34;&gt;Inline Math&lt;/h3&gt;&#xA;&lt;p&gt;The quadratic formula is $x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}$.&lt;/p&gt;&#xA;&lt;h3 id=&#34;display-math&#34;&gt;Display Math&lt;/h3&gt;&#xA;&lt;p&gt;The Pythagorean theorem:&#xA;&lt;/p&gt;&#xA;$$&#xA;a^2 + b^2 = c^2&#xA;$$&lt;h3 id=&#34;more-complex-equations&#34;&gt;More Complex Equations&lt;/h3&gt;&#xA;&lt;p&gt;The area of a circle:&#xA;&lt;/p&gt;&#xA;$$&#xA;A = \pi r^2&#xA;$$&lt;p&gt;Integration by parts:&#xA;&lt;/p&gt;&#xA;$$&#xA;\int u \, dv = uv - \int v \, du&#xA;$$&lt;h3 id=&#34;matrices&#34;&gt;Matrices&lt;/h3&gt;&#xA;&lt;p&gt;A simple 2x2 matrix:&#xA;&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<h2 id="introduction">Introduction</h2>
+<p>This is <strong>bold</strong> text, and this is <em>emphasized</em> text.</p>
+<p>Visit the <a href="https://gohugo.io">Hugo</a> website!</p>
+<h2 id="mathematical-examples">Mathematical Examples</h2>
+<p>Here are some mathematical expressions rendered using LaTeX:</p>
+<h3 id="inline-math">Inline Math</h3>
+<p>The quadratic formula is $x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}$.</p>
+<h3 id="display-math">Display Math</h3>
+<p>The Pythagorean theorem:
+</p>
+$$
+a^2 + b^2 = c^2
+$$<h3 id="more-complex-equations">More Complex Equations</h3>
+<p>The area of a circle:
+</p>
+$$
+A = \pi r^2
+$$<p>Integration by parts:
+</p>
+$$
+\int u \, dv = uv - \int v \, du
+$$<h3 id="matrices">Matrices</h3>
+<p>A simple 2x2 matrix:
+</p>
+$$
+\begin{pmatrix}
+a & b \\
+c & d
+\end{pmatrix}
+$$<h3 id="limits-and-derivatives">Limits and Derivatives</h3>
+<p>The derivative of $f(x) = x^2$:
+</p>
+$$
+\frac{d}{dx}(x^2) = 2x
+$$<p>Limit as x approaches infinity:
+</p>
+$$
+\lim_{x \to \infty} \frac{1}{x} = 0
+$$<h3 id="this-is-how-code-looks-like">This is how code looks like</h3>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="ln">1</span><span class="cl"><span class="nb">print</span><span class="p">(</span><span class="s2">&#34;Hello, World!&#34;</span><span class="p">)</span></span></span></code></pre></div><blockquote>
+<p>This is a blockquote</p>
+<blockquote>
+<p>This is a nested blockquote</p>
+<blockquote>
+<p>This is a nested nested blockquote</p></blockquote></blockquote></blockquote>
+<h3 id="this-is-how-a-table-looks-like">This is how a table looks like</h3>
+<table>
+  <thead>
+      <tr>
+          <th>Name</th>
+          <th>Age</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>John</td>
+          <td>25</td>
+      </tr>
+  </tbody>
+</table>
+<p><code>inline code</code></p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-html" data-lang="html"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="cp">&lt;!DOCTYPE html&gt;</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl"><span class="p">&lt;</span><span class="nt">html</span> <span class="na">lang</span><span class="o">=</span><span class="s">&#34;en&#34;</span><span class="p">&gt;</span>
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl"><span class="p">&lt;</span><span class="nt">head</span><span class="p">&gt;</span>
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl">  <span class="p">&lt;</span><span class="nt">meta</span> <span class="na">charset</span><span class="o">=</span><span class="s">&#34;UTF-8&#34;</span><span class="p">&gt;</span>
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl">  <span class="p">&lt;</span><span class="nt">meta</span> <span class="na">name</span><span class="o">=</span><span class="s">&#34;viewport&#34;</span> <span class="na">content</span><span class="o">=</span><span class="s">&#34;width=device-width, initial-scale=1.0&#34;</span><span class="p">&gt;</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">  <span class="p">&lt;</span><span class="nt">title</span><span class="p">&gt;</span>Document<span class="p">&lt;/</span><span class="nt">title</span><span class="p">&gt;</span>
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl"><span class="p">&lt;/</span><span class="nt">head</span><span class="p">&gt;</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl"><span class="p">&lt;</span><span class="nt">body</span><span class="p">&gt;</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">  <span class="p">&lt;</span><span class="nt">h1</span><span class="p">&gt;</span>Hello, World!<span class="p">&lt;/</span><span class="nt">h1</span><span class="p">&gt;</span>
+</span></span><span class="line"><span class="ln">10</span><span class="cl"><span class="p">&lt;/</span><span class="nt">body</span><span class="p">&gt;</span>
+</span></span><span class="line"><span class="ln">11</span><span class="cl"><span class="p">&lt;/</span><span class="nt">html</span><span class="p">&gt;</span></span></span></code></pre></div>]]></content:encoded>
+    </item>
   </channel>
 </rss>
