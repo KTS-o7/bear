@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title></title>
+    <link>https://KTS-o7.github.io/bear/</link>
+    <description>Recent content on </description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <managingEditor>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</managingEditor>
+    <webMaster>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</webMaster>
+    <copyright>Krishnatejaswi S</copyright>
+    <lastBuildDate>Sun, 14 Jan 2024 07:07:07 +0100</lastBuildDate>
+    <atom:link href="https://KTS-o7.github.io/bear/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>About</title>
+      <link>https://KTS-o7.github.io/bear/about/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/about/</guid>
+      <description>&lt;h1 id=&#34;about-me&#34;&gt;About Me&lt;/h1&gt;&#xA;&lt;p&gt;Hi there! 👋 I&amp;rsquo;m passionate about technology, software development, and creating meaningful digital experiences.&lt;/p&gt;&#xA;&lt;h2 id=&#34;who-i-am&#34;&gt;Who I am&lt;/h2&gt;&#xA;&lt;p&gt;I&amp;rsquo;m a developer who loves building things with code. Whether it&amp;rsquo;s crafting elegant web applications, exploring new technologies, or sharing knowledge through writing, I enjoy the process of creation and learning.&lt;/p&gt;&#xA;&lt;h2 id=&#34;what-i-do&#34;&gt;What I do&lt;/h2&gt;&#xA;&lt;ul&gt;&#xA;&lt;li&gt;&lt;strong&gt;Software Development&lt;/strong&gt;: Building web applications and exploring modern development practices&lt;/li&gt;&#xA;&lt;li&gt;&lt;strong&gt;Writing&lt;/strong&gt;: Sharing knowledge and experiences through blog posts&lt;/li&gt;&#xA;&lt;li&gt;&lt;strong&gt;Learning&lt;/strong&gt;: Constantly expanding my skills and staying up-to-date with technology trends&lt;/li&gt;&#xA;&lt;li&gt;&lt;strong&gt;Open Source&lt;/strong&gt;: Contributing to projects that make a positive impact&lt;/li&gt;&#xA;&lt;/ul&gt;&#xA;&lt;h2 id=&#34;interests&#34;&gt;Interests&lt;/h2&gt;&#xA;&lt;p&gt;When I&amp;rsquo;m not coding, you can find me:&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<h1 id="about-me">About Me</h1>
+<p>Hi there! 👋 I&rsquo;m passionate about technology, software development, and creating meaningful digital experiences.</p>
+<h2 id="who-i-am">Who I am</h2>
+<p>I&rsquo;m a developer who loves building things with code. Whether it&rsquo;s crafting elegant web applications, exploring new technologies, or sharing knowledge through writing, I enjoy the process of creation and learning.</p>
+<h2 id="what-i-do">What I do</h2>
+<ul>
+<li><strong>Software Development</strong>: Building web applications and exploring modern development practices</li>
+<li><strong>Writing</strong>: Sharing knowledge and experiences through blog posts</li>
+<li><strong>Learning</strong>: Constantly expanding my skills and staying up-to-date with technology trends</li>
+<li><strong>Open Source</strong>: Contributing to projects that make a positive impact</li>
+</ul>
+<h2 id="interests">Interests</h2>
+<p>When I&rsquo;m not coding, you can find me:</p>
+<ul>
+<li>Reading about technology and software engineering</li>
+<li>Exploring new programming languages and frameworks</li>
+<li>Working on personal projects</li>
+<li>Contributing to open source communities</li>
+</ul>
+<h2 id="get-in-touch">Get in touch</h2>
+<p>I&rsquo;m always interested in connecting with fellow developers and tech enthusiasts. Feel free to reach out if you&rsquo;d like to discuss technology, collaborate on projects, or just chat about the latest in software development.</p>
+<hr>
+<p><em>Thanks for visiting my blog! If you enjoyed reading my posts, consider subscribing to stay updated with my latest content.</em></p>
+]]></content:encoded>
+    </item>
+  </channel>
+</rss>
