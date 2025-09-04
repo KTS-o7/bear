@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en-us">
+
+<head><script src="/bear/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=bear/livereload" data-no-instant defer></script>
+  <meta http-equiv="X-Clacks-Overhead" content="GNU Terry Pratchett" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="shortcut icon" href="http://localhost:1313/bear/images/favicon.png" />
+<title> - Search</title>
+<meta name="title" content="Search" />
+<meta name="description" content="This is the search page for the blog. Use the search box above to find posts by title or content." />
+<meta name="author" content="" />
+<meta name="keywords" content="" />
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+<meta property="og:title" content="Search" />
+<meta property="og:description" content="This is the search page for the blog. Use the search box above to find posts by title or content." />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="http://localhost:1313/bear/search/" />
+
+<meta property="og:image" content="http://localhost:1313/bear/images/social_card_bg_hu_26d2c2fb1f39c2d5.webp"/><meta property="article:section" content="" />
+
+
+
+
+
+
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:image" content="http://localhost:1313/bear/images/social_card_bg_hu_26d2c2fb1f39c2d5.webp"/>
+<meta name="twitter:title" content="Search"/>
+<meta name="twitter:description" content="This is the search page for the blog. Use the search box above to find posts by title or content."/>
+<meta name="twitter:site" content="@yourusername"/>
+
+
+
+<meta itemprop="name" content="Search">
+<meta itemprop="description" content="This is the search page for the blog. Use the search box above to find posts by title or content.">
+
+<meta itemprop="wordCount" content="20">
+
+<meta itemprop="image" content="http://localhost:1313/bear/images/social_card_bg_hu_26d2c2fb1f39c2d5.webp"/>
+
+
+<meta itemprop="keywords" content="" />
+
+<meta name="referrer" content="no-referrer-when-downgrade" />
+
+  
+  <link href="/bear/herman.min.css" rel="stylesheet">
+
+  
+
+  
+
+  
+
+  
+    <link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.css"
+  integrity="sha384-zh0CIslj+VczCZtlzBcjt5ppRcsAmDnRem7ESsYwWwg3m/OaJ2l4x7YBZl9Kxxib"
+  crossorigin="anonymous"
+>
+<script
+  defer
+  src="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.js"
+  integrity="sha384-Rma6DA2IPUwhNxmrB/7S3Tno0YY7sFu9WSYMCuulLhIqYSGZ2gKCJWIqhBWqMQfh"
+  crossorigin="anonymous"
+>
+</script>
+<script
+  defer
+  src="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/contrib/auto-render.min.js"
+  integrity="sha384-hCXGrW6PitJEwbkoStFjeJxv+fSOOQKOPbJxSfM6G5sWZjAyWhXiTIIAmQqnlLlh"
+  crossorigin="anonymous"
+  onload="renderMathInElement(document.body);"
+>
+</script>
+<script>
+  document.addEventListener("DOMContentLoaded", function() {
+    renderMathInElement(document.body, {
+      delimiters: [
+        {left: '\\[', right: '\\]', display: true},   
+        {left: '$$', right: '$$', display: true},     
+        {left: '\\(', right: '\\)', display: false},  
+      ],
+      throwOnError: false
+    });
+  });
+</script>
+
+  
+</head>
+
+<body>
+  <header><a class="skip-link" href="#main-content">Skip to main content</a>
+
+<a href="/bear/" class="title"><h1></h1></a>
+<nav>
+  <a href="/bear/">Home</a>
+
+  <a href="/bear/posts/">Posts</a>
+
+  <a href="/bear/about/">About</a>
+
+<a href='http://localhost:1313/bear/index.xml'>RSS</a>
+<a href="/search/" title="Search posts">🔍 Search</a>
+
+
+
+
+
+
+
+</nav>
+</header>
+  <main id="main-content">
+<link href="/search.css" rel="stylesheet">
+<div class="search-container">
+  <h1>Search Posts</h1>
+
+  <div class="search-input-container">
+    <input type="text" id="search-input" placeholder="Search posts..." autocomplete="off">
+    <div id="search-clear" class="search-clear">&times;</div>
+  </div>
+
+  <div id="search-stats" class="search-stats"></div>
+
+  <div id="search-results" class="search-results">
+    <div id="search-loading" class="search-loading">Loading search index...</div>
+  </div>
+</div>
+
+<script>
+(function() {
+  let searchIndex = [];
+  let fuse = null;
+
+  
+  function simpleFuzzySearch(query, items, options = {}) {
+    if (!query.trim()) return items;
+
+    const queryLower = query.toLowerCase();
+    const results = [];
+
+    items.forEach(item => {
+      const title = item.title.toLowerCase();
+      const content = item.content.toLowerCase();
+
+      
+      let score = 0;
+      let titleMatches = 0;
+      let contentMatches = 0;
+
+      
+      if (title.includes(queryLower)) {
+        score += 10;
+        titleMatches++;
+      }
+
+      
+      if (content.includes(queryLower)) {
+        score += 5;
+        contentMatches++;
+      }
+
+      
+      if (score === 0) {
+        const words = queryLower.split(' ');
+        words.forEach(word => {
+          if (title.includes(word)) score += 3;
+          if (content.includes(word)) score += 1;
+        });
+      }
+
+      if (score > 0) {
+        results.push({
+          item: item,
+          score: score,
+          titleMatches: titleMatches,
+          contentMatches: contentMatches
+        });
+      }
+    });
+
+    
+    results.sort((a, b) => b.score - a.score);
+
+    return results.slice(0, options.limit || 50).map(r => r.item);
+  }
+
+  
+  
+  
+    
+    
+    
+    
+    
+  
+  searchIndex = [{"content":"Introduction This is bold text, and this is emphasized text.\nVisit the Hugo website!\nMathematical Examples Here are some mathematical expressions rendered using LaTeX:\nInline Math The quadratic formula is $x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$.\nDisplay Math The Pythagorean theorem: $$ a^2 + b^2 = c^2 $$More Complex Equations The area of a circle: $$ A = \\pi r^2 $$Integration by parts: $$ \\int u \\, dv = uv - \\int v \\, du $$Matrices A simple 2x2 matrix: $$ \\begin{pmatrix} a \u0026 b \\\\ c \u0026 d \\end{pmatrix} $$Limits and Derivatives The derivative of $f(x) = x^2$: $$ \\frac{d}{dx}(x^2) = 2x $$Limit as x approaches infinity: $$ \\lim_{x \\to \\infty} \\frac{1}{x} = 0 $$","date":"2024-01-14","excerpt":"Introduction This is bold text, and this is emphasized text.\nVisit the Hugo website!\nMathematical Examples Here are some mathematical expressions rendered using LaTeX:\nInline Math The quadratic …","tags":[],"title":"My First Post","url":"/bear/posts/first/"}];
+
+  function loadSearchIndex() {
+    
+    document.getElementById('search-loading').style.display = 'none';
+    document.getElementById('search-stats').textContent = `Found ${searchIndex.length} posts`;
+  }
+
+  
+  function performSearch(query) {
+    if (!query.trim()) {
+      displayResults([]);
+      document.getElementById('search-stats').textContent = `Found ${searchIndex.length} posts`;
+      return;
+    }
+
+    const results = simpleFuzzySearch(query, searchIndex);
+    displayResults(results);
+    document.getElementById('search-stats').textContent = `Found ${results.length} result${results.length !== 1 ? 's' : ''} for "${query}"`;
+  }
+
+  
+  function displayResults(results) {
+    const resultsContainer = document.getElementById('search-results');
+
+    if (results.length === 0) {
+      resultsContainer.innerHTML = '<div class="no-results">No posts found matching your search.</div>';
+      return;
+    }
+
+    const html = results.map(post => `
+      <article class="search-result">
+        <h2><a href="${post.url}">${highlightMatch(post.title, document.getElementById('search-input').value)}</a></h2>
+        <div class="post-meta">
+          <time>${post.date}</time>
+          ${post.tags ? `<span class="tags">${post.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}</span>` : ''}
+        </div>
+        <p class="excerpt">${highlightMatch(post.excerpt, document.getElementById('search-input').value)}</p>
+      </article>
+    `).join('');
+
+    resultsContainer.innerHTML = html;
+  }
+
+  
+  function highlightMatch(text, query) {
+    if (!query.trim()) return text;
+
+    const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    return text.replace(regex, '<mark>$1</mark>');
+  }
+
+  
+  function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+      const later = () => {
+        clearTimeout(timeout);
+        func(...args);
+      };
+      clearTimeout(timeout);
+      timeout = setTimeout(later, wait);
+    };
+  }
+
+  
+  document.addEventListener('DOMContentLoaded', function() {
+    loadSearchIndex();
+
+    const searchInput = document.getElementById('search-input');
+    const searchClear = document.getElementById('search-clear');
+
+    
+    const debouncedSearch = debounce(performSearch, 300);
+    searchInput.addEventListener('input', function(e) {
+      debouncedSearch(e.target.value);
+    });
+
+    
+    searchClear.addEventListener('click', function() {
+      searchInput.value = '';
+      performSearch('');
+      searchInput.focus();
+    });
+
+    
+    searchInput.addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+      }
+    });
+  });
+})();
+</script>
+
+  </main>
+  <footer><small>
+  Krishnatejaswi S | Made with <a href="https://github.com/clente/hugo-bearcub">Bear Cub</a>
+</small></footer>
+
+    
+</body>
+
+</html>
