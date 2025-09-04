@@ -47,10 +47,8 @@ a & b \\
 c & d
 \end{pmatrix}
 $$<h3 id="limits-and-derivatives">Limits and Derivatives</h3>
-<p>The derivative of $f(x) = x^2$:
-</p>
 $$
-\frac{d}{dx}(x^2) = 2x
+\text{If } f(x) = x^{2}, \text{ then } \frac{d}{dx} (x^{2}) = 2x.
 $$<p>Limit as x approaches infinity:
 </p>
 $$
