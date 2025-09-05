@@ -9,7 +9,7 @@
     <managingEditor>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</managingEditor>
     <webMaster>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</webMaster>
     <copyright>Krishnatejaswi S</copyright>
-    <lastBuildDate>Sun, 14 Jan 2024 07:07:07 +0100</lastBuildDate>
+    <lastBuildDate>Fri, 05 Sep 2025 07:07:07 +0100</lastBuildDate>
     <atom:link href="https://KTS-o7.github.io/bear/index.xml" rel="self" type="application/rss+xml" />
     <item>
       <title>About</title>
@@ -59,6 +59,78 @@ drop a hi there if you see me around!</p>
 </table>
 <hr>
 <p><em>Thanks for visiting my blog! If you enjoyed reading my posts, consider checking out the RSS feed to stay updated with my posts</em></p>
+]]></content:encoded>
+    </item>
+    <item>
+      <title>Why MySQL is not CA</title>
+      <link>https://KTS-o7.github.io/bear/posts/why_mysql_is_not_ca/</link>
+      <pubDate>Fri, 05 Sep 2025 07:07:07 +0100</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/posts/why_mysql_is_not_ca/</guid>
+      <description>&lt;hr&gt;&#xA;&lt;h2 id=&#34;motivation&#34;&gt;motivation&lt;/h2&gt;&#xA;&lt;p&gt;I was recently discussing with my CTO about databases. There was one point where we were thinking about the &lt;code&gt;CAP&lt;/code&gt; theorem.&#xA;Then he randomly mentioned that MySQL is not CA. I was surprised because I always thought that MySQL is a CA database at its core.&lt;/p&gt;&#xA;&lt;p&gt;Now I had to search and understand why MySQL is not CA.&lt;/p&gt;&#xA;&lt;hr&gt;&#xA;&lt;h2 id=&#34;cap-theorem&#34;&gt;CAP theorem&lt;/h2&gt;&#xA;&lt;p&gt;&lt;img src=&#34;https://substackcdn.com/image/fetch/$s_!cOsx!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F869db2d6-6133-411e-96ad-cc1c52611778_800x472.png&#34; alt=&#34;CAP theorem&#34;&gt;&lt;/p&gt;&#xA;&lt;p&gt;We have always been taught in Engineering that CAP is one of the most important theorems in distributed systems and databases. We just accepted it. Time to question and learn ┏ʕ •ᴥ•ʔ┛&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<hr>
+<h2 id="motivation">motivation</h2>
+<p>I was recently discussing with my CTO about databases. There was one point where we were thinking about the <code>CAP</code> theorem.
+Then he randomly mentioned that MySQL is not CA. I was surprised because I always thought that MySQL is a CA database at its core.</p>
+<p>Now I had to search and understand why MySQL is not CA.</p>
+<hr>
+<h2 id="cap-theorem">CAP theorem</h2>
+<p><img src="https://substackcdn.com/image/fetch/$s_!cOsx!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F869db2d6-6133-411e-96ad-cc1c52611778_800x472.png" alt="CAP theorem"></p>
+<p>We have always been taught in Engineering that CAP is one of the most important theorems in distributed systems and databases. We just accepted it. Time to question and learn ┏ʕ •ᴥ•ʔ┛</p>
+<p>Here is what it actually means.</p>
+<p>Imagine a bank server, when you check your account balance it should not randomly change it based on the server you are hitting and it should be consistent across all nodes. But in a distributed system, network failures (partitions) can occur. The CAP theorem states that you can only guarantee 2 out of 3 properties:</p>
+<ul>
+<li><strong>Consistency (C)</strong>: All nodes see the same data at the same time</li>
+<li><strong>Availability (A)</strong>: Every request receives a response, even if it&rsquo;s not the most recent data</li>
+<li><strong>Partition Tolerance (P)</strong>: The system continues to operate despite network partitions</li>
+</ul>
+<p>Here are practical examples of each combination:</p>
+<h3 id="ca-systems-consistent--available-but-not-partition-tolerant">CA Systems (Consistent + Available, but not Partition Tolerant)</h3>
+<p><code>Example: Traditional Relational Databases (like PostgresSQL in single-node setups)</code></p>
+<p>Imagine a single PostgresSQL database server in a bank. When you check your balance:</p>
+<ul>
+<li><strong>Consistency</strong>: Every time you query your balance, you get the exact same amount ($100.00)</li>
+<li><strong>Availability</strong>: The system always responds to your requests</li>
+<li><strong>Partition Tolerance</strong>: If the network connection to the database fails, you can&rsquo;t access your account</li>
+</ul>
+<p>This works perfectly in non-distributed environments, but fails when you need to scale across multiple data centers.</p>
+<h3 id="cp-systems-consistent--partition-tolerant-but-sacrifices-availability">CP Systems (Consistent + Partition Tolerant, but sacrifices Availability)</h3>
+<p><code>Example: Apache ZooKeeper or etcd</code></p>
+<p>Imagine a distributed configuration management system like ZooKeeper:</p>
+<ul>
+<li><strong>Consistency</strong>: All nodes agree on configuration values (like which server is the leader)</li>
+<li><strong>Partition Tolerance</strong>: If some nodes lose network connectivity, the remaining nodes continue operating</li>
+<li><strong>Availability</strong>: During a network partition, some requests might be blocked to maintain consistency</li>
+</ul>
+<p>In a ZooKeeper cluster, if a majority of nodes become unreachable, the system stops accepting writes to prevent inconsistent states.</p>
+<h3 id="ap-systems-available--partition-tolerant-but-sacrifices-consistency">AP Systems (Available + Partition Tolerant, but sacrifices Consistency)</h3>
+<p><code>Example: Amazon DynamoDB or Cassandra</code></p>
+<p>Imagine a social media platform&rsquo;s like counter system:</p>
+<ul>
+<li><strong>Availability</strong>: The system always responds to requests, even during network failures</li>
+<li><strong>Partition Tolerance</strong>: The system continues operating across multiple data centers despite network issues</li>
+<li><strong>Consistency</strong>: During partitions, you might see different like counts on different servers</li>
+</ul>
+<p>You might see a post with 100 likes on one page refresh, then 102 likes on the next refresh, as the systems reconcile the differences asynchronously.</p>
+<hr>
+<h3 id="why-mysql-is-not-ca">Why MySQL is not CA</h3>
+<p>While MySQL can achieve CA in single-node deployments, it cannot be truly CA in distributed scenarios. When you add MySQL replicas or clustering solutions like MySQL Group Replication:</p>
+<ul>
+<li>During network partitions, MySQL must choose between consistency (rejecting writes) or availability (allowing potentially conflicting writes)</li>
+<li>MySQL&rsquo;s synchronous replication can become unavailable during partitions if strict consistency is enforced</li>
+<li>Traditional asynchronous replication trades consistency for availability (so it becomes AP, not CA).
+Even with semi-sync replication, MySQL typically prioritizes availability over strict consistency—clients may see stale reads.</li>
+</ul>
+<p>It doesn’t enforce strong ACID guarantees across replicas the way PostgreSQL doe</p>
+<h3 id="why-postgresql-is-considered-ca">Why PostgreSQL is considered CA</h3>
+<p>Postgres in standalone mode: Definitely CA (strong ACID, always responds if node is up).</p>
+<p>In replication setups:</p>
+<p>PostgreSQL replication (especially with synchronous replication) prioritizes consistency first.
+A commit can be acknowledged only after replicas confirm the write (if you configure synchronous replication).</p>
+<p>This means if replicas aren’t reachable, Postgres will prefer not to serve stale data (sacrificing availability to preserve consistency).</p>
+<p>So Postgres is effectively CA (or CP in distributed setups).</p>
+<p>This is why distributed databases like CockroachDB or TiDB are often preferred for truly distributed, partition-tolerant systems.</p>
+<hr>
+<p>ʕ ● ᴥ ●ʔ</p>
 ]]></content:encoded>
     </item>
     <item>
