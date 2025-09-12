@@ -3,15 +3,18 @@
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
     <loc>https://KTS-o7.github.io/bear/</loc>
-    <lastmod>2025-09-06T07:07:07+01:00</lastmod>
+    <lastmod>2025-09-12T17:28:47+05:30</lastmod>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/posts/</loc>
     <lastmod>2025-09-05T07:07:07+01:00</lastmod>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/ml/</loc>
-    <lastmod>2025-09-06T07:07:07+01:00</lastmod>
+    <lastmod>2025-09-12T17:28:47+05:30</lastmod>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/about/</loc>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/ml/params_llms/</loc>
+    <lastmod>2025-09-12T17:23:41+05:30</lastmod>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/ml/matrix_vec_dot/</loc>
     <lastmod>2025-09-06T07:07:07+01:00</lastmod>

@@ -9,7 +9,7 @@
     <managingEditor>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</managingEditor>
     <webMaster>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</webMaster>
     <copyright>Krishnatejaswi S</copyright>
-    <lastBuildDate>Sat, 06 Sep 2025 07:07:07 +0100</lastBuildDate>
+    <lastBuildDate>Fri, 12 Sep 2025 17:28:47 +0530</lastBuildDate>
     <atom:link href="https://KTS-o7.github.io/bear/index.xml" rel="self" type="application/rss+xml" />
     <item>
       <title>About</title>
@@ -59,6 +59,101 @@ drop a hi there if you see me around!</p>
 </table>
 <hr>
 <p><em>Thanks for visiting my blog! If you enjoyed reading my posts, consider checking out the RSS feed to stay updated with my posts</em></p>
+]]></content:encoded>
+    </item>
+    <item>
+      <title> Parameters in LLMs</title>
+      <link>https://KTS-o7.github.io/bear/ml/params_llms/</link>
+      <pubDate>Fri, 12 Sep 2025 17:23:41 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/ml/params_llms/</guid>
+      <description>&lt;h1 id=&#34;generation-time-parameters-in-large-language-models&#34;&gt;Generation-Time Parameters in Large Language Models&lt;/h1&gt;&#xA;&lt;p&gt;I recently dove deep into how LLMs like GPT-3, GPT-4, and open-source models generate text, and I was fascinated by the sheer number of knobs and dials available to control their behavior. These aren&amp;rsquo;t just abstract concepts,they&amp;rsquo;re the tools that make the difference between getting a coherent essay or a rambling mess, between creative poetry or repetitive drivel.&lt;/p&gt;&#xA;&lt;p&gt;In this post, I&amp;rsquo;ll break down the key generation-time hyperparameters with practical examples, mathematical foundations, and real-world implications. We&amp;rsquo;ll go beyond the surface-level explanations and understand why each parameter matters and how to tune them effectively.&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<h1 id="generation-time-parameters-in-large-language-models">Generation-Time Parameters in Large Language Models</h1>
+<p>I recently dove deep into how LLMs like GPT-3, GPT-4, and open-source models generate text, and I was fascinated by the sheer number of knobs and dials available to control their behavior. These aren&rsquo;t just abstract concepts,they&rsquo;re the tools that make the difference between getting a coherent essay or a rambling mess, between creative poetry or repetitive drivel.</p>
+<p>In this post, I&rsquo;ll break down the key generation-time hyperparameters with practical examples, mathematical foundations, and real-world implications. We&rsquo;ll go beyond the surface-level explanations and understand why each parameter matters and how to tune them effectively.</p>
+<h2 id="temperature-the-creativity-knob">Temperature: The Creativity Knob</h2>
+<p>Temperature is arguably the most important parameter you&rsquo;ll encounter when using LLMs. It&rsquo;s like adjusting the &ldquo;personality&rdquo; of the model.</p>
+<p><strong>What it does</strong>: Temperature scales the logits (raw prediction scores) before they&rsquo;re converted to probabilities via softmax. Mathematically:</p>
+$$
+P(w_i) = \frac{e^{z_i / T}}{\sum_j e^{z_j / T}}
+$$<p>where <code>z_i</code> is the logit for token <code>i</code>, and <code>T</code> is temperature.</p>
+<p><strong>Why it works</strong>: At lower temperatures (<code>T</code> &lt; 1), the probability distribution becomes sharper, high-probability tokens become even more likely, leading to more predictable, conservative outputs. At higher temperatures (<code>T</code> &gt; 1), the distribution flattens, giving low-probability tokens a better chance.</p>
+<p><strong>Real-world example</strong>: When generating code, you want <code>T=0.1</code> for deterministic, correct syntax. For creative writing, <code>T=0.8-1.2</code> gives you that spark of originality. I&rsquo;ve seen <code>T=2.0</code> produce genuinely surprising and creative outputs, though sometimes bordering on incoherent.</p>
+<p><strong>Typical range</strong>: <code>0.0</code> (completely deterministic) to <code>2.0</code> (highly random). Most applications use <code>0.7-1.0</code>.</p>
+<h2 id="top-k-sampling-quality-control">Top-k Sampling: Quality Control</h2>
+<p>Top-k is like telling the model, &ldquo;Only consider your top k most confident predictions.&rdquo;</p>
+<p><strong>What it does</strong>: After computing all token probabilities, sort them and keep only the top k tokens, then renormalize their probabilities.</p>
+<p><strong>Why it works</strong>: It prevents the model from picking extremely unlikely tokens that might derail the generation. For example, if the model is writing about &ldquo;coffee,&rdquo; top-k=50 ensures it doesn&rsquo;t suddenly switch to discussing quantum physics unless that was already in its top 50 predictions.</p>
+<p><strong>Practical tip</strong>: For factual writing, use lower k (10-40) to stay on topic. For creative tasks, higher k (50+) allows more flexibility. I&rsquo;ve found k=1 essentially gives you greedy decoding,always pick the most likely token.</p>
+<h2 id="top-p-nucleus-sampling-dynamic-quality-control">Top-p (Nucleus Sampling): Dynamic Quality Control</h2>
+<p>Top-p takes top-k&rsquo;s idea but makes it adaptive.</p>
+<p><strong>What it does</strong>: Instead of a fixed number of tokens, select the smallest set whose cumulative probability exceeds p. So if p=0.9, it might use 10 tokens one time and 50 tokens another time, depending on the probability distribution.</p>
+<p><strong>Why it works</strong>: In scenarios where the model is very confident (sharp distribution), it uses fewer tokens. When uncertain (flat distribution), it considers more options. This is particularly useful for maintaining coherence while allowing creativity.</p>
+<p><strong>Example</strong>: Writing a technical explanation,early tokens are predictable, so top-p might use 5-10 tokens. When getting creative, it expands to 20-30 tokens. I&rsquo;ve seen this outperform top-k in many creative writing tasks because it adapts to the model&rsquo;s confidence level.</p>
+<p><strong>Typical range</strong>: 0.8-1.0. Values below 0.5 can be too restrictive.</p>
+<h2 id="logit-bias-manual-steering">Logit Bias: Manual Steering</h2>
+<p>This is the parameter for when you want to force the model&rsquo;s hand.</p>
+<p><strong>What it does</strong>: Directly add or subtract values from specific token logits before sampling:</p>
+$$
+z_i' = z_i + b_i
+$$<p><strong>Why it works</strong>: Want to ban certain words? Set their bias to -100. Want to encourage specific terminology? Add positive bias. I once used this to prevent an LLM from using certain brand names in generated content.</p>
+<p><strong>Practical applications</strong>: Content moderation, style enforcement, or domain-specific vocabulary control. Particularly useful in enterprise settings where you need to avoid certain terms.</p>
+<h2 id="repetition-penalty-fighting-the-echo-chamber">Repetition Penalty: Fighting the Echo Chamber</h2>
+<p>Ever noticed how LLMs can get stuck repeating phrases? This parameter fights that.</p>
+<p><strong>What it does</strong>: For tokens that have appeared recently, divide their logits by a penalty factor r &gt; 1:</p>
+$$
+z_i' = \frac{z_i}{r}
+$$<p><strong>Why it works</strong>: It makes previously used tokens less attractive, encouraging the model to explore new vocabulary. Without this, models can get into loops like &ldquo;The best coffee is the best coffee is the best coffee&hellip;&rdquo;</p>
+<p><strong>Real-world use</strong>: Essential for long-form content generation. I use values around 1.1-1.2 for most tasks, but for very creative work, sometimes 1.05 or lower to allow some intentional repetition for emphasis.</p>
+<h2 id="stop-sequences-the-off-switch">Stop Sequences: The Off Switch</h2>
+<p>Sometimes you need the model to know when to stop talking.</p>
+<p><strong>What it does</strong>: Define specific strings that, when generated, halt the generation process.</p>
+<p><strong>Why it works</strong>: Prevents runaway generation or ensures structured output. For example, when generating code, you might stop at the next function definition.</p>
+<p><strong>Examples</strong>: <code>&quot;\n\n&quot;</code>, <code>&quot;END&quot;</code>, <code>&quot;&lt;/response&gt;&quot;</code>. I once used this to generate structured JSON by setting the stop sequence to <code>&quot;}&quot;</code>.</p>
+<h2 id="max-tokens-setting-boundaries">Max Tokens: Setting Boundaries</h2>
+<p>The word limit for your AI writer.</p>
+<p><strong>What it does</strong>: Caps the total number of tokens generated in a single response.</p>
+<p><strong>Why it works</strong>: Prevents excessive output and manages costs/compute time. In API contexts, this also affects billing.</p>
+<p><strong>Considerations</strong>: Different models have different limits (GPT-4: 4096, Claude: 8192). Always set this lower than the model&rsquo;s maximum to leave headroom.</p>
+<h2 id="frequency-penalty-discouraging-word-hoarders">Frequency Penalty: Discouraging Word Hoarders</h2>
+<p>Similar to repetition penalty, but based on overall frequency in the generated text.</p>
+<p><strong>What it does</strong>: Penalize tokens based on how often they&rsquo;ve appeared:</p>
+$$
+z_i' = z_i - \alpha \cdot \text{count}(i)
+$$<p><strong>Why it works</strong>: Prevents overuse of common words. If &ldquo;the&rdquo; appears 50 times, it gets increasingly penalized.</p>
+<p><strong>Use cases</strong>: Particularly effective for generating diverse content or when you want to avoid repetitive language patterns.</p>
+<h2 id="presence-penalty-topic-freshness">Presence Penalty: Topic Freshness</h2>
+<p>This encourages introducing new concepts rather than revisiting old ones.</p>
+<p><strong>What it does</strong>: Penalize tokens that have appeared at all in the current generation:</p>
+$$
+z_i' = z_i - \beta \cdot \text{presence}(i)
+$$<p>where presence(i) is 1 if the token appeared, 0 otherwise.</p>
+<p><strong>Why it works</strong>: Promotes topic exploration. Without it, models can get stuck discussing the same ideas repeatedly.</p>
+<p><strong>Difference from frequency penalty</strong>: Frequency counts occurrences, presence is binary. Use presence penalty for encouraging breadth of topics.</p>
+<h2 id="num-keep-context-continuity">Num Keep: Context Continuity</h2>
+<p>For long conversations or documents, this maintains coherence.</p>
+<p><strong>What it does</strong>: When refreshing the context window, retain the last N tokens from the previous context.</p>
+<p><strong>Why it works</strong>: Prevents abrupt topic changes in long-form generation. Imagine writing a novel,the model needs to remember what happened in the previous chapter.</p>
+<p><strong>Typical range</strong>: 100-500 tokens, depending on the task complexity.</p>
+<h2 id="seed-reproducibility-control">Seed: Reproducibility Control</h2>
+<p>For when you need consistent outputs.</p>
+<p><strong>What it does</strong>: Initializes the random number generator with a fixed value, ensuring identical outputs for identical inputs.</p>
+<p><strong>Why it works</strong>: Crucial for testing, debugging, and applications requiring deterministic behavior. Without seeding, the same prompt can produce different outputs.</p>
+<p><strong>Implementation note</strong>: Not all APIs expose seed control, but when available, it&rsquo;s invaluable for quality assurance.</p>
+<h2 id="repeat-last-n-short-term-memory">Repeat Last N: Short-Term Memory</h2>
+<p>A more targeted repetition control.</p>
+<p><strong>What it does</strong>: Prevents tokens from the most recent N tokens from being selected.</p>
+<p><strong>Why it works</strong>: Stops immediate repetition like &ldquo;I like coffee. I like coffee. I like coffee.&rdquo;</p>
+<p><strong>Typical range</strong>: 1-10 tokens. Higher values can prevent natural repetition that&rsquo;s actually desirable.</p>
+<h2 id="mirostat-adaptive-temperature">Mirostat: Adaptive Temperature</h2>
+<p>This is for the advanced users who want the model to maintain consistent &ldquo;surprise&rdquo; levels.</p>
+<p><strong>What it does</strong>: Dynamically adjusts temperature to target a specific perplexity level using parameters τ (target perplexity) and η (adjustment rate).</p>
+<p><strong>Why it works</strong>: Maintains consistent creativity levels throughout generation. Traditional temperature can lead to increasingly erratic outputs as generation progresses.</p>
+<p><strong>Typical range</strong>: τ: 20-100, η: 0.05-0.2. Requires experimentation to find good values for your use case.</p>
+<h2 id="putting-it-all-together">Putting It All Together</h2>
+<p>These parameters don&rsquo;t exist in isolation, they interact in complex ways. For most applications, you&rsquo;ll primarily tune temperature, top-p, and repetition penalties. But understanding all of them gives you the full toolkit for controlling LLM behavior.</p>
+<p>Remember: there&rsquo;s no &ldquo;perfect&rdquo; set of parameters. The best settings depend on your specific use case, model, and desired output characteristics. Experimentation and iteration are key.</p>
+<p>What parameter have you found most useful in your LLM work? I&rsquo;d love to hear your thoughts!</p>
+<p>ʕ •ᴥ•ʔ</p>
 ]]></content:encoded>
     </item>
     <item>

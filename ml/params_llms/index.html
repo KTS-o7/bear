@@ -1,23 +1,140 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
-  <channel>
-    <title>ML Stuff on </title>
-    <link>https://KTS-o7.github.io/bear/ml/</link>
-    <description>Recent content in ML Stuff on </description>
-    <generator>Hugo -- gohugo.io</generator>
-    <language>en-us</language>
-    <managingEditor>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</managingEditor>
-    <webMaster>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</webMaster>
-    <copyright>Krishnatejaswi S</copyright>
-    <lastBuildDate>Fri, 12 Sep 2025 17:28:47 +0530</lastBuildDate>
-    <atom:link href="https://KTS-o7.github.io/bear/ml/index.xml" rel="self" type="application/rss+xml" />
-    <item>
-      <title> Parameters in LLMs</title>
-      <link>https://KTS-o7.github.io/bear/ml/params_llms/</link>
-      <pubDate>Fri, 12 Sep 2025 17:23:41 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
-      <guid>https://KTS-o7.github.io/bear/ml/params_llms/</guid>
-      <description>&lt;h1 id=&#34;generation-time-parameters-in-large-language-models&#34;&gt;Generation-Time Parameters in Large Language Models&lt;/h1&gt;&#xA;&lt;p&gt;I recently dove deep into how LLMs like GPT-3, GPT-4, and open-source models generate text, and I was fascinated by the sheer number of knobs and dials available to control their behavior. These aren&amp;rsquo;t just abstract concepts,they&amp;rsquo;re the tools that make the difference between getting a coherent essay or a rambling mess, between creative poetry or repetitive drivel.&lt;/p&gt;&#xA;&lt;p&gt;In this post, I&amp;rsquo;ll break down the key generation-time hyperparameters with practical examples, mathematical foundations, and real-world implications. We&amp;rsquo;ll go beyond the surface-level explanations and understand why each parameter matters and how to tune them effectively.&lt;/p&gt;</description>
-      <content:encoded><![CDATA[<h1 id="generation-time-parameters-in-large-language-models">Generation-Time Parameters in Large Language Models</h1>
+<!DOCTYPE html>
+<html lang="en-us">
+
+<head>
+  <meta http-equiv="X-Clacks-Overhead" content="GNU Terry Pratchett" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="shortcut icon" href="https://KTS-o7.github.io/bear/images/favicon.png" />
+<title> Parameters in LLMs | </title>
+<meta name="title" content=" Parameters in LLMs" />
+<meta name="description" content="Generation-Time Parameters in Large Language Models
+I recently dove deep into how LLMs like GPT-3, GPT-4, and open-source models generate text, and I was fascinated by the sheer number of knobs and dials available to control their behavior. These aren&rsquo;t just abstract concepts,they&rsquo;re the tools that make the difference between getting a coherent essay or a rambling mess, between creative poetry or repetitive drivel.
+In this post, I&rsquo;ll break down the key generation-time hyperparameters with practical examples, mathematical foundations, and real-world implications. We&rsquo;ll go beyond the surface-level explanations and understand why each parameter matters and how to tune them effectively." />
+<meta name="author" content="" />
+<meta name="keywords" content="" />
+
+
+
+
+
+
+  
+  <meta property="og:url" content="https://KTS-o7.github.io/bear/ml/params_llms/">
+  <meta property="og:title" content=" Parameters in LLMs">
+  <meta property="og:description" content="Generation-Time Parameters in Large Language Models I recently dove deep into how LLMs like GPT-3, GPT-4, and open-source models generate text, and I was fascinated by the sheer number of knobs and dials available to control their behavior. These aren’t just abstract concepts,they’re the tools that make the difference between getting a coherent essay or a rambling mess, between creative poetry or repetitive drivel.
+In this post, I’ll break down the key generation-time hyperparameters with practical examples, mathematical foundations, and real-world implications. We’ll go beyond the surface-level explanations and understand why each parameter matters and how to tune them effectively.">
+  <meta property="og:locale" content="en_us">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="ml">
+    <meta property="article:published_time" content="2025-09-12T17:23:41+05:30">
+    <meta property="article:modified_time" content="2025-09-12T17:23:41+05:30">
+    <meta property="og:image" content="https://KTS-o7.github.io/bear/images/share.webp">
+
+
+  
+  
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://KTS-o7.github.io/bear/images/share.webp">
+  <meta name="twitter:title" content=" Parameters in LLMs">
+  <meta name="twitter:description" content="Generation-Time Parameters in Large Language Models I recently dove deep into how LLMs like GPT-3, GPT-4, and open-source models generate text, and I was fascinated by the sheer number of knobs and dials available to control their behavior. These aren’t just abstract concepts,they’re the tools that make the difference between getting a coherent essay or a rambling mess, between creative poetry or repetitive drivel.
+In this post, I’ll break down the key generation-time hyperparameters with practical examples, mathematical foundations, and real-world implications. We’ll go beyond the surface-level explanations and understand why each parameter matters and how to tune them effectively.">
+
+
+  
+  
+  <meta itemprop="name" content=" Parameters in LLMs">
+  <meta itemprop="description" content="Generation-Time Parameters in Large Language Models I recently dove deep into how LLMs like GPT-3, GPT-4, and open-source models generate text, and I was fascinated by the sheer number of knobs and dials available to control their behavior. These aren’t just abstract concepts,they’re the tools that make the difference between getting a coherent essay or a rambling mess, between creative poetry or repetitive drivel.
+In this post, I’ll break down the key generation-time hyperparameters with practical examples, mathematical foundations, and real-world implications. We’ll go beyond the surface-level explanations and understand why each parameter matters and how to tune them effectively.">
+  <meta itemprop="datePublished" content="2025-09-12T17:23:41+05:30">
+  <meta itemprop="dateModified" content="2025-09-12T17:23:41+05:30">
+  <meta itemprop="wordCount" content="1340">
+  <meta itemprop="image" content="https://KTS-o7.github.io/bear/images/share.webp">
+
+<meta name="referrer" content="no-referrer-when-downgrade" />
+
+  
+  <link href="/bear/herman.min.css" rel="stylesheet">
+
+  
+
+  
+
+  
+
+  
+    <link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.css"
+  integrity="sha384-zh0CIslj+VczCZtlzBcjt5ppRcsAmDnRem7ESsYwWwg3m/OaJ2l4x7YBZl9Kxxib"
+  crossorigin="anonymous"
+>
+<script
+  defer
+  src="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.js"
+  integrity="sha384-Rma6DA2IPUwhNxmrB/7S3Tno0YY7sFu9WSYMCuulLhIqYSGZ2gKCJWIqhBWqMQfh"
+  crossorigin="anonymous"
+>
+</script>
+<script
+  defer
+  src="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/contrib/auto-render.min.js"
+  integrity="sha384-hCXGrW6PitJEwbkoStFjeJxv+fSOOQKOPbJxSfM6G5sWZjAyWhXiTIIAmQqnlLlh"
+  crossorigin="anonymous"
+  onload="renderMathInElement(document.body);"
+>
+</script>
+<script>
+  document.addEventListener("DOMContentLoaded", function() {
+    renderMathInElement(document.body, {
+      delimiters: [
+        {left: '\\[', right: '\\]', display: true},   
+        {left: '$$', right: '$$', display: true},     
+        {left: '\\(', right: '\\)', display: false},  
+      ],
+      throwOnError: false
+    });
+  });
+</script>
+
+  
+</head>
+
+<body>
+  <header><a class="skip-link" href="#main-content">Skip to main content</a>
+
+<a href="/bear/" class="title"><h1></h1></a>
+<nav>
+  <a href="/bear/">Home</a>
+
+  <a href="/bear/posts/">Posts</a>
+
+  <a href="/bear/about/">About</a>
+
+  <a href="/bear/ml/">ML Stuff</a>
+
+<a href='https://KTS-o7.github.io/bear/index.xml'>RSS</a>
+
+
+
+
+
+
+
+</nav>
+</header>
+  <main id="main-content">
+
+<h1> Parameters in LLMs</h1>
+<p class="byline">
+  <time datetime='2025-09-12' pubdate>
+    2025-09-12
+  </time>
+  
+</p>
+
+<content>
+  <h1 id="generation-time-parameters-in-large-language-models">Generation-Time Parameters in Large Language Models</h1>
 <p>I recently dove deep into how LLMs like GPT-3, GPT-4, and open-source models generate text, and I was fascinated by the sheer number of knobs and dials available to control their behavior. These aren&rsquo;t just abstract concepts,they&rsquo;re the tools that make the difference between getting a coherent essay or a rambling mess, between creative poetry or repetitive drivel.</p>
 <p>In this post, I&rsquo;ll break down the key generation-time hyperparameters with practical examples, mathematical foundations, and real-world implications. We&rsquo;ll go beyond the surface-level explanations and understand why each parameter matters and how to tune them effectively.</p>
 <h2 id="temperature-the-creativity-knob">Temperature: The Creativity Knob</h2>
@@ -104,65 +221,27 @@ $$<p>where presence(i) is 1 if the token appeared, 0 otherwise.</p>
 <p>Remember: there&rsquo;s no &ldquo;perfect&rdquo; set of parameters. The best settings depend on your specific use case, model, and desired output characteristics. Experimentation and iteration are key.</p>
 <p>What parameter have you found most useful in your LLM work? I&rsquo;d love to hear your thoughts!</p>
 <p>ʕ •ᴥ•ʔ</p>
-]]></content:encoded>
-    </item>
-    <item>
-      <title>Matrix-Vector Dot Product</title>
-      <link>https://KTS-o7.github.io/bear/ml/matrix_vec_dot/</link>
-      <pubDate>Sat, 06 Sep 2025 07:07:07 +0100</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
-      <guid>https://KTS-o7.github.io/bear/ml/matrix_vec_dot/</guid>
-      <description>&lt;h2 id=&#34;matrix-vector-dot-product&#34;&gt;Matrix-Vector Dot Product&lt;/h2&gt;&#xA;&lt;ol&gt;&#xA;&lt;li&gt;&lt;a href=&#34;https://www.deep-ml.com/problems/1&#34;&gt;Question 1 From deep-ml.com&lt;/a&gt;&#xA;Essentially a dot product of a matrix and a vector an happen only if the number of columns in the matrix is equal to the number of elements in the vector.&lt;/li&gt;&#xA;&lt;/ol&gt;&#xA;&lt;p&gt;That is if A[m,n] and B[n], then A*B is defined.&lt;/p&gt;&#xA;&lt;p&gt;So in this case, the matrix is 2x3 and the vector is 3x1, so the dot product is defined.&lt;/p&gt;&#xA;&lt;p&gt;The result is a 2x1 matrix.&lt;/p&gt;</description>
-      <content:encoded><![CDATA[<h2 id="matrix-vector-dot-product">Matrix-Vector Dot Product</h2>
-<ol>
-<li><a href="https://www.deep-ml.com/problems/1">Question 1 From deep-ml.com</a>
-Essentially a dot product of a matrix and a vector an happen only if the number of columns in the matrix is equal to the number of elements in the vector.</li>
-</ol>
-<p>That is if A[m,n] and B[n], then A*B is defined.</p>
-<p>So in this case, the matrix is 2x3 and the vector is 3x1, so the dot product is defined.</p>
-<p>The result is a 2x1 matrix.</p>
-<p>The result is:</p>
-$$
-\begin{bmatrix}
-1 & 2 & 3 \\
-4 & 5 & 6 \\
-\end{bmatrix}
-\cdot
-\begin{bmatrix}
-1 \\
-2 \\
-3 \\
-\end{bmatrix}
-\equiv
-\begin{bmatrix}
-1 \cdot 1 + 2 \cdot 2 + 3 \cdot 3 \\
-4 \cdot 1 + 5 \cdot 2 + 6 \cdot 3 \\
-\end{bmatrix}
-\equiv
-\begin{bmatrix}
-14 \\
-32 \\
-\end{bmatrix}
-$$<h2 id="solution">Solution</h2>
+
+</content>
+<p>
+  
+</p>
+
+
+  <p>
+    <a href='mailto:shentharkrishnatejaswi@gmail.com?subject=Reply%20to%20"%20Parameters%20in%20LLMs"'>
+      Reply to this post by email ↪
+    </a>
+  </p>
 
 
 
+  </main>
+  <footer><small>
+  Krishnatejaswi S | Made with <a href="https://github.com/clente/hugo-bearcub">Bear Cub</a>
+</small></footer>
 
+    
+</body>
 
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="k">def</span> <span class="nf">matrix_dot_vector</span><span class="p">(</span><span class="n">a</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="o">|</span><span class="nb">float</span><span class="p">]],</span> <span class="n">b</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="o">|</span><span class="nb">float</span><span class="p">])</span>
-</span></span><span class="line"><span class="ln"> 2</span><span class="cl"> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="o">|</span><span class="nb">float</span><span class="p">]:</span>
-</span></span><span class="line"><span class="ln"> 3</span><span class="cl">	<span class="c1"># Return a list where each element is the dot product of a row of &#39;a&#39; with &#39;b&#39;.</span>
-</span></span><span class="line"><span class="ln"> 4</span><span class="cl">	<span class="c1"># If the number of columns in &#39;a&#39; does not match the length of &#39;b&#39;, return -1.</span>
-</span></span><span class="line"><span class="ln"> 5</span><span class="cl">    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">a</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">b</span><span class="p">):</span>
-</span></span><span class="line"><span class="ln"> 6</span><span class="cl">        <span class="k">return</span> <span class="o">-</span><span class="mi">1</span>
-</span></span><span class="line"><span class="ln"> 7</span><span class="cl">    <span class="n">c</span> <span class="o">=</span> <span class="p">[]</span>
-</span></span><span class="line"><span class="ln"> 8</span><span class="cl">    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">a</span><span class="p">)):</span>
-</span></span><span class="line"><span class="ln"> 9</span><span class="cl">        <span class="nb">sum</span> <span class="o">=</span> <span class="mi">0</span>
-</span></span><span class="line"><span class="ln">10</span><span class="cl">        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">a</span><span class="p">)):</span>
-</span></span><span class="line"><span class="ln">11</span><span class="cl">            <span class="nb">sum</span> <span class="o">+=</span> <span class="n">a</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="n">j</span><span class="p">]</span><span class="o">*</span><span class="n">b</span><span class="p">[</span><span class="n">j</span><span class="p">]</span>
-</span></span><span class="line"><span class="ln">12</span><span class="cl">
-</span></span><span class="line"><span class="ln">13</span><span class="cl">        <span class="n">c</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">sum</span><span class="p">)</span>
-</span></span><span class="line"><span class="ln">14</span><span class="cl">	<span class="k">return</span> <span class="n">c</span></span></span></code></pre></div><hr>
-]]></content:encoded>
-    </item>
-  </channel>
-</rss>
+</html>
