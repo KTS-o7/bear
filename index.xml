@@ -72,6 +72,14 @@ drop a hi there if you see me around!</p>
 <p>The idea is to generate a permutation of the numbers from 1 to n such that the difference between any two consecutive elements is at least greater than 1.</p>
 <p>One way to do this is to first write all the even numbers between 1 and n in increasing order and then write all the odd numbers between 1 and n in increasing order.</p>
 <p>This is only one such solution. There are other solutions as well.</p>
+<p>Edge case:</p>
+<ul>
+<li>If n is 1, print 1. this is  because there are no consecutive elements in the permutation, hence is a valid permutation.</li>
+<li>If n is less than 4, print &ldquo;NO SOLUTION&rdquo;.
+because for n &lt; 4, any permutation will have a difference between any two consecutive elements less than 1.
+example
+1 2 3 4, 1 3 2 4, 1 3 4 2, etc are not valid permutations.</li>
+</ul>
 <h2 id="solution">Solution</h2>
 
 
