@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>CSES.fi on </title>
+    <link>https://KTS-o7.github.io/bear/cses.fi/</link>
+    <description>Recent content in CSES.fi on </description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <managingEditor>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</managingEditor>
+    <webMaster>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</webMaster>
+    <copyright>Krishnatejaswi S</copyright>
+    <lastBuildDate>Thu, 18 Sep 2025 17:23:25 +0530</lastBuildDate>
+    <atom:link href="https://KTS-o7.github.io/bear/cses.fi/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Repeatations</title>
+      <link>https://KTS-o7.github.io/bear/cses.fi/repeatations/</link>
+      <pubDate>Thu, 18 Sep 2025 17:23:25 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/cses.fi/repeatations/</guid>
+      <description>&lt;p&gt;Link to the problem : &lt;a href=&#34;https://cses.fi/problemset/task/1069&#34;&gt;Repeatations&lt;/a&gt;&lt;/p&gt;&#xA;&lt;h2 id=&#34;intuition&#34;&gt;Intuition&lt;/h2&gt;&#xA;&lt;p&gt;This problem wants us to find the longest substring of a string that has only 1 type of character.&#xA;input has A,G,C and T only.&lt;/p&gt;&#xA;&lt;p&gt;Edge case: if the string is empty, return 0.&lt;/p&gt;&#xA;&lt;p&gt;We need to keep track of the current length of the substring and the maximum length of the substring seen so far which satisfies the condition.&lt;/p&gt;&#xA;&lt;p&gt;Loop through the string and check if the current character is the same as the previous character.&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>Link to the problem : <a href="https://cses.fi/problemset/task/1069">Repeatations</a></p>
+<h2 id="intuition">Intuition</h2>
+<p>This problem wants us to find the longest substring of a string that has only 1 type of character.
+input has A,G,C and T only.</p>
+<p>Edge case: if the string is empty, return 0.</p>
+<p>We need to keep track of the current length of the substring and the maximum length of the substring seen so far which satisfies the condition.</p>
+<p>Loop through the string and check if the current character is the same as the previous character.</p>
+<ul>
+<li>If it is, increment the current length.
+Update the maximum length if the current length is greater than the maximum length.</li>
+<li>If it is not, reset the current length to 1.</li>
+</ul>
+<h2 id="solution">Solution</h2>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl">    <span class="n">string</span> <span class="o">=</span> <span class="nb">input</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl">    <span class="k">if</span> <span class="ow">not</span> <span class="n">string</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl">        <span class="nb">print</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl">        <span class="k">return</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">    
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl">    <span class="n">max_len</span> <span class="o">=</span> <span class="mi">1</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl">    <span class="n">current_len</span> <span class="o">=</span> <span class="mi">1</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">    
+</span></span><span class="line"><span class="ln">10</span><span class="cl">    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">string</span><span class="p">)):</span>
+</span></span><span class="line"><span class="ln">11</span><span class="cl">        <span class="k">if</span> <span class="n">string</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">==</span> <span class="n">string</span><span class="p">[</span><span class="n">i</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span>
+</span></span><span class="line"><span class="ln">12</span><span class="cl">            <span class="n">current_len</span> <span class="o">+=</span> <span class="mi">1</span>
+</span></span><span class="line"><span class="ln">13</span><span class="cl">            <span class="n">max_len</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">max_len</span><span class="p">,</span> <span class="n">current_len</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">14</span><span class="cl">        <span class="k">else</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">15</span><span class="cl">            <span class="n">current_len</span> <span class="o">=</span> <span class="mi">1</span>
+</span></span><span class="line"><span class="ln">16</span><span class="cl">    
+</span></span><span class="line"><span class="ln">17</span><span class="cl">    <span class="nb">print</span><span class="p">(</span><span class="n">max_len</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">18</span><span class="cl">
+</span></span><span class="line"><span class="ln">19</span><span class="cl"><span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&#34;__main__&#34;</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">20</span><span class="cl">    <span class="n">main</span><span class="p">()</span></span></span></code></pre></div><h3 id="time-complexity">Time complexity</h3>
+<p>O(n)</p>
+<h3 id="space-complexity">Space complexity</h3>
+<p>O(1)</p>
+<p>This is a greedy problem.
+A greedy approach is something that makes the best local choice at each step in the hope that this choice will lead to the global optimal solution.</p>
+<p>here the best local choice is to increment the current length if the current character is the same as the previous character.</p>
+]]></content:encoded>
+    </item>
+    <item>
+      <title>Missing Number</title>
+      <link>https://KTS-o7.github.io/bear/cses.fi/missing_number/</link>
+      <pubDate>Thu, 18 Sep 2025 17:17:22 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/cses.fi/missing_number/</guid>
+      <description>&lt;p&gt;Link to the problem : &lt;a href=&#34;https://cses.fi/problemset/task/1083&#34;&gt;Missing Number&lt;/a&gt;&lt;/p&gt;&#xA;&lt;h2 id=&#34;intuition&#34;&gt;Intuition&lt;/h2&gt;&#xA;&lt;p&gt;This problem wants us to find the missing number in a sequence of numbers from 1 to n.&#xA;The naive approach is to use a hash map to store the numbers and then find the missing number.&#xA;But this is not efficient.&lt;/p&gt;&#xA;&lt;p&gt;The idea is to use the formula for the sum of an arithmetic series.&#xA;The sum of an arithmetic series is given by the formula:&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>Link to the problem : <a href="https://cses.fi/problemset/task/1083">Missing Number</a></p>
+<h2 id="intuition">Intuition</h2>
+<p>This problem wants us to find the missing number in a sequence of numbers from 1 to n.
+The naive approach is to use a hash map to store the numbers and then find the missing number.
+But this is not efficient.</p>
+<p>The idea is to use the formula for the sum of an arithmetic series.
+The sum of an arithmetic series is given by the formula:</p>
+$$S = \frac{n}{2} (a + l)$$<p>
+where <code>n</code> is the number of terms, <code>a</code> is the first term, and <code>l</code> is the last term.
+In this problem, the first term is 1 and the last term is <code>n</code>.
+So the sum of the series is given by the formula:
+</p>
+$$S = \frac{n}{2} (1 + n)$$<p>now if we accumulate the sum of the numbers in the list, we can find the missing number by subtracting the sum of the numbers in the list from the sum of the series.
+Since only one number is missing, the sum of the numbers in the list will be less than the sum of the series and the difference will be the missing number.</p>
+<h2 id="solution">Solution</h2>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl">    <span class="n">n</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">input</span><span class="p">())</span>
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl">    <span class="n">nums_list</span> <span class="o">=</span> <span class="nb">input</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl">    <span class="n">nums</span> <span class="o">=</span> <span class="n">nums_list</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl">    <span class="n">total</span> <span class="o">=</span> <span class="mi">0</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">    <span class="k">for</span> <span class="n">num</span> <span class="ow">in</span> <span class="n">nums</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl">        <span class="n">total</span> <span class="o">+=</span> <span class="nb">int</span><span class="p">(</span><span class="n">num</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl">    <span class="n">tot</span> <span class="o">=</span> <span class="n">n</span> <span class="o">*</span> <span class="p">(</span><span class="n">n</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">    <span class="nb">print</span><span class="p">(</span><span class="n">tot</span> <span class="o">-</span> <span class="n">total</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">10</span><span class="cl">
+</span></span><span class="line"><span class="ln">11</span><span class="cl">
+</span></span><span class="line"><span class="ln">12</span><span class="cl"><span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&#34;__main__&#34;</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">13</span><span class="cl">    <span class="n">main</span><span class="p">()</span></span></span></code></pre></div><h2 id="some-formulae-for-arithmetic-series">Some formulae for arithmetic series</h2>
+<h3 id="nth-term">nth term</h3>
+$$a_n = a + (n-1)d$$<p>
+where <code>a</code> is the first term, <code>d</code> is the common difference, and <code>n</code> is the number of terms.</p>
+<h3 id="sum-of-the-first-n-terms">sum of the first n terms</h3>
+$$S = \frac{n}{2} (a + l)$$<p>
+where <code>n</code> is the number of terms, <code>a</code> is the first term, and <code>l</code> is the last term.</p>
+<h3 id="sum-of-the-first-n-terms-1">sum of the first n terms</h3>
+$$S = \frac{n}{2} (2a + (n-1)d)$$<p>
+where <code>n</code> is the number of terms, <code>a</code> is the first term, and <code>d</code> is the common difference.</p>
+]]></content:encoded>
+    </item>
+    <item>
+      <title>Weird Algorithm</title>
+      <link>https://KTS-o7.github.io/bear/cses.fi/weird_algorithm/</link>
+      <pubDate>Thu, 18 Sep 2025 17:05:38 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/cses.fi/weird_algorithm/</guid>
+      <description>&lt;p&gt;Link to the problem: &lt;a href=&#34;https://cses.fi/problemset/task/1068&#34;&gt;Weird Algorithm&lt;/a&gt;&lt;/p&gt;&#xA;&lt;h2 id=&#34;intuition&#34;&gt;Intuition&lt;/h2&gt;&#xA;&lt;p&gt;This problem is a direct implementation of the algorithm described in the problem statement.&lt;/p&gt;&#xA;&lt;p&gt;Given a number &lt;code&gt;n&lt;/code&gt;, we need to apply the following algorithm:&lt;/p&gt;&#xA;&lt;ol&gt;&#xA;&lt;li&gt;If &lt;code&gt;n&lt;/code&gt; is even, divide it by 2.&lt;/li&gt;&#xA;&lt;li&gt;If &lt;code&gt;n&lt;/code&gt; is odd, multiply it by 3 and add 1.&lt;/li&gt;&#xA;&lt;li&gt;Repeat the process until &lt;code&gt;n&lt;/code&gt; becomes 1.&lt;/li&gt;&#xA;&lt;/ol&gt;&#xA;&lt;h2 id=&#34;solution&#34;&gt;Solution&lt;/h2&gt;&#xA;&#xA;&#xA;&#xA;&#xA;&#xA;&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-python&#34; data-lang=&#34;python&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;ln&#34;&gt;1&lt;/span&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;k&#34;&gt;def&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;weird_algorithm&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;n&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;):&lt;/span&gt;&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;ln&#34;&gt;2&lt;/span&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;k&#34;&gt;while&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;n&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;!=&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;1&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;ln&#34;&gt;3&lt;/span&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;nb&#34;&gt;print&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;n&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;end&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;#34; &amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;ln&#34;&gt;4&lt;/span&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;n&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;%&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;2&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;==&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;ln&#34;&gt;5&lt;/span&gt;&lt;span class=&#34;cl&#34;&gt;            &lt;span class=&#34;n&#34;&gt;n&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;n&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;//&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;2&lt;/span&gt;&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;ln&#34;&gt;6&lt;/span&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;k&#34;&gt;else&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;ln&#34;&gt;7&lt;/span&gt;&lt;span class=&#34;cl&#34;&gt;            &lt;span class=&#34;n&#34;&gt;n&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;3&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;n&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;+&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;1&lt;/span&gt;&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;ln&#34;&gt;8&lt;/span&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;nb&#34;&gt;print&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;n&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h2 id=&#34;geek-fact&#34;&gt;Geek fact&lt;/h2&gt;&#xA;&lt;p&gt;This is a famous problem in the field math called the Collatz conjecture.&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>Link to the problem: <a href="https://cses.fi/problemset/task/1068">Weird Algorithm</a></p>
+<h2 id="intuition">Intuition</h2>
+<p>This problem is a direct implementation of the algorithm described in the problem statement.</p>
+<p>Given a number <code>n</code>, we need to apply the following algorithm:</p>
+<ol>
+<li>If <code>n</code> is even, divide it by 2.</li>
+<li>If <code>n</code> is odd, multiply it by 3 and add 1.</li>
+<li>Repeat the process until <code>n</code> becomes 1.</li>
+</ol>
+<h2 id="solution">Solution</h2>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="ln">1</span><span class="cl"><span class="k">def</span> <span class="nf">weird_algorithm</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
+</span></span><span class="line"><span class="ln">2</span><span class="cl">    <span class="k">while</span> <span class="n">n</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">3</span><span class="cl">        <span class="nb">print</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s2">&#34; &#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">4</span><span class="cl">        <span class="k">if</span> <span class="n">n</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">5</span><span class="cl">            <span class="n">n</span> <span class="o">=</span> <span class="n">n</span> <span class="o">//</span> <span class="mi">2</span>
+</span></span><span class="line"><span class="ln">6</span><span class="cl">        <span class="k">else</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">7</span><span class="cl">            <span class="n">n</span> <span class="o">=</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">n</span> <span class="o">+</span> <span class="mi">1</span>
+</span></span><span class="line"><span class="ln">8</span><span class="cl">    <span class="nb">print</span><span class="p">(</span><span class="n">n</span><span class="p">)</span></span></span></code></pre></div><h2 id="geek-fact">Geek fact</h2>
+<p>This is a famous problem in the field math called the Collatz conjecture.</p>
+<p>Collatz conjecture is a conjecture in mathematics that states that for any positive integer <code>n</code>, the sequence of numbers generated by the following algorithm will eventually reach 1.</p>
+<p>So far, the conjecture has been verified for all positive integers up to 2^68.</p>
+<blockquote>
+<p>Wikipedia link: <a href="https://en.wikipedia.org/wiki/Collatz_conjecture">Collatz conjecture</a></p></blockquote>
+]]></content:encoded>
+    </item>
+  </channel>
+</rss>

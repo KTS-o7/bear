@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en-us">
+
+<head>
+  <meta http-equiv="X-Clacks-Overhead" content="GNU Terry Pratchett" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="shortcut icon" href="https://KTS-o7.github.io/bear/images/favicon.png" />
+<title>Repeatations | </title>
+<meta name="title" content="Repeatations" />
+<meta name="description" content="Link to the problem : Repeatations
+Intuition
+This problem wants us to find the longest substring of a string that has only 1 type of character.
+input has A,G,C and T only.
+Edge case: if the string is empty, return 0.
+We need to keep track of the current length of the substring and the maximum length of the substring seen so far which satisfies the condition.
+Loop through the string and check if the current character is the same as the previous character." />
+<meta name="author" content="" />
+<meta name="keywords" content="" />
+
+
+
+
+
+
+  
+  <meta property="og:url" content="https://KTS-o7.github.io/bear/cses.fi/repeatations/">
+  <meta property="og:title" content="Repeatations">
+  <meta property="og:description" content="Link to the problem : Repeatations
+Intuition This problem wants us to find the longest substring of a string that has only 1 type of character. input has A,G,C and T only.
+Edge case: if the string is empty, return 0.
+We need to keep track of the current length of the substring and the maximum length of the substring seen so far which satisfies the condition.
+Loop through the string and check if the current character is the same as the previous character.">
+  <meta property="og:locale" content="en_us">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="cses.fi">
+    <meta property="article:published_time" content="2025-09-18T17:23:25+05:30">
+    <meta property="article:modified_time" content="2025-09-18T17:23:25+05:30">
+    <meta property="og:image" content="https://KTS-o7.github.io/bear/images/share.webp">
+
+
+  
+  
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://KTS-o7.github.io/bear/images/share.webp">
+  <meta name="twitter:title" content="Repeatations">
+  <meta name="twitter:description" content="Link to the problem : Repeatations
+Intuition This problem wants us to find the longest substring of a string that has only 1 type of character. input has A,G,C and T only.
+Edge case: if the string is empty, return 0.
+We need to keep track of the current length of the substring and the maximum length of the substring seen so far which satisfies the condition.
+Loop through the string and check if the current character is the same as the previous character.">
+
+
+  
+  
+  <meta itemprop="name" content="Repeatations">
+  <meta itemprop="description" content="Link to the problem : Repeatations
+Intuition This problem wants us to find the longest substring of a string that has only 1 type of character. input has A,G,C and T only.
+Edge case: if the string is empty, return 0.
+We need to keep track of the current length of the substring and the maximum length of the substring seen so far which satisfies the condition.
+Loop through the string and check if the current character is the same as the previous character.">
+  <meta itemprop="datePublished" content="2025-09-18T17:23:25+05:30">
+  <meta itemprop="dateModified" content="2025-09-18T17:23:25+05:30">
+  <meta itemprop="wordCount" content="235">
+  <meta itemprop="image" content="https://KTS-o7.github.io/bear/images/share.webp">
+
+<meta name="referrer" content="no-referrer-when-downgrade" />
+
+  
+  <link href="/bear/herman.min.css" rel="stylesheet">
+
+  
+    
+    <link href="/bear/syntax.min.css" rel="stylesheet">
+  
+
+  
+
+  
+
+  
+    <link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.css"
+  integrity="sha384-zh0CIslj+VczCZtlzBcjt5ppRcsAmDnRem7ESsYwWwg3m/OaJ2l4x7YBZl9Kxxib"
+  crossorigin="anonymous"
+>
+<script
+  defer
+  src="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.js"
+  integrity="sha384-Rma6DA2IPUwhNxmrB/7S3Tno0YY7sFu9WSYMCuulLhIqYSGZ2gKCJWIqhBWqMQfh"
+  crossorigin="anonymous"
+>
+</script>
+<script
+  defer
+  src="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/contrib/auto-render.min.js"
+  integrity="sha384-hCXGrW6PitJEwbkoStFjeJxv+fSOOQKOPbJxSfM6G5sWZjAyWhXiTIIAmQqnlLlh"
+  crossorigin="anonymous"
+  onload="renderMathInElement(document.body);"
+>
+</script>
+<script>
+  document.addEventListener("DOMContentLoaded", function() {
+    renderMathInElement(document.body, {
+      delimiters: [
+        {left: '\\[', right: '\\]', display: true},   
+        {left: '$$', right: '$$', display: true},     
+        {left: '\\(', right: '\\)', display: false},  
+      ],
+      throwOnError: false
+    });
+  });
+</script>
+
+  
+</head>
+
+<body>
+  <header><a class="skip-link" href="#main-content">Skip to main content</a>
+
+<a href="/bear/" class="title"><h1></h1></a>
+<nav>
+  <a href="/bear/">Home</a>
+
+  <a href="/bear/posts/">Posts</a>
+
+  <a href="/bear/about/">About</a>
+
+  <a href="/bear/ml/">ML Stuff</a>
+
+  <a href="/bear/cses.fi/">CSES.fi</a>
+
+<a href='https://KTS-o7.github.io/bear/index.xml'>RSS</a>
+
+
+
+
+
+
+
+</nav>
+</header>
+  <main id="main-content">
+
+<h1>Repeatations</h1>
+<p class="byline">
+  <time datetime='2025-09-18' pubdate>
+    2025-09-18
+  </time>
+  
+</p>
+
+<content>
+  <p>Link to the problem : <a href="https://cses.fi/problemset/task/1069">Repeatations</a></p>
+<h2 id="intuition">Intuition</h2>
+<p>This problem wants us to find the longest substring of a string that has only 1 type of character.
+input has A,G,C and T only.</p>
+<p>Edge case: if the string is empty, return 0.</p>
+<p>We need to keep track of the current length of the substring and the maximum length of the substring seen so far which satisfies the condition.</p>
+<p>Loop through the string and check if the current character is the same as the previous character.</p>
+<ul>
+<li>If it is, increment the current length.
+Update the maximum length if the current length is greater than the maximum length.</li>
+<li>If it is not, reset the current length to 1.</li>
+</ul>
+<h2 id="solution">Solution</h2>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl">    <span class="n">string</span> <span class="o">=</span> <span class="nb">input</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl">    <span class="k">if</span> <span class="ow">not</span> <span class="n">string</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl">        <span class="nb">print</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl">        <span class="k">return</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">    
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl">    <span class="n">max_len</span> <span class="o">=</span> <span class="mi">1</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl">    <span class="n">current_len</span> <span class="o">=</span> <span class="mi">1</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">    
+</span></span><span class="line"><span class="ln">10</span><span class="cl">    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">string</span><span class="p">)):</span>
+</span></span><span class="line"><span class="ln">11</span><span class="cl">        <span class="k">if</span> <span class="n">string</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">==</span> <span class="n">string</span><span class="p">[</span><span class="n">i</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span>
+</span></span><span class="line"><span class="ln">12</span><span class="cl">            <span class="n">current_len</span> <span class="o">+=</span> <span class="mi">1</span>
+</span></span><span class="line"><span class="ln">13</span><span class="cl">            <span class="n">max_len</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">max_len</span><span class="p">,</span> <span class="n">current_len</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">14</span><span class="cl">        <span class="k">else</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">15</span><span class="cl">            <span class="n">current_len</span> <span class="o">=</span> <span class="mi">1</span>
+</span></span><span class="line"><span class="ln">16</span><span class="cl">    
+</span></span><span class="line"><span class="ln">17</span><span class="cl">    <span class="nb">print</span><span class="p">(</span><span class="n">max_len</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">18</span><span class="cl">
+</span></span><span class="line"><span class="ln">19</span><span class="cl"><span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&#34;__main__&#34;</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">20</span><span class="cl">    <span class="n">main</span><span class="p">()</span></span></span></code></pre></div><h3 id="time-complexity">Time complexity</h3>
+<p>O(n)</p>
+<h3 id="space-complexity">Space complexity</h3>
+<p>O(1)</p>
+<p>This is a greedy problem.
+A greedy approach is something that makes the best local choice at each step in the hope that this choice will lead to the global optimal solution.</p>
+<p>here the best local choice is to increment the current length if the current character is the same as the previous character.</p>
+
+</content>
+<p>
+  
+</p>
+
+
+  <p>
+    <a href='mailto:shentharkrishnatejaswi@gmail.com?subject=Reply%20to%20"Repeatations"'>
+      Reply to this post by email ↪
+    </a>
+  </p>
+
+
+
+  </main>
+  <footer><small>
+  Krishnatejaswi S | Made with <a href="https://github.com/clente/hugo-bearcub">Bear Cub</a>
+</small></footer>
+
+    
+</body>
+
+</html>
