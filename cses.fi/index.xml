@@ -9,8 +9,47 @@
     <managingEditor>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</managingEditor>
     <webMaster>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</webMaster>
     <copyright>Krishnatejaswi S</copyright>
-    <lastBuildDate>Thu, 18 Sep 2025 22:37:39 +0530</lastBuildDate>
+    <lastBuildDate>Thu, 18 Sep 2025 22:49:10 +0530</lastBuildDate>
     <atom:link href="https://KTS-o7.github.io/bear/cses.fi/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Permutations</title>
+      <link>https://KTS-o7.github.io/bear/cses.fi/permutations/</link>
+      <pubDate>Thu, 18 Sep 2025 22:49:10 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/cses.fi/permutations/</guid>
+      <description>&lt;p&gt;Link to the problem : &lt;a href=&#34;https://cses.fi/problemset/task/1070&#34;&gt;Permutations&lt;/a&gt;&lt;/p&gt;&#xA;&lt;h2 id=&#34;intuition&#34;&gt;Intuition&lt;/h2&gt;&#xA;&lt;p&gt;The idea is to generate a permutation of the numbers from 1 to n such that the difference between any two consecutive elements is at least greater than 1.&lt;/p&gt;&#xA;&lt;p&gt;One way to do this is to first write all the even numbers between 1 and n in increasing order and then write all the odd numbers between 1 and n in increasing order.&lt;/p&gt;&#xA;&lt;p&gt;This is only one such solution. There are other solutions as well.&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>Link to the problem : <a href="https://cses.fi/problemset/task/1070">Permutations</a></p>
+<h2 id="intuition">Intuition</h2>
+<p>The idea is to generate a permutation of the numbers from 1 to n such that the difference between any two consecutive elements is at least greater than 1.</p>
+<p>One way to do this is to first write all the even numbers between 1 and n in increasing order and then write all the odd numbers between 1 and n in increasing order.</p>
+<p>This is only one such solution. There are other solutions as well.</p>
+<h2 id="solution">Solution</h2>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl">    <span class="n">n</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">input</span><span class="p">())</span>
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl">    <span class="k">if</span> <span class="n">n</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl">        <span class="nb">print</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl">        <span class="k">return</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">    <span class="k">if</span> <span class="n">n</span> <span class="o">&lt;</span> <span class="mi">4</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl">        <span class="nb">print</span><span class="p">(</span><span class="s2">&#34;NO SOLUTION&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl">        <span class="k">return</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span><span class="n">n</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">):</span>
+</span></span><span class="line"><span class="ln">10</span><span class="cl">        <span class="nb">print</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s2">&#34; &#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">11</span><span class="cl">    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="n">n</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">):</span>
+</span></span><span class="line"><span class="ln">12</span><span class="cl">        <span class="nb">print</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s2">&#34; &#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">13</span><span class="cl">
+</span></span><span class="line"><span class="ln">14</span><span class="cl"><span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&#34;__main__&#34;</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">15</span><span class="cl">    <span class="n">main</span><span class="p">()</span></span></span></code></pre></div><h3 id="other-possible-solutions">Other possible solutions</h3>
+<ul>
+<li>Write all the odd numbers between 1 and n in increasing order and then write all the even numbers between 1 and n in increasing order.</li>
+<li>Write all the odd numbers between 1 and n in decreasing order and then write all the even numbers between 1 and n in decreasing order.</li>
+<li>Write all the even numbers between 1 and n in increasing order and then write all the odd numbers between 1 and n in decreasing order.</li>
+</ul>
+]]></content:encoded>
+    </item>
     <item>
       <title>Increasing Array</title>
       <link>https://KTS-o7.github.io/bear/cses.fi/increasing_array/</link>
