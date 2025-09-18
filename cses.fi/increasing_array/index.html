@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en-us">
+
+<head>
+  <meta http-equiv="X-Clacks-Overhead" content="GNU Terry Pratchett" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="shortcut icon" href="https://KTS-o7.github.io/bear/images/favicon.png" />
+<title>Increasing Array | </title>
+<meta name="title" content="Increasing Array" />
+<meta name="description" content="Link to the problem : Increasing Array
+Intuition
+The idea is to make an array increasing by making the current element equal to or greater than the previous element.
+and in each step we can increase the value of a single element by 1.
+That means for ith element which is less than the i-1th element, we need elem[i-1] - elem[i] steps to make it equal to or greater than the i-1th element." />
+<meta name="author" content="" />
+<meta name="keywords" content="" />
+
+
+
+
+
+
+  
+  <meta property="og:url" content="https://KTS-o7.github.io/bear/cses.fi/increasing_array/">
+  <meta property="og:title" content="Increasing Array">
+  <meta property="og:description" content="Link to the problem : Increasing Array
+Intuition The idea is to make an array increasing by making the current element equal to or greater than the previous element. and in each step we can increase the value of a single element by 1.
+That means for ith element which is less than the i-1th element, we need elem[i-1] - elem[i] steps to make it equal to or greater than the i-1th element.">
+  <meta property="og:locale" content="en_us">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="cses.fi">
+    <meta property="article:published_time" content="2025-09-18T22:37:39+05:30">
+    <meta property="article:modified_time" content="2025-09-18T22:37:39+05:30">
+    <meta property="og:image" content="https://KTS-o7.github.io/bear/images/share.webp">
+
+
+  
+  
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://KTS-o7.github.io/bear/images/share.webp">
+  <meta name="twitter:title" content="Increasing Array">
+  <meta name="twitter:description" content="Link to the problem : Increasing Array
+Intuition The idea is to make an array increasing by making the current element equal to or greater than the previous element. and in each step we can increase the value of a single element by 1.
+That means for ith element which is less than the i-1th element, we need elem[i-1] - elem[i] steps to make it equal to or greater than the i-1th element.">
+
+
+  
+  
+  <meta itemprop="name" content="Increasing Array">
+  <meta itemprop="description" content="Link to the problem : Increasing Array
+Intuition The idea is to make an array increasing by making the current element equal to or greater than the previous element. and in each step we can increase the value of a single element by 1.
+That means for ith element which is less than the i-1th element, we need elem[i-1] - elem[i] steps to make it equal to or greater than the i-1th element.">
+  <meta itemprop="datePublished" content="2025-09-18T22:37:39+05:30">
+  <meta itemprop="dateModified" content="2025-09-18T22:37:39+05:30">
+  <meta itemprop="wordCount" content="562">
+  <meta itemprop="image" content="https://KTS-o7.github.io/bear/images/share.webp">
+
+<meta name="referrer" content="no-referrer-when-downgrade" />
+
+  
+  <link href="/bear/herman.min.css" rel="stylesheet">
+
+  
+    
+    <link href="/bear/syntax.min.css" rel="stylesheet">
+  
+
+  
+
+  
+
+  
+    <link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.css"
+  integrity="sha384-zh0CIslj+VczCZtlzBcjt5ppRcsAmDnRem7ESsYwWwg3m/OaJ2l4x7YBZl9Kxxib"
+  crossorigin="anonymous"
+>
+<script
+  defer
+  src="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.js"
+  integrity="sha384-Rma6DA2IPUwhNxmrB/7S3Tno0YY7sFu9WSYMCuulLhIqYSGZ2gKCJWIqhBWqMQfh"
+  crossorigin="anonymous"
+>
+</script>
+<script
+  defer
+  src="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/contrib/auto-render.min.js"
+  integrity="sha384-hCXGrW6PitJEwbkoStFjeJxv+fSOOQKOPbJxSfM6G5sWZjAyWhXiTIIAmQqnlLlh"
+  crossorigin="anonymous"
+  onload="renderMathInElement(document.body);"
+>
+</script>
+<script>
+  document.addEventListener("DOMContentLoaded", function() {
+    renderMathInElement(document.body, {
+      delimiters: [
+        {left: '\\[', right: '\\]', display: true},   
+        {left: '$$', right: '$$', display: true},     
+        {left: '\\(', right: '\\)', display: false},  
+      ],
+      throwOnError: false
+    });
+  });
+</script>
+
+  
+</head>
+
+<body>
+  <header><a class="skip-link" href="#main-content">Skip to main content</a>
+
+<a href="/bear/" class="title"><h1></h1></a>
+<nav>
+  <a href="/bear/">Home</a>
+
+  <a href="/bear/posts/">Posts</a>
+
+  <a href="/bear/about/">About</a>
+
+  <a href="/bear/ml/">ML Stuff</a>
+
+  <a href="/bear/cses.fi/">CSES.fi</a>
+
+<a href='https://KTS-o7.github.io/bear/index.xml'>RSS</a>
+
+
+
+
+
+
+
+</nav>
+</header>
+  <main id="main-content">
+
+<h1>Increasing Array</h1>
+<p class="byline">
+  <time datetime='2025-09-18' pubdate>
+    2025-09-18
+  </time>
+  
+</p>
+
+<content>
+  <p>Link to the problem : <a href="https://cses.fi/problemset/task/1094">Increasing Array</a></p>
+<h2 id="intuition">Intuition</h2>
+<p>The idea is to make an array increasing by making the current element equal to or greater than the previous element.
+and in each step we can increase the value of a single element by 1.</p>
+<p>That means for <code>i</code>th element which is less than the <code>i-1</code>th element, we need <code>elem[i-1] - elem[i]</code> steps to make it equal to or greater than the <code>i-1</code>th element.</p>
+<p>So we can come up with the following algorithm:</p>
+<ul>
+<li>Loop through the array</li>
+<li>If the current element is less than the previous element, we need to increase the current element to the previous element.</li>
+<li>Increment the count by the difference between the previous element and the current element.</li>
+<li>Update the current element to the previous element.</li>
+</ul>
+<p>At the end of the loop, we will have the minimum number of steps to make the array increasing.</p>
+<h2 id="solution">Solution</h2>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl">    <span class="n">n</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">input</span><span class="p">())</span>
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl">    <span class="n">nums</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">input</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">()))</span>
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl">    <span class="n">count</span> <span class="o">=</span> <span class="mi">0</span>
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl">    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="n">n</span><span class="o">-</span><span class="mi">1</span><span class="p">):</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">        <span class="k">if</span> <span class="n">nums</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">nums</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">]:</span>
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl">            <span class="n">count</span> <span class="o">+=</span> <span class="n">nums</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">-</span> <span class="n">nums</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl">            <span class="n">nums</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">nums</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">    <span class="nb">print</span><span class="p">(</span><span class="n">count</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">10</span><span class="cl">
+</span></span><span class="line"><span class="ln">11</span><span class="cl"><span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&#34;__main__&#34;</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">12</span><span class="cl">    <span class="n">main</span><span class="p">()</span></span></span></code></pre></div><h3 id="mathematical-proof">Mathematical Proof</h3>
+<p><strong>Theorem:</strong> The greedy algorithm that ensures each element is at least as large as its predecessor gives the minimum total cost to make the array non-decreasing.</p>
+<p><strong>Proof by Induction:</strong></p>
+<p><strong>Base Cases:</strong></p>
+<ul>
+<li>For an array of size 1: The cost is 0, which is trivially optimal.</li>
+<li>For an array of size 2: If <code>nums[0] ≤ nums[1]</code>, cost is 0. If <code>nums[0] &gt; nums[1]</code>, we must increment <code>nums[1]</code> by <code>nums[0] - nums[1]</code> to make it ≥ <code>nums[0]</code>. This is optimal since we must satisfy <code>nums[1] ≥ nums[0]</code>.</li>
+</ul>
+<p><strong>Inductive Hypothesis:</strong> Assume the greedy algorithm is optimal for arrays of size ≤ k.</p>
+<p><strong>Inductive Step:</strong> Consider an array of size k+1. Let the array be <code>a[0], a[1], ..., a[k]</code>.</p>
+<p>Apply the greedy algorithm:</p>
+<ol>
+<li>Process the first k elements optimally (by inductive hypothesis)</li>
+<li>For the last element <code>a[k]</code>, if <code>a[k-1] ≤ a[k]</code>, no change needed (cost 0)</li>
+<li>If <code>a[k-1] &gt; a[k]</code>, increment <code>a[k]</code> to <code>a[k-1]</code>, costing <code>a[k-1] - a[k]</code></li>
+</ol>
+<p><strong>Why this is optimal:</strong> Any optimal solution must satisfy <code>a'[i] ≥ a'[i-1]</code> for all i, where <code>a'</code> is the final array.</p>
+<p>For the prefix <code>a'[0] ... a'[k-1]</code>, the inductive hypothesis says our greedy choices give the minimum cost.</p>
+<p>For the last pair <code>a'[k-1]</code> and <code>a'[k]</code>:</p>
+<ul>
+<li>We must have <code>a'[k] ≥ a'[k-1]</code></li>
+<li>The minimum cost to achieve this is exactly <code>max(0, a'[k-1] - a'[k])</code></li>
+<li>Our greedy algorithm achieves exactly this minimum cost</li>
+</ul>
+<p><strong>Key insight:</strong> The greedy choice doesn&rsquo;t affect the optimality of the prefix because:</p>
+<ol>
+<li>The prefix constraints are already satisfied optimally</li>
+<li>Setting <code>a[k] = max(a[k], a[k-1])</code> only affects the relationship between a[k-1] and a[k]</li>
+<li>This choice is independent of future elements since there are none</li>
+</ol>
+<p><strong>Proof by Contradiction :</strong>
+Suppose there exists an optimal solution with lower total cost than the greedy algorithm.
+Let the greedy algorithm produce array <code>g</code> with cost <code>C_g</code>.
+Let the optimal solution produce array <code>o</code> with cost <code>C_o &lt; C_g</code>.</p>
+<p>Since both <code>g</code> and <code>o</code> must satisfy <code>g[i] ≥ g[i-1]</code> and <code>o[i] ≥ o[i-1]</code> for all i:</p>
+<ul>
+<li>At the first position where <code>g</code> and <code>o</code> differ, the optimal solution must have made a different choice</li>
+<li>But making a different choice would either violate the non-decreasing constraint or require more operations later, contradicting optimality</li>
+</ul>
+<p>Therefore, the greedy algorithm is optimal.</p>
+
+</content>
+<p>
+  
+</p>
+
+
+  <p>
+    <a href='mailto:shentharkrishnatejaswi@gmail.com?subject=Reply%20to%20"Increasing%20Array"'>
+      Reply to this post by email ↪
+    </a>
+  </p>
+
+
+
+  </main>
+  <footer><small>
+  Krishnatejaswi S | Made with <a href="https://github.com/clente/hugo-bearcub">Bear Cub</a>
+</small></footer>
+
+    
+</body>
+
+</html>
