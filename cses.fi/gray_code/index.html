@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en-us">
+
+<head>
+  <meta http-equiv="X-Clacks-Overhead" content="GNU Terry Pratchett" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="shortcut icon" href="https://KTS-o7.github.io/bear/images/favicon.png" />
+<title>Gray Code | </title>
+<meta name="title" content="Gray Code" />
+<meta name="description" content="Link to the problem : Gray Code
+Intuition
+The problem is asking us to generate the gray code for a given number n.
+Gray code is a binary numeral system where two successive values differ in only one bit.
+This is similar to bit strings problem. But instead of printing the binary representation of the number, we need to print the gray code.
+The formula to generate the gray code for a given number n is:
+" />
+<meta name="author" content="" />
+<meta name="keywords" content="" />
+
+
+
+
+
+
+  
+  <meta property="og:url" content="https://KTS-o7.github.io/bear/cses.fi/gray_code/">
+  <meta property="og:title" content="Gray Code">
+  <meta property="og:description" content="Link to the problem : Gray Code
+Intuition The problem is asking us to generate the gray code for a given number n.
+Gray code is a binary numeral system where two successive values differ in only one bit. This is similar to bit strings problem. But instead of printing the binary representation of the number, we need to print the gray code.
+The formula to generate the gray code for a given number n is:">
+  <meta property="og:locale" content="en_us">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="cses.fi">
+    <meta property="article:published_time" content="2025-09-19T23:03:51+05:30">
+    <meta property="article:modified_time" content="2025-09-19T23:03:51+05:30">
+    <meta property="og:image" content="https://KTS-o7.github.io/bear/images/share.webp">
+
+
+  
+  
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://KTS-o7.github.io/bear/images/share.webp">
+  <meta name="twitter:title" content="Gray Code">
+  <meta name="twitter:description" content="Link to the problem : Gray Code
+Intuition The problem is asking us to generate the gray code for a given number n.
+Gray code is a binary numeral system where two successive values differ in only one bit. This is similar to bit strings problem. But instead of printing the binary representation of the number, we need to print the gray code.
+The formula to generate the gray code for a given number n is:">
+
+
+  
+  
+  <meta itemprop="name" content="Gray Code">
+  <meta itemprop="description" content="Link to the problem : Gray Code
+Intuition The problem is asking us to generate the gray code for a given number n.
+Gray code is a binary numeral system where two successive values differ in only one bit. This is similar to bit strings problem. But instead of printing the binary representation of the number, we need to print the gray code.
+The formula to generate the gray code for a given number n is:">
+  <meta itemprop="datePublished" content="2025-09-19T23:03:51+05:30">
+  <meta itemprop="dateModified" content="2025-09-19T23:03:51+05:30">
+  <meta itemprop="wordCount" content="792">
+  <meta itemprop="image" content="https://KTS-o7.github.io/bear/images/share.webp">
+
+<meta name="referrer" content="no-referrer-when-downgrade" />
+
+  
+  <link href="/bear/herman.min.css" rel="stylesheet">
+
+  
+    
+    <link href="/bear/syntax.min.css" rel="stylesheet">
+  
+
+  
+
+  
+
+  
+    <link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.css"
+  integrity="sha384-zh0CIslj+VczCZtlzBcjt5ppRcsAmDnRem7ESsYwWwg3m/OaJ2l4x7YBZl9Kxxib"
+  crossorigin="anonymous"
+>
+<script
+  defer
+  src="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.js"
+  integrity="sha384-Rma6DA2IPUwhNxmrB/7S3Tno0YY7sFu9WSYMCuulLhIqYSGZ2gKCJWIqhBWqMQfh"
+  crossorigin="anonymous"
+>
+</script>
+<script
+  defer
+  src="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/contrib/auto-render.min.js"
+  integrity="sha384-hCXGrW6PitJEwbkoStFjeJxv+fSOOQKOPbJxSfM6G5sWZjAyWhXiTIIAmQqnlLlh"
+  crossorigin="anonymous"
+  onload="renderMathInElement(document.body);"
+>
+</script>
+<script>
+  document.addEventListener("DOMContentLoaded", function() {
+    renderMathInElement(document.body, {
+      delimiters: [
+        {left: '\\[', right: '\\]', display: true},   
+        {left: '$$', right: '$$', display: true},     
+        {left: '\\(', right: '\\)', display: false},  
+      ],
+      throwOnError: false
+    });
+  });
+</script>
+
+  
+</head>
+
+<body>
+  <header><a class="skip-link" href="#main-content">Skip to main content</a>
+
+<a href="/bear/" class="title"><h1></h1></a>
+<nav>
+  <a href="/bear/">Home</a>
+
+  <a href="/bear/posts/">Posts</a>
+
+  <a href="/bear/about/">About</a>
+
+  <a href="/bear/ml/">ML Stuff</a>
+
+  <a href="/bear/cses.fi/">CSES.fi</a>
+
+<a href='https://KTS-o7.github.io/bear/index.xml'>RSS</a>
+
+
+
+
+
+
+
+</nav>
+</header>
+  <main id="main-content">
+
+<h1>Gray Code</h1>
+<p class="byline">
+  <time datetime='2025-09-19' pubdate>
+    2025-09-19
+  </time>
+  
+</p>
+
+<content>
+  <p>Link to the problem : <a href="https://cses.fi/problemset/task/2205">Gray Code</a></p>
+<h2 id="intuition">Intuition</h2>
+<p>The problem is asking us to generate the gray code for a given number n.</p>
+<p>Gray code is a binary numeral system where two successive values differ in only one bit.
+This is similar to bit strings problem. But instead of printing the binary representation of the number, we need to print the gray code.</p>
+<p>The formula to generate the gray code for a given number n is:
+</p>
+$$G(n) = n \oplus (n >> 1)$$<h2 id="solution">Solution</h2>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="ln">1</span><span class="cl"><span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+</span></span><span class="line"><span class="ln">2</span><span class="cl">    <span class="n">n</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">input</span><span class="p">())</span>
+</span></span><span class="line"><span class="ln">3</span><span class="cl">    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="o">**</span><span class="n">n</span><span class="p">):</span>   
+</span></span><span class="line"><span class="ln">4</span><span class="cl">        <span class="n">num</span> <span class="o">=</span> <span class="n">i</span><span class="o">^</span><span class="p">(</span><span class="n">i</span><span class="o">&gt;&gt;</span><span class="mi">1</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">5</span><span class="cl">        <span class="n">num_str</span> <span class="o">=</span> <span class="nb">bin</span><span class="p">(</span><span class="n">num</span><span class="p">)[</span><span class="mi">2</span><span class="p">:]</span><span class="o">.</span><span class="n">zfill</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">6</span><span class="cl">        <span class="nb">print</span><span class="p">(</span><span class="n">num_str</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s2">&#34;</span><span class="se">\n</span><span class="s2">&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">7</span><span class="cl">
+</span></span><span class="line"><span class="ln">8</span><span class="cl"><span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&#34;__main__&#34;</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">9</span><span class="cl">    <span class="n">main</span><span class="p">()</span></span></span></code></pre></div><h2 id="other-possible-solutions">Other possible solutions</h2>
+<h3 id="bit-by-bit-approach">Bit-by-Bit Approach</h3>
+<p>This approach constructs the Gray code by calculating each bit position individually using the property that the i-th bit of the Gray code is the XOR of the i-th and (i+1)-th bits of the binary representation.</p>
+<h4 id="dry-run-for-n--2">Dry Run for n = 2</h4>
+<p>For n = 2, we need to generate 4 Gray codes (2² = 4). Let&rsquo;s walk through each iteration:</p>
+<p><strong>Iteration 1: i = 0</strong></p>
+<ul>
+<li>Binary representation: 00</li>
+<li><strong>Bit position 0 (rightmost):</strong>
+<ul>
+<li>Current bit: (0 &raquo; 0) &amp; 1 = 0 &amp; 1 = 0</li>
+<li>Next bit: (0 &raquo; 1) &amp; 1 = 0 &amp; 1 = 0 (since bit position 1 &lt; n=2)</li>
+<li>Gray bit: 0 ⊕ 0 = 0</li>
+<li>Set bit: gray = 0 | (0 &laquo; 0) = 0</li>
+</ul>
+</li>
+<li><strong>Bit position 1:</strong>
+<ul>
+<li>Current bit: (0 &raquo; 1) &amp; 1 = 0 &amp; 1 = 0</li>
+<li>Next bit: 0 (since bit position 2 &gt;= n=2)</li>
+<li>Gray bit: 0 ⊕ 0 = 0</li>
+<li>Set bit: gray = 0 | (0 &laquo; 1) = 0</li>
+</ul>
+</li>
+<li>Result: 00</li>
+</ul>
+<p><strong>Iteration 2: i = 1</strong></p>
+<ul>
+<li>Binary representation: 01</li>
+<li><strong>Bit position 0:</strong>
+<ul>
+<li>Current bit: (1 &raquo; 0) &amp; 1 = 1 &amp; 1 = 1</li>
+<li>Next bit: (1 &raquo; 1) &amp; 1 = 0 &amp; 1 = 0</li>
+<li>Gray bit: 1 ⊕ 0 = 1</li>
+<li>Set bit: gray = 0 | (1 &laquo; 0) = 1</li>
+</ul>
+</li>
+<li><strong>Bit position 1:</strong>
+<ul>
+<li>Current bit: (1 &raquo; 1) &amp; 1 = 0 &amp; 1 = 0</li>
+<li>Next bit: 0 (since bit position 2 &gt;= n=2)</li>
+<li>Gray bit: 0 ⊕ 0 = 0</li>
+<li>Set bit: gray = 1 | (0 &laquo; 1) = 1</li>
+</ul>
+</li>
+<li>Result: 01</li>
+</ul>
+<p><strong>Iteration 3: i = 2</strong></p>
+<ul>
+<li>Binary representation: 10</li>
+<li><strong>Bit position 0:</strong>
+<ul>
+<li>Current bit: (2 &raquo; 0) &amp; 1 = 2 &amp; 1 = 0 (2 in binary is 10, rightmost bit is 0)</li>
+<li>Next bit: (2 &raquo; 1) &amp; 1 = 1 &amp; 1 = 1</li>
+<li>Gray bit: 0 ⊕ 1 = 1</li>
+<li>Set bit: gray = 0 | (1 &laquo; 0) = 1</li>
+</ul>
+</li>
+<li><strong>Bit position 1:</strong>
+<ul>
+<li>Current bit: (2 &raquo; 1) &amp; 1 = 1 &amp; 1 = 1</li>
+<li>Next bit: 0 (since bit position 2 &gt;= n=2)</li>
+<li>Gray bit: 1 ⊕ 0 = 1</li>
+<li>Set bit: gray = 1 | (1 &laquo; 1) = 1 | 2 = 3</li>
+</ul>
+</li>
+<li>Result: 11</li>
+</ul>
+<p><strong>Iteration 4: i = 3</strong></p>
+<ul>
+<li>Binary representation: 11</li>
+<li><strong>Bit position 0:</strong>
+<ul>
+<li>Current bit: (3 &raquo; 0) &amp; 1 = 3 &amp; 1 = 1 (3 in binary is 11, rightmost bit is 1)</li>
+<li>Next bit: (3 &raquo; 1) &amp; 1 = 1 &amp; 1 = 1</li>
+<li>Gray bit: 1 ⊕ 1 = 0</li>
+<li>Set bit: gray = 0 | (0 &laquo; 0) = 0</li>
+</ul>
+</li>
+<li><strong>Bit position 1:</strong>
+<ul>
+<li>Current bit: (3 &raquo; 1) &amp; 1 = 1 &amp; 1 = 1</li>
+<li>Next bit: 0 (since bit position 2 &gt;= n=2)</li>
+<li>Gray bit: 1 ⊕ 0 = 1</li>
+<li>Set bit: gray = 0 | (1 &laquo; 1) = 2</li>
+</ul>
+</li>
+<li>Result: 10</li>
+</ul>
+<p><strong>Final Gray Code Sequence:</strong> 00, 01, 11, 10</p>
+<p>Notice how each consecutive Gray code differs by only one bit:</p>
+<ul>
+<li>00 → 01 (bit 0 changes: 0→1)</li>
+<li>01 → 11 (bit 1 changes: 0→1)</li>
+<li>11 → 10 (bit 0 changes: 1→0)</li>
+</ul>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="k">def</span> <span class="nf">generate_gray_code_bitwise</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl">    <span class="n">result</span> <span class="o">=</span> <span class="p">[]</span>
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl">    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="o">**</span><span class="n">n</span><span class="p">):</span>
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl">        <span class="n">gray</span> <span class="o">=</span> <span class="mi">0</span>
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl">        <span class="k">for</span> <span class="n">bit</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">            <span class="c1"># Gray bit is XOR of current bit and next bit</span>
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl">            <span class="n">current_bit</span> <span class="o">=</span> <span class="p">(</span><span class="n">i</span> <span class="o">&gt;&gt;</span> <span class="n">bit</span><span class="p">)</span> <span class="o">&amp;</span> <span class="mi">1</span> <span class="c1"># this step get the current bit using bitwise shift and bitwise and</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl">            <span class="n">next_bit</span> <span class="o">=</span> <span class="p">(</span><span class="n">i</span> <span class="o">&gt;&gt;</span> <span class="p">(</span><span class="n">bit</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span> <span class="o">&amp;</span> <span class="mi">1</span> <span class="k">if</span> <span class="n">bit</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">&lt;</span> <span class="n">n</span> <span class="k">else</span> <span class="mi">0</span> <span class="c1"># this step get the next bit using bitwise shift and bitwise and</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">            <span class="n">gray_bit</span> <span class="o">=</span> <span class="n">current_bit</span> <span class="o">^</span> <span class="n">next_bit</span> <span class="c1"># this step get the gray bit using bitwise xor</span>
+</span></span><span class="line"><span class="ln">10</span><span class="cl">            <span class="n">gray</span> <span class="o">|=</span> <span class="p">(</span><span class="n">gray_bit</span> <span class="o">&lt;&lt;</span> <span class="n">bit</span><span class="p">)</span> <span class="c1"># this step set the gray bit using bitwise or</span>
+</span></span><span class="line"><span class="ln">11</span><span class="cl">        <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">bin</span><span class="p">(</span><span class="n">gray</span><span class="p">)[</span><span class="mi">2</span><span class="p">:]</span><span class="o">.</span><span class="n">zfill</span><span class="p">(</span><span class="n">n</span><span class="p">))</span>
+</span></span><span class="line"><span class="ln">12</span><span class="cl">    <span class="k">return</span> <span class="n">result</span>
+</span></span><span class="line"><span class="ln">13</span><span class="cl">
+</span></span><span class="line"><span class="ln">14</span><span class="cl"><span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+</span></span><span class="line"><span class="ln">15</span><span class="cl">    <span class="n">n</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">input</span><span class="p">())</span>
+</span></span><span class="line"><span class="ln">16</span><span class="cl">    <span class="n">gray_codes</span> <span class="o">=</span> <span class="n">generate_gray_code_bitwise</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">17</span><span class="cl">    <span class="k">for</span> <span class="n">code</span> <span class="ow">in</span> <span class="n">gray_codes</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">18</span><span class="cl">        <span class="nb">print</span><span class="p">(</span><span class="n">code</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">19</span><span class="cl">
+</span></span><span class="line"><span class="ln">20</span><span class="cl"><span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&#34;__main__&#34;</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">21</span><span class="cl">    <span class="n">main</span><span class="p">()</span></span></span></code></pre></div>
+</content>
+<p>
+  
+</p>
+
+
+  <p>
+    <a href='mailto:shentharkrishnatejaswi@gmail.com?subject=Reply%20to%20"Gray%20Code"'>
+      Reply to this post by email ↪
+    </a>
+  </p>
+
+
+
+  </main>
+  <footer><small>
+  Krishnatejaswi S | Made with <a href="https://github.com/clente/hugo-bearcub">Bear Cub</a>
+</small></footer>
+
+    
+</body>
+
+</html>
