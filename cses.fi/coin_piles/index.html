@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en-us">
+
+<head><script src="/bear/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=bear/livereload" data-no-instant defer></script>
+  <meta http-equiv="X-Clacks-Overhead" content="GNU Terry Pratchett" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="shortcut icon" href="http://localhost:1313/bear/images/favicon.png" />
+<title>Coin Piles | </title>
+<meta name="title" content="Coin Piles" />
+<meta name="description" content="Link to the problem : Coin Piles
+Intuition
+From the two piles we can perform the following operations:
+
+Remove 1 coin from pile A and 2 coins from pile B
+OR
+Remove 2 coins from pile A and 1 coin from pile B
+
+We need to check if we can make these operations to make both piles empty.
+So thinking about it we can understand the following points
+
+Each time we are reducing the total count by 3.
+So if the total count is not divisible by 3, then it is not possible to make both piles empty.
+Another case is when one of the pile is substantially greater than the other, then it is not possible to make both piles empty.
+To find the limiting conditions we need to see like this
+
+The count of coins in smaller piles shud be atleast be equal to half of the counts of coins in the larger pile.
+This is the limiting condition because we can only remove 1 coin from pile A and 2 coins from pile B or 2 coins from pile A and 1 coin from pile B.
+so mathematically it can be written as
+if a&lt;=b then we need to check if a &gt;= b/2
+because if  a &lt; b/2 then a goes to 0 faster than b" />
+<meta name="author" content="" />
+<meta name="keywords" content="" />
+
+
+
+
+
+
+  
+  <meta property="og:url" content="http://localhost:1313/bear/cses.fi/coin_piles/">
+  <meta property="og:title" content="Coin Piles">
+  <meta property="og:description" content="Link to the problem : Coin Piles
+Intuition From the two piles we can perform the following operations:
+Remove 1 coin from pile A and 2 coins from pile B OR Remove 2 coins from pile A and 1 coin from pile B We need to check if we can make these operations to make both piles empty.
+So thinking about it we can understand the following points
+Each time we are reducing the total count by 3. So if the total count is not divisible by 3, then it is not possible to make both piles empty. Another case is when one of the pile is substantially greater than the other, then it is not possible to make both piles empty. To find the limiting conditions we need to see like this The count of coins in smaller piles shud be atleast be equal to half of the counts of coins in the larger pile. This is the limiting condition because we can only remove 1 coin from pile A and 2 coins from pile B or 2 coins from pile A and 1 coin from pile B. so mathematically it can be written as if a&lt;=b then we need to check if a &gt;= b/2 because if a &lt; b/2 then a goes to 0 faster than b">
+  <meta property="og:locale" content="en_us">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="cses.fi">
+    <meta property="article:published_time" content="2025-09-23T14:38:08+05:30">
+    <meta property="article:modified_time" content="2025-09-23T14:38:08+05:30">
+    <meta property="og:image" content="http://localhost:1313/bear/images/share.webp">
+
+
+  
+  
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="http://localhost:1313/bear/images/share.webp">
+  <meta name="twitter:title" content="Coin Piles">
+  <meta name="twitter:description" content="Link to the problem : Coin Piles
+Intuition From the two piles we can perform the following operations:
+Remove 1 coin from pile A and 2 coins from pile B OR Remove 2 coins from pile A and 1 coin from pile B We need to check if we can make these operations to make both piles empty.
+So thinking about it we can understand the following points
+Each time we are reducing the total count by 3. So if the total count is not divisible by 3, then it is not possible to make both piles empty. Another case is when one of the pile is substantially greater than the other, then it is not possible to make both piles empty. To find the limiting conditions we need to see like this The count of coins in smaller piles shud be atleast be equal to half of the counts of coins in the larger pile. This is the limiting condition because we can only remove 1 coin from pile A and 2 coins from pile B or 2 coins from pile A and 1 coin from pile B. so mathematically it can be written as if a&lt;=b then we need to check if a &gt;= b/2 because if a &lt; b/2 then a goes to 0 faster than b">
+
+
+  
+  
+  <meta itemprop="name" content="Coin Piles">
+  <meta itemprop="description" content="Link to the problem : Coin Piles
+Intuition From the two piles we can perform the following operations:
+Remove 1 coin from pile A and 2 coins from pile B OR Remove 2 coins from pile A and 1 coin from pile B We need to check if we can make these operations to make both piles empty.
+So thinking about it we can understand the following points
+Each time we are reducing the total count by 3. So if the total count is not divisible by 3, then it is not possible to make both piles empty. Another case is when one of the pile is substantially greater than the other, then it is not possible to make both piles empty. To find the limiting conditions we need to see like this The count of coins in smaller piles shud be atleast be equal to half of the counts of coins in the larger pile. This is the limiting condition because we can only remove 1 coin from pile A and 2 coins from pile B or 2 coins from pile A and 1 coin from pile B. so mathematically it can be written as if a&lt;=b then we need to check if a &gt;= b/2 because if a &lt; b/2 then a goes to 0 faster than b">
+  <meta itemprop="datePublished" content="2025-09-23T14:38:08+05:30">
+  <meta itemprop="dateModified" content="2025-09-23T14:38:08+05:30">
+  <meta itemprop="wordCount" content="220">
+  <meta itemprop="image" content="http://localhost:1313/bear/images/share.webp">
+
+<meta name="referrer" content="no-referrer-when-downgrade" />
+
+  
+  <link href="/bear/herman.min.css" rel="stylesheet">
+
+  
+
+  
+
+  
+
+  
+    <link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.css"
+  integrity="sha384-zh0CIslj+VczCZtlzBcjt5ppRcsAmDnRem7ESsYwWwg3m/OaJ2l4x7YBZl9Kxxib"
+  crossorigin="anonymous"
+>
+<script
+  defer
+  src="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.js"
+  integrity="sha384-Rma6DA2IPUwhNxmrB/7S3Tno0YY7sFu9WSYMCuulLhIqYSGZ2gKCJWIqhBWqMQfh"
+  crossorigin="anonymous"
+>
+</script>
+<script
+  defer
+  src="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/contrib/auto-render.min.js"
+  integrity="sha384-hCXGrW6PitJEwbkoStFjeJxv+fSOOQKOPbJxSfM6G5sWZjAyWhXiTIIAmQqnlLlh"
+  crossorigin="anonymous"
+  onload="renderMathInElement(document.body);"
+>
+</script>
+<script>
+  document.addEventListener("DOMContentLoaded", function() {
+    renderMathInElement(document.body, {
+      delimiters: [
+        {left: '\\[', right: '\\]', display: true},   
+        {left: '$$', right: '$$', display: true},     
+        {left: '\\(', right: '\\)', display: false},  
+      ],
+      throwOnError: false
+    });
+  });
+</script>
+
+  
+</head>
+
+<body>
+  <header><a class="skip-link" href="#main-content">Skip to main content</a>
+
+<a href="/bear/" class="title"><h1></h1></a>
+<nav>
+  <a href="/bear/">Home</a>
+
+  <a href="/bear/posts/">Posts</a>
+
+  <a href="/bear/about/">About</a>
+
+  <a href="/bear/ml/">ML Stuff</a>
+
+  <a href="/bear/cses.fi/">CSES.fi</a>
+
+<a href='http://localhost:1313/bear/index.xml'>RSS</a>
+
+
+
+
+
+
+
+</nav>
+</header>
+  <main id="main-content">
+
+<h1>Coin Piles</h1>
+<p class="byline">
+  <time datetime='2025-09-23' pubdate>
+    2025-09-23
+  </time>
+  
+</p>
+
+<content>
+  <p>Link to the problem : <a href="https://cses.fi/problemset/task/1754">Coin Piles</a></p>
+<h2 id="intuition">Intuition</h2>
+<p>From the two piles we can perform the following operations:</p>
+<ul>
+<li>Remove 1 coin from pile <code>A</code> and 2 coins from pile <code>B</code>
+OR</li>
+<li>Remove 2 coins from pile <code>A</code> and 1 coin from pile <code>B</code></li>
+</ul>
+<p>We need to check if we can make these operations to make both piles empty.</p>
+<p>So thinking about it we can understand the following points</p>
+<ul>
+<li>Each time we are reducing the total count by 3.</li>
+<li>So if the total count is not divisible by 3, then it is not possible to make both piles empty.</li>
+<li>Another case is when one of the pile is substantially greater than the other, then it is not possible to make both piles empty.</li>
+<li>To find the limiting conditions we need to see like this</li>
+</ul>
+<p>The count of coins in smaller piles shud be atleast be equal to half of the counts of coins in the larger pile.
+This is the limiting condition because we can only remove 1 coin from pile <code>A</code> and 2 coins from pile <code>B</code> or 2 coins from pile <code>A</code> and 1 coin from pile <code>B</code>.
+so mathematically it can be written as
+if a&lt;=b then we need to check if a &gt;= b/2
+because if  a &lt; b/2 then a goes to 0 faster than b</p>
+
+</content>
+<p>
+  
+</p>
+
+
+  <p>
+    <a href='mailto:shentharkrishnatejaswi@gmail.com?subject=Reply%20to%20"Coin%20Piles"'>
+      Reply to this post by email ↪
+    </a>
+  </p>
+
+
+
+  </main>
+  <footer><small>
+  Krishnatejaswi S | Made with <a href="https://github.com/clente/hugo-bearcub">Bear Cub</a>
+</small></footer>
+
+    
+</body>
+
+</html>
