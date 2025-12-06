@@ -3,10 +3,10 @@
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
     <loc>https://KTS-o7.github.io/bear/</loc>
-    <lastmod>2025-12-04T00:00:00+05:30</lastmod>
+    <lastmod>2025-12-06T12:00:00+00:00</lastmod>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/posts/</loc>
-    <lastmod>2025-12-04T00:00:00+05:30</lastmod>
+    <lastmod>2025-12-06T12:00:00+00:00</lastmod>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/ml/</loc>
     <lastmod>2025-09-12T17:28:47+05:30</lastmod>
@@ -15,6 +15,9 @@
   </url><url>
     <loc>https://KTS-o7.github.io/bear/cses.fi/</loc>
     <lastmod>2025-09-23T14:38:08+05:30</lastmod>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/posts/connection_pool_exhaustion/</loc>
+    <lastmod>2025-12-06T12:00:00+00:00</lastmod>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/posts/git/</loc>
     <lastmod>2025-12-04T00:00:00+05:30</lastmod>
