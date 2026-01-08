@@ -9,7 +9,7 @@
     <managingEditor>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</managingEditor>
     <webMaster>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</webMaster>
     <copyright>Krishnatejaswi S</copyright>
-    <lastBuildDate>Sat, 27 Dec 2025 00:00:00 +0530</lastBuildDate>
+    <lastBuildDate>Thu, 08 Jan 2026 07:07:07 +0100</lastBuildDate>
     <atom:link href="https://KTS-o7.github.io/bear/index.xml" rel="self" type="application/rss+xml" />
     <item>
       <title>About</title>
@@ -59,6 +59,131 @@ drop a hi there if you see me around!</p>
 </table>
 <hr>
 <p><em>Thanks for visiting my blog! If you enjoyed reading my posts, consider checking out the RSS feed to stay updated with my posts</em></p>
+]]></content:encoded>
+    </item>
+    <item>
+      <title>Eigenvalues of a Matrix</title>
+      <link>https://KTS-o7.github.io/bear/ml/eigen_vals/</link>
+      <pubDate>Thu, 08 Jan 2026 07:07:07 +0100</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/ml/eigen_vals/</guid>
+      <description>&lt;h2 id=&#34;why-eigenvalues-matter&#34;&gt;Why Eigenvalues Matter&lt;/h2&gt;&#xA;&lt;p&gt;Eigenvalues describe the directions along which a linear transformation stretches or compresses space. Behind every PCA dimension, every stability analysis, and every spectral decomposition lies the same question: &lt;em&gt;What scalars \(\lambda\) satisfy \(A\mathbf{v} = \lambda \mathbf{v}\) for some non-zero vector \(\mathbf{v}\)?&lt;/em&gt; Here we clarify the polynomial road map to those scalars and show how it generalizes from 2×2 matrices to higher dimensions, including why principal minors appear in the coefficients.&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<h2 id="why-eigenvalues-matter">Why Eigenvalues Matter</h2>
+<p>Eigenvalues describe the directions along which a linear transformation stretches or compresses space. Behind every PCA dimension, every stability analysis, and every spectral decomposition lies the same question: <em>What scalars \(\lambda\) satisfy \(A\mathbf{v} = \lambda \mathbf{v}\) for some non-zero vector \(\mathbf{v}\)?</em> Here we clarify the polynomial road map to those scalars and show how it generalizes from 2×2 matrices to higher dimensions, including why principal minors appear in the coefficients.</p>
+<h2 id="the-characteristic-equation">The Characteristic Equation</h2>
+<p>For any square matrix \(A\), the eigenvalues are the roots of the characteristic polynomial:</p>
+\[
+\chi(\lambda) = \det(A - \lambda I) = 0.
+\]<h3 id="22-refresher">2×2 refresher</h3>
+<p>When \(A = \begin{bmatrix} a & b \\ c & d \end{bmatrix}\), the determinant expands to</p>
+\[
+\chi(\lambda) = \lambda^2 - (a+d)\lambda + (ad - bc).
+\]<p>Hence the trace \((a+d)\) appears as the \(\lambda\)-coefficient and the determinant \(ad-bc\) is the constant term. Solving the quadratic gives the eigenvalues.</p>
+<h2 id="worked-examples--and">Worked Examples: \(n=3\) and \(n=4\)</h2>
+<h3>\(3 × 3\)</h3>
+<p>Let</p>
+\[
+A = \begin{bmatrix}
+a & b & c \\
+d & e & f \\
+g & h & i
+\end{bmatrix}.
+\]<p>Then \(A - \lambda I\) becomes</p>
+\[
+\begin{bmatrix}
+a - \lambda & b & c \\
+d & e - \lambda & f \\
+g & h & i - \lambda
+\end{bmatrix},
+\]<p>
+For a 3×3 matrix \( A = \begin{bmatrix} a & b & c \\ d & e & f \\ g & h & i \end{bmatrix} \), the characteristic polynomial expands as</p>
+\[
+\chi(\lambda) = \lambda^3 - \text{tr}(A)\,\lambda^2 + \sigma_2(A)\,\lambda - \det(A),
+\]<p>where \(\sigma_2(A)\) is the sum of the 2×2 principal minors:</p>
+\[
+\sigma_2(A) = (ae - bd) + (ai - cg) + (ei - fh).
+\]<p>Principal minors are the determinants of every square submatrix formed by selecting the same rows and columns. They appear because the expansion of \(\det(A - \lambda I)\) naturally produces sums over these subdeterminants—each coefficient gathers the contributions of principal minors of increasingly large size, which mathematically captures the pairwise, triple, etc., interactions between eigenvalues.</p>
+<p>Notice:</p>
+<ul>
+<li>The \( \lambda^3 \) coefficient is 1 because the polynomial is monic.</li>
+<li>The \(-\text{tr}(A)\) term mirrors the 2×2 case.</li>
+<li>The constant term is \(-\det(A)\).</li>
+<li>Intermediate coefficients aggregate principal minors.</li>
+</ul>
+<p><strong>Numeric example.</strong> For
+</p>
+\[
+A = \begin{bmatrix}
+1 & 2 & 3 \\
+0 & 4 & 5 \\
+0 & 0 & 6
+\end{bmatrix},
+\]<p>
+the trace is 11, \(\sigma_2(A) = (1\cdot4 - 0\cdot2) + (1\cdot6 - 0\cdot3) + (4\cdot6 - 0\cdot5) = 4 + 6 + 24 = 34\), and the determinant is \(1\cdot4\cdot6 = 24\). The characteristic polynomial becomes \(\lambda^3 - 11\lambda^2 + 34\lambda - 24\), whose roots are the eigenvalues of \(A\).</p>
+<h3>\(4 × 4\)</h3>
+<p>For a 4×4 matrix, the pattern continues. Without loss of generality, \(A\) produces</p>
+\[
+\chi(\lambda) = \lambda^4 - \text{tr}(A)\,\lambda^3 + \sigma_2(A)\,\lambda^2 - \sigma_3(A)\,\lambda + \det(A),
+\]<p>where:</p>
+<ul>
+<li>\(\sigma_2(A)\) sums all 2×2 principal minors,</li>
+<li>\(\sigma_3(A)\) sums all 3×3 principal minors,</li>
+<li>Signs alternate as dictated by the expansion of \(\det(A - \lambda I)\),</li>
+<li>Trace and determinant remain the first and last invariants, and the intermediate \(\sigma_k\) tie into symmetric polynomials of eigenvalues.</li>
+</ul>
+<p>Each \(\sigma_k\) aggregates the determinants of the \(k \times k\) principal submatrices because the Leibniz expansion of the determinant iterates over all permutations of row/column pairs. Keeping track of these minors lets us express the characteristic polynomial coefficients without expanding every term manually, which is why they are a compact way to encode the invariant relationships between eigenvalues and the matrix entries.</p>
+<p><strong>Numeric example.</strong> Take
+</p>
+\[
+A = \begin{bmatrix}
+2 & 0 & 1 & 0 \\
+0 & 3 & 0 & 1 \\
+0 & 0 & 4 & 0 \\
+0 & 0 & 0 & 5
+\end{bmatrix}.
+\]<p>
+The trace is 14, \(\sigma_2(A)\) collects the 2×2 minors (e.g., \(2\cdot3, 2\cdot4, 3\cdot4\) plus the shifts introduced by the 1s), and the determinant is \(2\cdot3\cdot4\cdot5 = 120\). The characteristic polynomial becomes \(\lambda^4 - 14\lambda^3 + \sigma_2(A)\lambda^2 - \sigma_3(A)\lambda + 120\), encoding the same invariants as before but for four eigenvalues.</p>
+<p>These expressions remind us that the characteristic polynomial encodes global constraints: eigenvalues sum to the trace, pairwise products sum to \(\sigma_2(A)\), triple products to \(\sigma_3(A)\), and so on. Even though solving quartics or higher-degree polynomials analytically becomes impractical, numerical methods target the same invariants, so the conceptual road map stays intact.</p>
+<h2 id="method-1-manual-calculation-educational">Method 1: Manual Calculation (Educational)</h2>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="kn">import</span> <span class="nn">math</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl">
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl"><span class="k">def</span> <span class="nf">calculate_eigenvalues_2x2</span><span class="p">(</span><span class="n">A</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">float</span> <span class="o">|</span> <span class="nb">int</span><span class="p">]])</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">float</span><span class="p">]:</span>
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl">    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">A</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">2</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">A</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">!=</span> <span class="mi">2</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">A</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="o">!=</span> <span class="mi">2</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl">        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&#34;Input must be a 2x2 matrix.&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl">    <span class="n">trace</span> <span class="o">=</span> <span class="n">A</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">A</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl">    <span class="n">determinant</span> <span class="o">=</span> <span class="n">A</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">A</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">A</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">A</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">
+</span></span><span class="line"><span class="ln">10</span><span class="cl">    <span class="n">discriminant</span> <span class="o">=</span> <span class="n">trace</span><span class="o">**</span><span class="mi">2</span> <span class="o">-</span> <span class="mi">4</span> <span class="o">*</span> <span class="n">determinant</span>
+</span></span><span class="line"><span class="ln">11</span><span class="cl">    <span class="k">if</span> <span class="n">discriminant</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">12</span><span class="cl">        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&#34;Matrix has complex eigenvalues in this implementation.&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">13</span><span class="cl">
+</span></span><span class="line"><span class="ln">14</span><span class="cl">    <span class="n">eigenvalue_1</span> <span class="o">=</span> <span class="p">(</span><span class="n">trace</span> <span class="o">+</span> <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">discriminant</span><span class="p">))</span> <span class="o">/</span> <span class="mi">2</span>
+</span></span><span class="line"><span class="ln">15</span><span class="cl">    <span class="n">eigenvalue_2</span> <span class="o">=</span> <span class="p">(</span><span class="n">trace</span> <span class="o">-</span> <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">discriminant</span><span class="p">))</span> <span class="o">/</span> <span class="mi">2</span>
+</span></span><span class="line"><span class="ln">16</span><span class="cl">
+</span></span><span class="line"><span class="ln">17</span><span class="cl">    <span class="k">return</span> <span class="p">[</span><span class="n">eigenvalue_1</span><span class="p">,</span> <span class="n">eigenvalue_2</span><span class="p">]</span></span></span></code></pre></div><p>This hands-on route is excellent for reinforcing how the trace and determinant become coefficients of the characteristic polynomial and how complex eigenvalues arise when the discriminant is negative.</p>
+<h2 id="method-2-numpy-for-the-general-case">Method 2: NumPy for the General Case</h2>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl">
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl"><span class="k">def</span> <span class="nf">calculate_eigenvalues_numpy</span><span class="p">(</span><span class="n">matrix</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">float</span> <span class="o">|</span> <span class="nb">int</span><span class="p">]])</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">complex</span><span class="p">]:</span>
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl">    <span class="n">A</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">matrix</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl">
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">    <span class="k">if</span> <span class="n">A</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="n">A</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl">        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&#34;Input must be a square matrix.&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl">
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">    <span class="n">eigenvalues</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">eigvals</span><span class="p">(</span><span class="n">A</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">10</span><span class="cl">    <span class="k">return</span> <span class="n">eigenvalues</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span></span></span></code></pre></div><p>NumPy hides the polynomial expansion but still solves \(\det(A - \lambda I) = 0\). It handles arbitrary square matrices, complex eigenvalues, and higher dimensions effortlessly.</p>
+<h2 id="conclusion">Conclusion</h2>
+<p>Whether you expand a characteristic polynomial by hand for \(n=2\) or rely on NumPy for \(n>2\), the goal is the same: find the roots of \(\det(A - \lambda I)\). The trace and determinant continue to anchor the polynomial’s coefficients, while the intermediate terms encode sums of minors. Understanding this structure helps you make sense of the numerical results produced for large matrices and gives intuition for the algebra that underlies eigenvalue computation.</p>
 ]]></content:encoded>
     </item>
     <item>
