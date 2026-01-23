@@ -3,10 +3,10 @@
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
     <loc>https://KTS-o7.github.io/bear/</loc>
-    <lastmod>2026-01-08T07:07:07+01:00</lastmod>
+    <lastmod>2026-01-23T00:00:00+00:00</lastmod>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/posts/</loc>
-    <lastmod>2025-12-27T00:00:00+05:30</lastmod>
+    <lastmod>2026-01-23T00:00:00+00:00</lastmod>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/ml/</loc>
     <lastmod>2026-01-08T07:07:07+01:00</lastmod>
@@ -14,7 +14,10 @@
     <loc>https://KTS-o7.github.io/bear/about/</loc>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/cses.fi/</loc>
-    <lastmod>2025-09-23T14:38:08+05:30</lastmod>
+    <lastmod>2025-09-19T23:03:51+05:30</lastmod>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/posts/sse_disconnect_handling/</loc>
+    <lastmod>2026-01-23T00:00:00+00:00</lastmod>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/ml/eigen_vals/</loc>
     <lastmod>2026-01-08T07:07:07+01:00</lastmod>

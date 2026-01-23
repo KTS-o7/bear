@@ -9,7 +9,7 @@
     <managingEditor>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</managingEditor>
     <webMaster>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</webMaster>
     <copyright>Krishnatejaswi S</copyright>
-    <lastBuildDate>Thu, 08 Jan 2026 07:07:07 +0100</lastBuildDate>
+    <lastBuildDate>Fri, 23 Jan 2026 00:00:00 +0000</lastBuildDate>
     <atom:link href="https://KTS-o7.github.io/bear/index.xml" rel="self" type="application/rss+xml" />
     <item>
       <title>About</title>
@@ -59,6 +59,431 @@ drop a hi there if you see me around!</p>
 </table>
 <hr>
 <p><em>Thanks for visiting my blog! If you enjoyed reading my posts, consider checking out the RSS feed to stay updated with my posts</em></p>
+]]></content:encoded>
+    </item>
+    <item>
+      <title>SSE in FastAPI: The Tab Closed and My “Done” Code Never Ran</title>
+      <link>https://KTS-o7.github.io/bear/posts/sse_disconnect_handling/</link>
+      <pubDate>Fri, 23 Jan 2026 00:00:00 +0000</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/posts/sse_disconnect_handling/</guid>
+      <description>&lt;p&gt;I hit this bug the annoying way.&lt;/p&gt;&#xA;&lt;p&gt;A coworker said: “I ran task generation, closed the tab, and the status never moved.”&lt;/p&gt;&#xA;&lt;p&gt;My first reaction was “no way.” The backend is doing the work, not the browser.&lt;/p&gt;&#xA;&lt;p&gt;Turns out… yeah. It was right. And once you see why, you stop trusting “code after the stream” forever.&lt;/p&gt;&#xA;&lt;p&gt;This post is about a very specific trap:&lt;/p&gt;&#xA;&lt;ul&gt;&#xA;&lt;li&gt;you stream progress with SSE from a FastAPI endpoint&lt;/li&gt;&#xA;&lt;li&gt;you put important side effects &lt;em&gt;after&lt;/em&gt; the streaming loop (DB status updates, poller kickoff, Slack notifications)&lt;/li&gt;&#xA;&lt;li&gt;a client disconnect cancels the stream&lt;/li&gt;&#xA;&lt;li&gt;your “after the loop” code never runs&lt;/li&gt;&#xA;&lt;/ul&gt;&#xA;&lt;p&gt;It doesn’t always fail. It fails just enough to make you doubt your own system.&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>I hit this bug the annoying way.</p>
+<p>A coworker said: “I ran task generation, closed the tab, and the status never moved.”</p>
+<p>My first reaction was “no way.” The backend is doing the work, not the browser.</p>
+<p>Turns out… yeah. It was right. And once you see why, you stop trusting “code after the stream” forever.</p>
+<p>This post is about a very specific trap:</p>
+<ul>
+<li>you stream progress with SSE from a FastAPI endpoint</li>
+<li>you put important side effects <em>after</em> the streaming loop (DB status updates, poller kickoff, Slack notifications)</li>
+<li>a client disconnect cancels the stream</li>
+<li>your “after the loop” code never runs</li>
+</ul>
+<p>It doesn’t always fail. It fails just enough to make you doubt your own system.</p>
+<h2 id="what-the-system-looked-like-so-you-dont-think-this-is-a-demo-problem">What the system looked like (so you don’t think this is a demo problem)</h2>
+<p>We had a step-based pipeline. Each step was triggered by an HTTP call from the frontend and did a few things:</p>
+<ol>
+<li>Receive a request like <code>POST /process-timeline-done</code> (or similar)</li>
+<li>Start a long-ish worker (in our case an AI agent, but it could be anything)</li>
+<li>Stream progress back to the UI via <strong>Server‑Sent Events</strong></li>
+<li>Update state in MongoDB (advance a status field)</li>
+<li>Submit an external job</li>
+<li>Start a long poller to watch that job (hours sometimes)</li>
+<li>Send a Slack notification</li>
+</ol>
+<p>Only (3) needs a live HTTP connection. The rest should be able to finish even if the user refreshes or closes the tab.</p>
+<p>We had code split into things like:</p>
+<table>
+  <thead>
+      <tr>
+          <th>Component</th>
+          <th>What it does</th>
+          <th>Should it depend on HTTP?</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><code>CircularProcessorService</code></td>
+          <td>Orchestrates the step</td>
+          <td>Only for streaming</td>
+      </tr>
+      <tr>
+          <td><code>JobPollingService</code></td>
+          <td>Poll external job completion</td>
+          <td>No</td>
+      </tr>
+      <tr>
+          <td><code>ComplianceOSClient</code></td>
+          <td>DB/API writes</td>
+          <td>No</td>
+      </tr>
+      <tr>
+          <td><code>SlackAlerts</code></td>
+          <td>Notify humans</td>
+          <td>No</td>
+      </tr>
+  </tbody>
+</table>
+<p>The bug was that our implementation accidentally made a bunch of “No” things depend on HTTP anyway.</p>
+<h2 id="the-bug-the-exact-pattern">The bug (the exact pattern)</h2>
+<p>This is the shape of the broken code:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="ln">1</span><span class="cl"><span class="c1"># ❌ Broken: critical work is after streaming.</span>
+</span></span><span class="line"><span class="ln">2</span><span class="cl"><span class="k">async</span> <span class="k">def</span> <span class="nf">process_step</span><span class="p">():</span>
+</span></span><span class="line"><span class="ln">3</span><span class="cl">    <span class="k">async</span> <span class="k">for</span> <span class="n">update</span> <span class="ow">in</span> <span class="n">agent</span><span class="p">():</span>
+</span></span><span class="line"><span class="ln">4</span><span class="cl">        <span class="k">yield</span> <span class="n">sse</span><span class="p">(</span><span class="n">update</span><span class="p">)</span>  <span class="c1"># disconnect can cancel/raise here</span>
+</span></span><span class="line"><span class="ln">5</span><span class="cl">
+</span></span><span class="line"><span class="ln">6</span><span class="cl">    <span class="c1"># If the client disconnects, this may never run.</span>
+</span></span><span class="line"><span class="ln">7</span><span class="cl">    <span class="k">await</span> <span class="n">db</span><span class="o">.</span><span class="n">update_status</span><span class="p">(</span><span class="s2">&#34;tasks_done&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">8</span><span class="cl">    <span class="n">asyncio</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="n">start_polling</span><span class="p">(</span><span class="n">job_id</span><span class="p">))</span>
+</span></span><span class="line"><span class="ln">9</span><span class="cl">    <span class="k">await</span> <span class="n">slack</span><span class="o">.</span><span class="n">notify</span><span class="p">(</span><span class="s2">&#34;done&#34;</span><span class="p">)</span></span></span></code></pre></div><p>It feels reasonable because it matches how we think:</p>
+<p>“Stream updates while running… then when the loop ends, do the completion stuff.”</p>
+<p>But in a streaming response, <em>the loop ending is not guaranteed</em>. The client can just leave.</p>
+<h2 id="what-actually-happens-when-the-client-disconnects">What actually happens when the client disconnects</h2>
+<p>Let’s make it concrete with a timeline.</p>
+<p>Normal happy path:</p>
+
+
+
+
+
+<pre tabindex="0"><code>Browser                  FastAPI/Starlette           MongoDB / External
+   |                           |                          |
+   | POST /process-step        |                          |
+   |--------------------------&gt;|                          |
+   | 200 OK (SSE stream)       |                          |
+   |&lt;--------------------------|                          |
+   | data: update #1           |                          |
+   |&lt;--------------------------|                          |
+   | data: update #2           |                          |
+   |&lt;--------------------------|                          |
+   | ...                       |                          |
+   | data: final               |                          |
+   |&lt;--------------------------|                          |
+   | stream ends               |                          |
+   |                           | update status            |
+   |                           |-------------------------&gt;|
+   |                           | start poller             |
+   |                           |-------------------------&gt;|
+   |                           | Slack notify             |
+   |                           |-------------------------&gt;|</code></pre><p>Disconnect path:</p>
+
+
+
+
+
+<pre tabindex="0"><code>Browser                  FastAPI/Starlette           MongoDB / External
+   |                           |                          |
+   | POST /process-step        |                          |
+   |--------------------------&gt;|                          |
+   | 200 OK (SSE stream)       |                          |
+   |&lt;--------------------------|                          |
+   | data: update #1           |                          |
+   |&lt;--------------------------|                          |
+   | data: update #2           |                          |
+   |&lt;--------------------------|                          |
+   | [tab closed]              |                          |
+   X                           |                          |
+                               | stream task canceled     |
+                               | (right on a yield/send)  |
+                               |                          |
+                               | ❌ status update skipped  |
+                               | ❌ poller never started   |
+                               | ❌ Slack never sent       |</code></pre><p>The punchline is simple: <strong>SSE streaming is not “just a loop.” It’s a loop being consumed by a response writer that is allowed to stop at any time.</strong></p>
+<h2 id="under-the-hood-why-starlette-cancels-your-generator">Under the hood (why Starlette cancels your generator)</h2>
+<p>This is not the exact Starlette source code, but it matches the design.</p>
+<p>Streaming responses typically run two things concurrently:</p>
+<ul>
+<li>a task that iterates your generator and sends chunks (<code>http.response.body</code>)</li>
+<li>a task that listens for <code>http.disconnect</code></li>
+</ul>
+<p>When the disconnect happens, the server cancels the streaming task. That cancellation can hit while the framework is trying to send your last chunk… which was produced by your generator… which means your generator gets torn down mid-flight.</p>
+<p>Two practical details that matter a lot:</p>
+<ol>
+<li>Cancellation shows up as <code>asyncio.CancelledError</code> (or sometimes as “write failed” type errors depending on stack).</li>
+<li>In modern Python, <code>asyncio.CancelledError</code> is a <code>BaseException</code>, not an <code>Exception</code>. So <code>except Exception:</code> won’t catch it.</li>
+</ol>
+<p>That second one is why “but I wrapped it in try/except” doesn’t save you.</p>
+<h2 id="a-minimal-repro-you-can-run-in-two-minutes">A minimal repro you can run in two minutes</h2>
+<p>Here’s a tiny app that demonstrates the exact failure mode. The <code>print()</code> after the loop is your “update MongoDB status” in disguise.</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="kn">import</span> <span class="nn">asyncio</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl"><span class="kn">from</span> <span class="nn">fastapi</span> <span class="kn">import</span> <span class="n">FastAPI</span>
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl"><span class="kn">from</span> <span class="nn">starlette.responses</span> <span class="kn">import</span> <span class="n">StreamingResponse</span>
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl">
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl"><span class="n">app</span> <span class="o">=</span> <span class="n">FastAPI</span><span class="p">()</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl"><span class="k">async</span> <span class="k">def</span> <span class="nf">gen</span><span class="p">():</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl">    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1000</span><span class="p">):</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">        <span class="k">yield</span> <span class="sa">f</span><span class="s2">&#34;data: </span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="se">\n\n</span><span class="s2">&#34;</span><span class="o">.</span><span class="n">encode</span><span class="p">()</span>
+</span></span><span class="line"><span class="ln">10</span><span class="cl">        <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.2</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">11</span><span class="cl">    <span class="nb">print</span><span class="p">(</span><span class="s2">&#34;stream ended; now do side effects&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">12</span><span class="cl">
+</span></span><span class="line"><span class="ln">13</span><span class="cl"><span class="nd">@app.get</span><span class="p">(</span><span class="s2">&#34;/sse&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">14</span><span class="cl"><span class="k">async</span> <span class="k">def</span> <span class="nf">sse</span><span class="p">():</span>
+</span></span><span class="line"><span class="ln">15</span><span class="cl">    <span class="k">return</span> <span class="n">StreamingResponse</span><span class="p">(</span><span class="n">gen</span><span class="p">(),</span> <span class="n">media_type</span><span class="o">=</span><span class="s2">&#34;text/event-stream&#34;</span><span class="p">)</span></span></span></code></pre></div><p>Run it, then:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">curl -N http://localhost:8000/sse</span></span></code></pre></div><p>Wait for a few numbers, hit <code>ctrl+c</code> in the <code>curl</code> terminal.</p>
+<p>You will not see the “now do side effects” line.</p>
+<p>That’s the bug.</p>
+<h2 id="the-real-fix-stop-making-your-job-depend-on-the-http-stream">The real fix: stop making your job depend on the HTTP stream</h2>
+<p>Once you accept “the client can vanish at any time”, the design gets boring (in a good way):</p>
+<ul>
+<li>The job runs to completion in a background task.</li>
+<li>Streaming is just a best-effort view of progress.</li>
+</ul>
+<p>I like to think in terms of ownership:</p>
+<ul>
+<li>The worker owns side effects (DB writes, poller, Slack).</li>
+<li>The request handler owns only streaming bytes to the client.</li>
+</ul>
+<h3 id="what-i-tried-first-and-why-it-didnt-help-backgroundtasks">What I tried first (and why it didn’t help): <code>BackgroundTasks</code></h3>
+<p>FastAPI has <code>BackgroundTasks</code>. It’s useful, but it’s not a magic “disconnect-proof” button.</p>
+<p>The catch is simple: background tasks are executed <em>after</em> the response is done.</p>
+<p>For a normal JSON response, “response is done” means “we returned a body, the server wrote it, done.”</p>
+<p>For an SSE response, “response is done” means “the stream ended.”</p>
+<p>Which is… exactly the thing we can’t rely on.</p>
+<p>If the client disconnects and the streaming response gets canceled, your “run this after the response” work is still hanging off the same lifecycle. It’s not the separation you actually want.</p>
+<h3 id="cant-i-just-move-the-status-update-into-finally">“Can’t I just move the status update into <code>finally</code>?”</h3>
+<p>This is another tempting fix:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="ln">1</span><span class="cl"><span class="k">async</span> <span class="k">def</span> <span class="nf">gen</span><span class="p">():</span>
+</span></span><span class="line"><span class="ln">2</span><span class="cl">    <span class="k">try</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">3</span><span class="cl">        <span class="k">async</span> <span class="k">for</span> <span class="n">update</span> <span class="ow">in</span> <span class="n">agent</span><span class="p">():</span>
+</span></span><span class="line"><span class="ln">4</span><span class="cl">            <span class="k">yield</span> <span class="n">sse</span><span class="p">(</span><span class="n">update</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">5</span><span class="cl">    <span class="k">finally</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">6</span><span class="cl">        <span class="k">await</span> <span class="n">db</span><span class="o">.</span><span class="n">update_status</span><span class="p">(</span><span class="s2">&#34;tasks_done&#34;</span><span class="p">)</span></span></span></code></pre></div><p>Sometimes it works. Sometimes it doesn’t. It depends on where cancellation lands.</p>
+<p>Cancellation can interrupt awaits inside <code>finally</code> too. So you end up with a fun situation where you <em>thought</em> you made it reliable, but you just changed the probability of it failing.</p>
+<p>If you really want to run cleanup under cancellation, you need to start thinking about shielding and cancel scopes. At that point you’re already halfway to the “worker owns completion” design anyway, so I’d rather just do it properly.</p>
+<h3 id="the-queue-pattern-with-one-important-correction">The queue pattern (with one important correction)</h3>
+<p>The common implementation is “worker pushes updates into a queue, streamer drains it.”</p>
+<p>That’s fine, but there’s a nasty gotcha:</p>
+<p>If the client disconnects and the streamer stops draining, <strong>a bounded queue can block your worker forever</strong>.</p>
+<p>So don’t do this in your worker:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="ln">1</span><span class="cl"><span class="k">await</span> <span class="n">queue</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">update</span><span class="p">)</span>  <span class="c1"># ❌ can hang if consumer is gone</span></span></span></code></pre></div><p>If you do, you just recreated the original bug: completion is again tied to streaming, just indirectly.</p>
+<p>What I do instead:</p>
+<ul>
+<li>Keep the queue bounded (to protect memory)</li>
+<li>Put updates in a non-blocking way and drop when full</li>
+<li>Stop queueing progress once the client is gone</li>
+</ul>
+<p>Here’s a practical sketch:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="kn">import</span> <span class="nn">asyncio</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl"><span class="kn">import</span> <span class="nn">json</span>
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl"><span class="kn">import</span> <span class="nn">logging</span>
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl">
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl"><span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl"><span class="k">def</span> <span class="nf">sse</span><span class="p">(</span><span class="n">data</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl">    <span class="k">return</span> <span class="sa">f</span><span class="s2">&#34;data: </span><span class="si">{</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">data</span><span class="p">)</span><span class="si">}</span><span class="se">\n\n</span><span class="s2">&#34;</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">&#34;utf-8&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">
+</span></span><span class="line"><span class="ln">10</span><span class="cl"><span class="k">def</span> <span class="nf">try_put</span><span class="p">(</span><span class="n">queue</span><span class="p">:</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">Queue</span><span class="p">,</span> <span class="n">item</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">11</span><span class="cl">    <span class="k">try</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">12</span><span class="cl">        <span class="n">queue</span><span class="o">.</span><span class="n">put_nowait</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">13</span><span class="cl">    <span class="k">except</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">QueueFull</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">14</span><span class="cl">        <span class="c1"># progress is optional; completion isn&#39;t</span>
+</span></span><span class="line"><span class="ln">15</span><span class="cl">        <span class="k">pass</span>
+</span></span><span class="line"><span class="ln">16</span><span class="cl">
+</span></span><span class="line"><span class="ln">17</span><span class="cl"><span class="k">def</span> <span class="nf">log_task_result</span><span class="p">(</span><span class="n">task</span><span class="p">:</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">Task</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">18</span><span class="cl">    <span class="k">try</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">19</span><span class="cl">        <span class="n">task</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
+</span></span><span class="line"><span class="ln">20</span><span class="cl">    <span class="k">except</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">CancelledError</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">21</span><span class="cl">        <span class="k">pass</span>
+</span></span><span class="line"><span class="ln">22</span><span class="cl">    <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">23</span><span class="cl">        <span class="n">logger</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&#34;background worker crashed&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">24</span><span class="cl">
+</span></span><span class="line"><span class="ln">25</span><span class="cl"><span class="k">async</span> <span class="k">def</span> <span class="nf">run_to_completion</span><span class="p">(</span><span class="n">queue</span><span class="p">:</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">Queue</span><span class="p">,</span> <span class="n">client_gone</span><span class="p">:</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">Event</span><span class="p">):</span>
+</span></span><span class="line"><span class="ln">26</span><span class="cl">    <span class="n">job_id</span> <span class="o">=</span> <span class="kc">None</span>
+</span></span><span class="line"><span class="ln">27</span><span class="cl">    <span class="k">try</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">28</span><span class="cl">        <span class="k">async</span> <span class="k">for</span> <span class="n">update</span> <span class="ow">in</span> <span class="n">agent</span><span class="p">():</span>
+</span></span><span class="line"><span class="ln">29</span><span class="cl">            <span class="n">job_id</span> <span class="o">=</span> <span class="n">job_id</span> <span class="ow">or</span> <span class="n">update</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&#34;job_id&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">30</span><span class="cl">            <span class="k">if</span> <span class="ow">not</span> <span class="n">client_gone</span><span class="o">.</span><span class="n">is_set</span><span class="p">():</span>
+</span></span><span class="line"><span class="ln">31</span><span class="cl">                <span class="n">try_put</span><span class="p">(</span><span class="n">queue</span><span class="p">,</span> <span class="n">update</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">32</span><span class="cl">
+</span></span><span class="line"><span class="ln">33</span><span class="cl">        <span class="c1"># ✅ These must run even if client disconnects.</span>
+</span></span><span class="line"><span class="ln">34</span><span class="cl">        <span class="k">await</span> <span class="n">db</span><span class="o">.</span><span class="n">update_status</span><span class="p">(</span><span class="s2">&#34;tasks_done&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">35</span><span class="cl">        <span class="n">asyncio</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="n">start_polling</span><span class="p">(</span><span class="n">job_id</span><span class="p">))</span>
+</span></span><span class="line"><span class="ln">36</span><span class="cl">        <span class="k">await</span> <span class="n">slack</span><span class="o">.</span><span class="n">notify</span><span class="p">(</span><span class="s2">&#34;done&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">37</span><span class="cl">    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">38</span><span class="cl">        <span class="k">if</span> <span class="ow">not</span> <span class="n">client_gone</span><span class="o">.</span><span class="n">is_set</span><span class="p">():</span>
+</span></span><span class="line"><span class="ln">39</span><span class="cl">            <span class="n">try_put</span><span class="p">(</span><span class="n">queue</span><span class="p">,</span> <span class="p">{</span><span class="s2">&#34;final&#34;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span> <span class="s2">&#34;success&#34;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span> <span class="s2">&#34;error&#34;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)})</span>
+</span></span><span class="line"><span class="ln">40</span><span class="cl">        <span class="k">raise</span>
+</span></span><span class="line"><span class="ln">41</span><span class="cl">    <span class="k">finally</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">42</span><span class="cl">        <span class="k">if</span> <span class="ow">not</span> <span class="n">client_gone</span><span class="o">.</span><span class="n">is_set</span><span class="p">():</span>
+</span></span><span class="line"><span class="ln">43</span><span class="cl">            <span class="n">try_put</span><span class="p">(</span><span class="n">queue</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>  <span class="c1"># sentinel for streamer</span>
+</span></span><span class="line"><span class="ln">44</span><span class="cl">
+</span></span><span class="line"><span class="ln">45</span><span class="cl"><span class="k">async</span> <span class="k">def</span> <span class="nf">stream</span><span class="p">(</span><span class="n">queue</span><span class="p">:</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">Queue</span><span class="p">,</span> <span class="n">client_gone</span><span class="p">:</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">Event</span><span class="p">):</span>
+</span></span><span class="line"><span class="ln">46</span><span class="cl">    <span class="k">try</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">47</span><span class="cl">        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">48</span><span class="cl">            <span class="n">item</span> <span class="o">=</span> <span class="k">await</span> <span class="n">queue</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+</span></span><span class="line"><span class="ln">49</span><span class="cl">            <span class="k">if</span> <span class="n">item</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">50</span><span class="cl">                <span class="k">break</span>
+</span></span><span class="line"><span class="ln">51</span><span class="cl">            <span class="k">yield</span> <span class="n">sse</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">52</span><span class="cl">    <span class="k">except</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">CancelledError</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">53</span><span class="cl">        <span class="c1"># disconnected: stop streaming, signal worker to stop enqueueing</span>
+</span></span><span class="line"><span class="ln">54</span><span class="cl">        <span class="n">client_gone</span><span class="o">.</span><span class="n">set</span><span class="p">()</span>
+</span></span><span class="line"><span class="ln">55</span><span class="cl">        <span class="k">raise</span>
+</span></span><span class="line"><span class="ln">56</span><span class="cl">    <span class="k">finally</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">57</span><span class="cl">        <span class="n">client_gone</span><span class="o">.</span><span class="n">set</span><span class="p">()</span>
+</span></span><span class="line"><span class="ln">58</span><span class="cl">
+</span></span><span class="line"><span class="ln">59</span><span class="cl"><span class="k">async</span> <span class="k">def</span> <span class="nf">handler</span><span class="p">():</span>
+</span></span><span class="line"><span class="ln">60</span><span class="cl">    <span class="n">queue</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">Queue</span><span class="p">(</span><span class="n">maxsize</span><span class="o">=</span><span class="mi">200</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">61</span><span class="cl">    <span class="n">client_gone</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">Event</span><span class="p">()</span>
+</span></span><span class="line"><span class="ln">62</span><span class="cl">
+</span></span><span class="line"><span class="ln">63</span><span class="cl">    <span class="n">task</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="n">run_to_completion</span><span class="p">(</span><span class="n">queue</span><span class="p">,</span> <span class="n">client_gone</span><span class="p">))</span>
+</span></span><span class="line"><span class="ln">64</span><span class="cl">    <span class="n">task</span><span class="o">.</span><span class="n">add_done_callback</span><span class="p">(</span><span class="n">log_task_result</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">65</span><span class="cl">
+</span></span><span class="line"><span class="ln">66</span><span class="cl">    <span class="k">return</span> <span class="n">StreamingResponse</span><span class="p">(</span><span class="n">stream</span><span class="p">(</span><span class="n">queue</span><span class="p">,</span> <span class="n">client_gone</span><span class="p">),</span> <span class="n">media_type</span><span class="o">=</span><span class="s2">&#34;text/event-stream&#34;</span><span class="p">)</span></span></span></code></pre></div><p>Is it perfect? No. But it has the right shape:</p>
+<ul>
+<li>worker can finish without a consumer</li>
+<li>progress streaming is best-effort</li>
+<li>failures are logged instead of silently disappearing</li>
+</ul>
+<p>If you want something more durable (client reconnects and can replay progress), you need to store progress somewhere real (Redis/pubsub, DB, etc.). In-memory queues won’t do that. But that’s a different problem.</p>
+<h2 id="the-architecture-i-like-better-when-this-gets-serious">The architecture I like better (when this gets serious)</h2>
+<p>The queue pattern is fine when:</p>
+<ul>
+<li>you mostly care about “don’t lose completion when the client disconnects”</li>
+<li>you don’t care about reconnecting and replaying a progress history</li>
+</ul>
+<p>But once you ship this to real users, you’ll hit two common problems:</p>
+<ol>
+<li>Browsers reconnect SSE automatically (especially <code>EventSource</code>), and you don’t want a reconnect to re-run the job.</li>
+<li>People refresh and expect to see progress again (or at least not lose the final result).</li>
+</ol>
+<p>So the more robust shape is:</p>
+<ol>
+<li><code>POST /steps/{step}/start</code> → returns a <code>run_id</code></li>
+<li>Worker runs independent of any SSE connection and persists state (status + maybe progress)</li>
+<li><code>GET /runs/{run_id}/events</code> → SSE stream that is purely “subscribe”, not “start”</li>
+</ol>
+<p>Now reconnecting is safe. You might lose some live updates, but you can always read the current status from MongoDB, and you can keep polling running even if nobody is watching.</p>
+<p>If you want a really clean UX, you can also persist event ids and support <code>Last-Event-ID</code>, but that’s optional. The big win is separating “start work” from “watch work.”</p>
+<h2 id="sse-details-that-are-boring-but-matter">SSE details that are boring but matter</h2>
+<p>SSE is “simple” in the same way DNS is “simple.”</p>
+<p>It works great until you put it behind real infrastructure.</p>
+<h3 id="event-formatting-is-strict">Event formatting is strict</h3>
+<p>Each event ends with a blank line. If you forget the blank line, the browser buffers and you’ll think streaming is broken.</p>
+<p>Simplest possible event:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-text" data-lang="text"><span class="line"><span class="ln">1</span><span class="cl">data: {&#34;message&#34;:&#34;hi&#34;}</span></span></code></pre></div><p>(Yes, that extra newline is part of it.)</p>
+<h3 id="keepalives">Keepalives</h3>
+<p>If your worker can go quiet for a while, send a comment every ~15–30 seconds so proxies don’t decide the connection is “idle”:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="ln">1</span><span class="cl"><span class="k">yield</span> <span class="sa">b</span><span class="s2">&#34;: keep-alive</span><span class="se">\n\n</span><span class="s2">&#34;</span></span></span></code></pre></div><h3 id="nginx-buffering">Nginx buffering</h3>
+<p>If your stream arrives in one big chunk at the end, it’s usually Nginx buffering.</p>
+<p>You don’t fix buffering with Python. You fix it with config.</p>
+<p>At minimum, you want buffering off for the SSE location and timeouts that won’t murder long streams.</p>
+<p>Something like this (not gospel, but you get the idea):</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-nginx" data-lang="nginx"><span class="line"><span class="ln">1</span><span class="cl"><span class="k">location</span> <span class="s">/runs/</span> <span class="p">{</span>
+</span></span><span class="line"><span class="ln">2</span><span class="cl">  <span class="kn">proxy_http_version</span> <span class="mi">1</span><span class="s">.1</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln">3</span><span class="cl">  <span class="kn">proxy_set_header</span> <span class="s">Connection</span> <span class="s">&#34;&#34;</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln">4</span><span class="cl">  <span class="kn">proxy_buffering</span> <span class="no">off</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln">5</span><span class="cl">  <span class="kn">proxy_cache</span> <span class="no">off</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln">6</span><span class="cl">  <span class="kn">proxy_read_timeout</span> <span class="s">3600s</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln">7</span><span class="cl">  <span class="kn">add_header</span> <span class="s">X-Accel-Buffering</span> <span class="s">no</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln">8</span><span class="cl"><span class="p">}</span></span></span></code></pre></div><h2 id="the-other-gotchas-the-stuff-that-actually-bites-later">The other gotchas (the stuff that actually bites later)</h2>
+<h3 id="dont-use-request-scoped-dependencies-in-your-background-worker">Don’t use request-scoped dependencies in your background worker</h3>
+<p>If you have <code>Depends(get_db)</code> where <code>get_db</code> is a <code>yield</code> dependency, it gets cleaned up when the request is done.</p>
+<p>If your worker is still running, it may now be holding a dead session/client.</p>
+<p>Solution: the worker should acquire its own long-lived clients (Mongo, HTTP client, etc.) that are not tied to the request lifecycle.</p>
+<h3 id="treat-status-updates-like-a-state-machine">Treat status updates like a state machine</h3>
+<p>If you do <code>timeline_done</code> → <code>tasks_done</code> → <code>final_done</code>, don’t just write <code>tasks_done</code> unconditionally.</p>
+<p>Do “only update if current status is timeline_done” (compare-and-set). Otherwise retries and races will eventually mess up your state.</p>
+<h3 id="dont-confuse-survives-client-disconnect-with-durable">Don’t confuse “survives client disconnect” with “durable”</h3>
+<p>This pattern survives a client disconnect. It does not survive:</p>
+<ul>
+<li>the process dying</li>
+<li>the pod being evicted</li>
+<li>a deploy that SIGTERMs the worker mid-step</li>
+</ul>
+<p>If the job truly must finish no matter what, use a real job system. SSE should subscribe to a job id, not be the job.</p>
+<h3 id="decide-if-disconnect-should-cancel-the-job-explicitly">Decide if disconnect should cancel the job (explicitly)</h3>
+<p>Some people will ask for “closing the tab cancels the job.”</p>
+<p>That’s a separate feature. Don’t accidentally implement it via “oops, the client disconnected so the worker got canceled.”</p>
+<p>If you want cancellation, do it explicitly:</p>
+<ul>
+<li>create a job id</li>
+<li>store cancel intent</li>
+<li>have the worker check it and stop cleanly</li>
+</ul>
+<p>Client disconnect is not a reliable cancel signal. It’s just the network being the network.</p>
+<h2 id="a-boring-checklist-the-stuff-i-verify-before-i-trust-the-fix">A boring checklist (the stuff I verify before I trust the fix)</h2>
+<ul>
+<li>Start a step, then close the tab mid-stream → status still advances later</li>
+<li>Start a step, refresh rapidly → no duplicate runs / no broken state transitions</li>
+<li>Simulate a proxy timeout → completion still happens</li>
+<li>Kill the SSE client (<code>curl -N ...</code> then <code>ctrl+c</code>) → completion still happens</li>
+<li>Worker crashes mid-way → status reflects failure, and it doesn’t get stuck “in progress” forever</li>
+</ul>
+<h2 id="performance-notes-because-someone-will-ask">Performance notes (because someone will ask)</h2>
+<p>The queue approach is usually cheap, but it’s not free.</p>
+<ul>
+<li>Memory: <code>queue_size * avg_event_size</code> per in-flight stream. Keep event payloads small.</li>
+<li>CPU: queue ops are basically noise; the expensive bits are your DB/network calls.</li>
+<li>DB load: if you add read-after-write verification (I sometimes do), it’s extra reads. Worth it if your system lies to you otherwise.</li>
+</ul>
+<p>The bigger risk isn’t CPU. It’s “we launched 500 background tasks because 500 people clicked the button.” Put a cap somewhere.</p>
+<h2 id="deployment-strategy-how-i-roll-it-out-without-getting-yelled-at">Deployment strategy (how I roll it out without getting yelled at)</h2>
+<ol>
+<li>Staging: disconnect tests, refresh tests, and “kill the client” tests.</li>
+<li>Canary: small percentage of traffic. Watch for stuck statuses.</li>
+<li>Full rollout: watch completion rate for a day. If it drops, roll back fast.</li>
+</ol>
+<h2 id="how-i-tested-it-and-how-id-recommend-you-test-it">How I tested it (and how I’d recommend you test it)</h2>
+<p>Nothing fancy. I just did the thing that used to break it:</p>
+<ul>
+<li>start the step</li>
+<li>wait for a couple SSE updates</li>
+<li>close the tab / refresh / kill the connection</li>
+<li>watch MongoDB and server logs</li>
+</ul>
+<p>What I wanted to see is boring:</p>
+<ul>
+<li>status advances anyway</li>
+<li>poller starts anyway</li>
+<li>Slack fires anyway</li>
+</ul>
+<p>Once you watch the system finish without a client attached, you stop trusting “after the stream” code forever.</p>
+<p>And honestly you should. It’s a trap.</p>
 ]]></content:encoded>
     </item>
     <item>
@@ -370,7 +795,7 @@ The trace is 14, \(\sigma_2(A)\) collects the 2×2 minors (e.g., \(2\cdot3, 2\cd
 
 
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-nginx" data-lang="nginx"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="c1"># Main nginx configuration with security settings
-</span></span></span><span class="line"><span class="ln"> 2</span><span class="cl"><span class="c1"></span><span class="k">user</span> <span class="s">nginx</span><span class="p">;</span>
+</span></span></span><span class="line"><span class="ln"> 2</span><span class="cl"><span class="k">user</span> <span class="s">nginx</span><span class="p">;</span>
 </span></span><span class="line"><span class="ln"> 3</span><span class="cl"><span class="k">worker_processes</span> <span class="s">auto</span><span class="p">;</span>
 </span></span><span class="line"><span class="ln"> 4</span><span class="cl"><span class="k">error_log</span> <span class="s">/var/log/nginx/error.log</span> <span class="s">warn</span><span class="p">;</span>
 </span></span><span class="line"><span class="ln"> 5</span><span class="cl"><span class="k">pid</span> <span class="s">/var/run/nginx.pid</span><span class="p">;</span>
@@ -386,7 +811,7 @@ The trace is 14, \(\sigma_2(A)\) collects the 2×2 minors (e.g., \(2\cdot3, 2\cd
 </span></span><span class="line"><span class="ln">15</span><span class="cl">    <span class="kn">default_type</span> <span class="s">application/octet-stream</span><span class="p">;</span>
 </span></span><span class="line"><span class="ln">16</span><span class="cl">
 </span></span><span class="line"><span class="ln">17</span><span class="cl">    <span class="c1"># Logging format with security information
-</span></span></span><span class="line"><span class="ln">18</span><span class="cl"><span class="c1"></span>    <span class="kn">log_format</span> <span class="s">security</span> <span class="s">&#39;</span><span class="nv">$real_ip</span> <span class="s">-</span> <span class="nv">$remote_user</span> <span class="s">[</span><span class="nv">$time_local]</span> <span class="s">&#34;</span><span class="nv">$request&#34;</span> <span class="s">&#39;</span>
+</span></span></span><span class="line"><span class="ln">18</span><span class="cl">    <span class="kn">log_format</span> <span class="s">security</span> <span class="s">&#39;</span><span class="nv">$real_ip</span> <span class="s">-</span> <span class="nv">$remote_user</span> <span class="s">[</span><span class="nv">$time_local]</span> <span class="s">&#34;</span><span class="nv">$request&#34;</span> <span class="s">&#39;</span>
 </span></span><span class="line"><span class="ln">19</span><span class="cl">                       <span class="s">&#39;</span><span class="nv">$status</span> <span class="nv">$body_bytes_sent</span> <span class="s">&#34;</span><span class="nv">$http_referer&#34;</span> <span class="s">&#39;</span>
 </span></span><span class="line"><span class="ln">20</span><span class="cl">                       <span class="s">&#39;&#34;</span><span class="nv">$http_user_agent&#34;</span> <span class="s">&#34;</span><span class="nv">$http_x_forwarded_for&#34;</span> <span class="s">&#39;</span>
 </span></span><span class="line"><span class="ln">21</span><span class="cl">                       <span class="s">&#39;rt=</span><span class="nv">$request_time</span> <span class="s">uct=&#34;</span><span class="nv">$upstream_connect_time&#34;</span> <span class="s">&#39;</span>
@@ -395,17 +820,17 @@ The trace is 14, \(\sigma_2(A)\) collects the 2×2 minors (e.g., \(2\cdot3, 2\cd
 </span></span><span class="line"><span class="ln">24</span><span class="cl">    <span class="kn">access_log</span> <span class="s">/var/log/nginx/access.log</span> <span class="s">security</span><span class="p">;</span>
 </span></span><span class="line"><span class="ln">25</span><span class="cl">
 </span></span><span class="line"><span class="ln">26</span><span class="cl">    <span class="c1"># Pro Tip: use $real_ip in log_format so you see actual visitor IPs, not Cloudflare&#39;s.
-</span></span></span><span class="line"><span class="ln">27</span><span class="cl"><span class="c1"></span>
+</span></span></span><span class="line"><span class="ln">27</span><span class="cl">
 </span></span><span class="line"><span class="ln">28</span><span class="cl">    <span class="c1"># Basic settings
-</span></span></span><span class="line"><span class="ln">29</span><span class="cl"><span class="c1"></span>    <span class="kn">sendfile</span> <span class="no">on</span><span class="p">;</span>
+</span></span></span><span class="line"><span class="ln">29</span><span class="cl">    <span class="kn">sendfile</span> <span class="no">on</span><span class="p">;</span>
 </span></span><span class="line"><span class="ln">30</span><span class="cl">    <span class="kn">tcp_nopush</span> <span class="no">on</span><span class="p">;</span>
 </span></span><span class="line"><span class="ln">31</span><span class="cl">    <span class="kn">tcp_nodelay</span> <span class="no">on</span><span class="p">;</span>
 </span></span><span class="line"><span class="ln">32</span><span class="cl">    <span class="kn">keepalive_timeout</span> <span class="mi">65</span><span class="p">;</span>
 </span></span><span class="line"><span class="ln">33</span><span class="cl">    <span class="kn">types_hash_max_size</span> <span class="mi">2048</span><span class="p">;</span>
 </span></span><span class="line"><span class="ln">34</span><span class="cl">    <span class="kn">server_tokens</span> <span class="no">off</span><span class="p">;</span>  <span class="c1"># Hide nginx version
-</span></span></span><span class="line"><span class="ln">35</span><span class="cl"><span class="c1"></span>
+</span></span></span><span class="line"><span class="ln">35</span><span class="cl">
 </span></span><span class="line"><span class="ln">36</span><span class="cl">    <span class="c1"># Gzip compression
-</span></span></span><span class="line"><span class="ln">37</span><span class="cl"><span class="c1"></span>    <span class="kn">gzip</span> <span class="no">on</span><span class="p">;</span>
+</span></span></span><span class="line"><span class="ln">37</span><span class="cl">    <span class="kn">gzip</span> <span class="no">on</span><span class="p">;</span>
 </span></span><span class="line"><span class="ln">38</span><span class="cl">    <span class="kn">gzip_vary</span> <span class="no">on</span><span class="p">;</span>
 </span></span><span class="line"><span class="ln">39</span><span class="cl">    <span class="kn">gzip_proxied</span> <span class="s">any</span><span class="p">;</span>
 </span></span><span class="line"><span class="ln">40</span><span class="cl">    <span class="kn">gzip_comp_level</span> <span class="mi">6</span><span class="p">;</span>
@@ -413,7 +838,7 @@ The trace is 14, \(\sigma_2(A)\) collects the 2×2 minors (e.g., \(2\cdot3, 2\cd
 </span></span><span class="line"><span class="ln">42</span><span class="cl">               <span class="s">application/json</span> <span class="s">application/javascript</span> <span class="s">application/xml+rss</span><span class="p">;</span>
 </span></span><span class="line"><span class="ln">43</span><span class="cl">
 </span></span><span class="line"><span class="ln">44</span><span class="cl">    <span class="c1"># Rate limiting zones
-</span></span></span><span class="line"><span class="ln">45</span><span class="cl"><span class="c1"></span>    <span class="kn">limit_req_zone</span> <span class="nv">$binary_remote_addr</span> <span class="s">zone=general_limit:10m</span> <span class="s">rate=50r/s</span><span class="p">;</span>
+</span></span></span><span class="line"><span class="ln">45</span><span class="cl">    <span class="kn">limit_req_zone</span> <span class="nv">$binary_remote_addr</span> <span class="s">zone=general_limit:10m</span> <span class="s">rate=50r/s</span><span class="p">;</span>
 </span></span><span class="line"><span class="ln">46</span><span class="cl">    <span class="kn">limit_req_zone</span> <span class="nv">$binary_remote_addr</span> <span class="s">zone=api_limit:10m</span> <span class="s">rate=30r/s</span><span class="p">;</span>
 </span></span><span class="line"><span class="ln">47</span><span class="cl">    <span class="kn">limit_req_zone</span> <span class="nv">$binary_remote_addr</span> <span class="s">zone=burst_limit:10m</span> <span class="s">rate=200r/m</span><span class="p">;</span>
 </span></span><span class="line"><span class="ln">48</span><span class="cl">    <span class="kn">limit_conn_zone</span> <span class="nv">$binary_remote_addr</span> <span class="s">zone=conn_limit:10m</span><span class="p">;</span>
@@ -426,46 +851,46 @@ The trace is 14, \(\sigma_2(A)\) collects the 2×2 minors (e.g., \(2\cdot3, 2\cd
 
 
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-nginx" data-lang="nginx"><span class="line"><span class="ln">  1</span><span class="cl"><span class="c1"># Cloudflare IP handling - extract real client IP
-</span></span></span><span class="line"><span class="ln">  2</span><span class="cl"><span class="c1"></span><span class="k">map</span> <span class="nv">$http_cf_connecting_ip</span> <span class="nv">$real_ip</span> <span class="p">{</span>
+</span></span></span><span class="line"><span class="ln">  2</span><span class="cl"><span class="k">map</span> <span class="nv">$http_cf_connecting_ip</span> <span class="nv">$real_ip</span> <span class="p">{</span>
 </span></span><span class="line"><span class="ln">  3</span><span class="cl">    <span class="kn">&#34;&#34;</span> <span class="nv">$remote_addr</span><span class="p">;</span>
 </span></span><span class="line"><span class="ln">  4</span><span class="cl">    <span class="kn">default</span> <span class="nv">$http_cf_connecting_ip</span><span class="p">;</span>
 </span></span><span class="line"><span class="ln">  5</span><span class="cl"><span class="p">}</span>
 </span></span><span class="line"><span class="ln">  6</span><span class="cl">
 </span></span><span class="line"><span class="ln">  7</span><span class="cl"><span class="c1"># Cloudflare protocol handling
-</span></span></span><span class="line"><span class="ln">  8</span><span class="cl"><span class="c1"></span><span class="k">map</span> <span class="nv">$http_x_forwarded_proto</span> <span class="nv">$forwarded_proto</span> <span class="p">{</span>
+</span></span></span><span class="line"><span class="ln">  8</span><span class="cl"><span class="k">map</span> <span class="nv">$http_x_forwarded_proto</span> <span class="nv">$forwarded_proto</span> <span class="p">{</span>
 </span></span><span class="line"><span class="ln">  9</span><span class="cl">    <span class="kn">&#34;&#34;</span> <span class="nv">$scheme</span><span class="p">;</span>
 </span></span><span class="line"><span class="ln"> 10</span><span class="cl">    <span class="kn">default</span> <span class="nv">$http_x_forwarded_proto</span><span class="p">;</span>
 </span></span><span class="line"><span class="ln"> 11</span><span class="cl"><span class="p">}</span>
 </span></span><span class="line"><span class="ln"> 12</span><span class="cl">
 </span></span><span class="line"><span class="ln"> 13</span><span class="cl"><span class="c1"># HTTP Server (Port 80) - Redirect to HTTPS
-</span></span></span><span class="line"><span class="ln"> 14</span><span class="cl"><span class="c1"></span><span class="k">server</span> <span class="p">{</span>
+</span></span></span><span class="line"><span class="ln"> 14</span><span class="cl"><span class="k">server</span> <span class="p">{</span>
 </span></span><span class="line"><span class="ln"> 15</span><span class="cl">    <span class="kn">listen</span> <span class="mi">80</span><span class="p">;</span>
 </span></span><span class="line"><span class="ln"> 16</span><span class="cl">    <span class="kn">server_name</span> <span class="s">_</span><span class="p">;</span>
 </span></span><span class="line"><span class="ln"> 17</span><span class="cl">
 </span></span><span class="line"><span class="ln"> 18</span><span class="cl">    <span class="c1"># Health check (keep on port 80 for internal monitoring)
-</span></span></span><span class="line"><span class="ln"> 19</span><span class="cl"><span class="c1"></span>    <span class="kn">location</span> <span class="s">/health</span> <span class="p">{</span>
+</span></span></span><span class="line"><span class="ln"> 19</span><span class="cl">    <span class="kn">location</span> <span class="s">/health</span> <span class="p">{</span>
 </span></span><span class="line"><span class="ln"> 20</span><span class="cl">        <span class="kn">access_log</span> <span class="no">off</span><span class="p">;</span>
 </span></span><span class="line"><span class="ln"> 21</span><span class="cl">        <span class="kn">return</span> <span class="mi">200</span> <span class="s">&#34;healthy\n&#34;</span><span class="p">;</span>
 </span></span><span class="line"><span class="ln"> 22</span><span class="cl">        <span class="kn">add_header</span> <span class="s">Content-Type</span> <span class="s">text/plain</span><span class="p">;</span>
 </span></span><span class="line"><span class="ln"> 23</span><span class="cl">    <span class="p">}</span>
 </span></span><span class="line"><span class="ln"> 24</span><span class="cl">
 </span></span><span class="line"><span class="ln"> 25</span><span class="cl">    <span class="c1"># Redirect all other traffic to HTTPS
-</span></span></span><span class="line"><span class="ln"> 26</span><span class="cl"><span class="c1"></span>    <span class="kn">location</span> <span class="s">/</span> <span class="p">{</span>
+</span></span></span><span class="line"><span class="ln"> 26</span><span class="cl">    <span class="kn">location</span> <span class="s">/</span> <span class="p">{</span>
 </span></span><span class="line"><span class="ln"> 27</span><span class="cl">        <span class="kn">return</span> <span class="mi">301</span> <span class="s">https://</span><span class="nv">$host$request_uri</span><span class="p">;</span>
 </span></span><span class="line"><span class="ln"> 28</span><span class="cl">    <span class="p">}</span>
 </span></span><span class="line"><span class="ln"> 29</span><span class="cl"><span class="p">}</span>
 </span></span><span class="line"><span class="ln"> 30</span><span class="cl">
 </span></span><span class="line"><span class="ln"> 31</span><span class="cl"><span class="c1"># HTTPS Server (Port 443)
-</span></span></span><span class="line"><span class="ln"> 32</span><span class="cl"><span class="c1"></span><span class="k">server</span> <span class="p">{</span>
+</span></span></span><span class="line"><span class="ln"> 32</span><span class="cl"><span class="k">server</span> <span class="p">{</span>
 </span></span><span class="line"><span class="ln"> 33</span><span class="cl">    <span class="kn">listen</span> <span class="mi">443</span> <span class="s">ssl</span> <span class="s">http2</span><span class="p">;</span>
 </span></span><span class="line"><span class="ln"> 34</span><span class="cl">    <span class="kn">server_name</span> <span class="s">_</span><span class="p">;</span>
 </span></span><span class="line"><span class="ln"> 35</span><span class="cl">
 </span></span><span class="line"><span class="ln"> 36</span><span class="cl">    <span class="c1"># SSL Configuration - Cloudflare Origin Certificate
-</span></span></span><span class="line"><span class="ln"> 37</span><span class="cl"><span class="c1"></span>    <span class="kn">ssl_certificate</span> <span class="s">/etc/nginx/ssl/origin.pem</span><span class="p">;</span>
+</span></span></span><span class="line"><span class="ln"> 37</span><span class="cl">    <span class="kn">ssl_certificate</span> <span class="s">/etc/nginx/ssl/origin.pem</span><span class="p">;</span>
 </span></span><span class="line"><span class="ln"> 38</span><span class="cl">    <span class="kn">ssl_certificate_key</span> <span class="s">/etc/nginx/ssl/origin.key</span><span class="p">;</span>
 </span></span><span class="line"><span class="ln"> 39</span><span class="cl">    
 </span></span><span class="line"><span class="ln"> 40</span><span class="cl">    <span class="c1"># Modern SSL settings
-</span></span></span><span class="line"><span class="ln"> 41</span><span class="cl"><span class="c1"></span>    <span class="kn">ssl_protocols</span> <span class="s">TLSv1.2</span> <span class="s">TLSv1.3</span><span class="p">;</span>
+</span></span></span><span class="line"><span class="ln"> 41</span><span class="cl">    <span class="kn">ssl_protocols</span> <span class="s">TLSv1.2</span> <span class="s">TLSv1.3</span><span class="p">;</span>
 </span></span><span class="line"><span class="ln"> 42</span><span class="cl">    <span class="kn">ssl_ciphers</span> <span class="s">ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384</span><span class="p">;</span>
 </span></span><span class="line"><span class="ln"> 43</span><span class="cl">    <span class="kn">ssl_prefer_server_ciphers</span> <span class="no">off</span><span class="p">;</span>
 </span></span><span class="line"><span class="ln"> 44</span><span class="cl">    <span class="kn">ssl_session_timeout</span> <span class="s">1d</span><span class="p">;</span>
@@ -473,17 +898,17 @@ The trace is 14, \(\sigma_2(A)\) collects the 2×2 minors (e.g., \(2\cdot3, 2\cd
 </span></span><span class="line"><span class="ln"> 46</span><span class="cl">    <span class="kn">ssl_session_tickets</span> <span class="no">off</span><span class="p">;</span>
 </span></span><span class="line"><span class="ln"> 47</span><span class="cl">
 </span></span><span class="line"><span class="ln"> 48</span><span class="cl">    <span class="c1"># Connection and request limits
-</span></span></span><span class="line"><span class="ln"> 49</span><span class="cl"><span class="c1"></span>    <span class="kn">limit_conn</span> <span class="s">conn_limit</span> <span class="mi">100</span><span class="p">;</span>
+</span></span></span><span class="line"><span class="ln"> 49</span><span class="cl">    <span class="kn">limit_conn</span> <span class="s">conn_limit</span> <span class="mi">100</span><span class="p">;</span>
 </span></span><span class="line"><span class="ln"> 50</span><span class="cl">    <span class="kn">client_max_body_size</span> <span class="s">50M</span><span class="p">;</span>
 </span></span><span class="line"><span class="ln"> 51</span><span class="cl">    <span class="kn">client_body_buffer_size</span> <span class="s">4M</span><span class="p">;</span>
 </span></span><span class="line"><span class="ln"> 52</span><span class="cl">
 </span></span><span class="line"><span class="ln"> 53</span><span class="cl">    <span class="c1"># Timeout limits (prevent slowloris attacks)
-</span></span></span><span class="line"><span class="ln"> 54</span><span class="cl"><span class="c1"></span>    <span class="kn">client_body_timeout</span> <span class="s">10s</span><span class="p">;</span>
+</span></span></span><span class="line"><span class="ln"> 54</span><span class="cl">    <span class="kn">client_body_timeout</span> <span class="s">10s</span><span class="p">;</span>
 </span></span><span class="line"><span class="ln"> 55</span><span class="cl">    <span class="kn">client_header_timeout</span> <span class="s">10s</span><span class="p">;</span>
 </span></span><span class="line"><span class="ln"> 56</span><span class="cl">    <span class="kn">send_timeout</span> <span class="s">10s</span><span class="p">;</span>
 </span></span><span class="line"><span class="ln"> 57</span><span class="cl">
 </span></span><span class="line"><span class="ln"> 58</span><span class="cl">    <span class="c1"># Security headers
-</span></span></span><span class="line"><span class="ln"> 59</span><span class="cl"><span class="c1"></span>    <span class="kn">add_header</span> <span class="s">X-Frame-Options</span> <span class="s">&#34;SAMEORIGIN&#34;</span> <span class="s">always</span><span class="p">;</span>
+</span></span></span><span class="line"><span class="ln"> 59</span><span class="cl">    <span class="kn">add_header</span> <span class="s">X-Frame-Options</span> <span class="s">&#34;SAMEORIGIN&#34;</span> <span class="s">always</span><span class="p">;</span>
 </span></span><span class="line"><span class="ln"> 60</span><span class="cl">    <span class="kn">add_header</span> <span class="s">X-Content-Type-Options</span> <span class="s">&#34;nosniff&#34;</span> <span class="s">always</span><span class="p">;</span>
 </span></span><span class="line"><span class="ln"> 61</span><span class="cl">    <span class="kn">add_header</span> <span class="s">X-XSS-Protection</span> <span class="s">&#34;1</span><span class="p">;</span> <span class="kn">mode=block&#34;</span> <span class="s">always</span><span class="p">;</span>
 </span></span><span class="line"><span class="ln"> 62</span><span class="cl">    <span class="kn">add_header</span> <span class="s">Referrer-Policy</span> <span class="s">&#34;strict-origin-when-cross-origin&#34;</span> <span class="s">always</span><span class="p">;</span>
@@ -491,7 +916,7 @@ The trace is 14, \(\sigma_2(A)\) collects the 2×2 minors (e.g., \(2\cdot3, 2\cd
 </span></span><span class="line"><span class="ln"> 64</span><span class="cl">    <span class="kn">add_header</span> <span class="s">Content-Security-Policy</span> <span class="s">&#34;default-src</span> <span class="s">&#39;self&#39;</span><span class="p">;</span> <span class="kn">script-src</span> <span class="s">&#39;self&#39;</span> <span class="s">&#39;unsafe-inline&#39;</span> <span class="s">&#39;unsafe-eval&#39;</span><span class="p">;</span> <span class="kn">style-src</span> <span class="s">&#39;self&#39;</span> <span class="s">&#39;unsafe-inline&#39;</span><span class="p">;</span> <span class="kn">img-src</span> <span class="s">&#39;self&#39;</span> <span class="s">data:</span> <span class="s">https:</span><span class="p">;</span> <span class="kn">font-src</span> <span class="s">&#39;self&#39;</span> <span class="s">data:</span><span class="p">;</span> <span class="kn">connect-src</span> <span class="s">&#39;self&#39;</span> <span class="s">https:</span><span class="p">;</span> <span class="kn">frame-src</span> <span class="s">&#39;self&#39;</span><span class="p">;</span><span class="kn">&#34;</span> <span class="s">always</span><span class="p">;</span>
 </span></span><span class="line"><span class="ln"> 65</span><span class="cl">
 </span></span><span class="line"><span class="ln"> 66</span><span class="cl">    <span class="c1"># Frontend - Next.js
-</span></span></span><span class="line"><span class="ln"> 67</span><span class="cl"><span class="c1"></span>    <span class="kn">location</span> <span class="s">/</span> <span class="p">{</span>
+</span></span></span><span class="line"><span class="ln"> 67</span><span class="cl">    <span class="kn">location</span> <span class="s">/</span> <span class="p">{</span>
 </span></span><span class="line"><span class="ln"> 68</span><span class="cl">        <span class="kn">limit_req</span> <span class="s">zone=general_limit</span> <span class="s">burst=100</span> <span class="s">nodelay</span><span class="p">;</span>
 </span></span><span class="line"><span class="ln"> 69</span><span class="cl">        
 </span></span><span class="line"><span class="ln"> 70</span><span class="cl">        <span class="kn">proxy_pass</span> <span class="s">http://frontend:3000</span><span class="p">;</span>
@@ -506,7 +931,7 @@ The trace is 14, \(\sigma_2(A)\) collects the 2×2 minors (e.g., \(2\cdot3, 2\cd
 </span></span><span class="line"><span class="ln"> 79</span><span class="cl">    <span class="p">}</span>
 </span></span><span class="line"><span class="ln"> 80</span><span class="cl">
 </span></span><span class="line"><span class="ln"> 81</span><span class="cl">    <span class="c1"># Backend API
-</span></span></span><span class="line"><span class="ln"> 82</span><span class="cl"><span class="c1"></span>    <span class="kn">location</span> <span class="s">/api</span> <span class="p">{</span>
+</span></span></span><span class="line"><span class="ln"> 82</span><span class="cl">    <span class="kn">location</span> <span class="s">/api</span> <span class="p">{</span>
 </span></span><span class="line"><span class="ln"> 83</span><span class="cl">        <span class="kn">limit_req</span> <span class="s">zone=api_limit</span> <span class="s">burst=50</span> <span class="s">nodelay</span><span class="p">;</span>
 </span></span><span class="line"><span class="ln"> 84</span><span class="cl">        
 </span></span><span class="line"><span class="ln"> 85</span><span class="cl">        <span class="kn">proxy_pass</span> <span class="s">http://backend:8000</span><span class="p">;</span>
@@ -517,19 +942,20 @@ The trace is 14, \(\sigma_2(A)\) collects the 2×2 minors (e.g., \(2\cdot3, 2\cd
 </span></span><span class="line"><span class="ln"> 90</span><span class="cl">        <span class="kn">proxy_set_header</span> <span class="s">X-Forwarded-Proto</span> <span class="nv">$forwarded_proto</span><span class="p">;</span>
 </span></span><span class="line"><span class="ln"> 91</span><span class="cl">        
 </span></span><span class="line"><span class="ln"> 92</span><span class="cl">        <span class="c1"># Increased timeouts for long-running requests
-</span></span></span><span class="line"><span class="ln"> 93</span><span class="cl"><span class="c1"></span>        <span class="kn">proxy_connect_timeout</span> <span class="s">300s</span><span class="p">;</span>
+</span></span></span><span class="line"><span class="ln"> 93</span><span class="cl">        <span class="kn">proxy_connect_timeout</span> <span class="s">300s</span><span class="p">;</span>
 </span></span><span class="line"><span class="ln"> 94</span><span class="cl">        <span class="kn">proxy_send_timeout</span> <span class="s">300s</span><span class="p">;</span>
 </span></span><span class="line"><span class="ln"> 95</span><span class="cl">        <span class="kn">proxy_read_timeout</span> <span class="s">300s</span><span class="p">;</span>
 </span></span><span class="line"><span class="ln"> 96</span><span class="cl">    <span class="p">}</span>
 </span></span><span class="line"><span class="ln"> 97</span><span class="cl">
 </span></span><span class="line"><span class="ln"> 98</span><span class="cl">    <span class="c1"># Health check
-</span></span></span><span class="line"><span class="ln"> 99</span><span class="cl"><span class="c1"></span>    <span class="kn">location</span> <span class="s">/health</span> <span class="p">{</span>
+</span></span></span><span class="line"><span class="ln"> 99</span><span class="cl">    <span class="kn">location</span> <span class="s">/health</span> <span class="p">{</span>
 </span></span><span class="line"><span class="ln">100</span><span class="cl">        <span class="kn">access_log</span> <span class="no">off</span><span class="p">;</span>
 </span></span><span class="line"><span class="ln">101</span><span class="cl">        <span class="kn">return</span> <span class="mi">200</span> <span class="s">&#34;healthy\n&#34;</span><span class="p">;</span>
 </span></span><span class="line"><span class="ln">102</span><span class="cl">        <span class="kn">add_header</span> <span class="s">Content-Type</span> <span class="s">text/plain</span><span class="p">;</span>
 </span></span><span class="line"><span class="ln">103</span><span class="cl">    <span class="p">}</span>
 </span></span><span class="line"><span class="ln">104</span><span class="cl"><span class="p">}</span></span></span></code></pre></div><blockquote>
-<p><strong>Docker DNS Caveat</strong>: Nginx caches DNS records at startup. If your backend container restarts and gets a new IP, Nginx might start returning 502 errors. To prevent this, use Docker&rsquo;s internal resolver <code>resolver 127.0.0.11 valid=30s;</code> and variables for <code>proxy_pass</code> targets.</p></blockquote>
+<p><strong>Docker DNS Caveat</strong>: Nginx caches DNS records at startup. If your backend container restarts and gets a new IP, Nginx might start returning 502 errors. To prevent this, use Docker&rsquo;s internal resolver <code>resolver 127.0.0.11 valid=30s;</code> and variables for <code>proxy_pass</code> targets.</p>
+</blockquote>
 <hr>
 <h3 id="step-3-update-dockerfile">Step 3: Update Dockerfile</h3>
 <p>Update your Nginx Dockerfile to expose both ports:</p>
@@ -541,14 +967,14 @@ The trace is 14, \(\sigma_2(A)\) collects the 2×2 minors (e.g., \(2\cdot3, 2\cd
 
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-dockerfile" data-lang="dockerfile"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="k">FROM</span><span class="w"> </span><span class="s">nginx:alpine</span><span class="err">
 </span></span></span><span class="line"><span class="ln"> 2</span><span class="cl"><span class="err">
-</span></span></span><span class="line"><span class="ln"> 3</span><span class="cl"><span class="err"></span><span class="c"># Copy configurations</span><span class="err">
-</span></span></span><span class="line"><span class="ln"> 4</span><span class="cl"><span class="err"></span><span class="k">COPY</span> nginx-main.conf /etc/nginx/nginx.conf<span class="err">
-</span></span></span><span class="line"><span class="ln"> 5</span><span class="cl"><span class="err"></span><span class="k">COPY</span> nginx.conf /etc/nginx/conf.d/default.conf<span class="err">
+</span></span></span><span class="line"><span class="ln"> 3</span><span class="cl"><span class="c"># Copy configurations</span><span class="err">
+</span></span></span><span class="line"><span class="ln"> 4</span><span class="cl"><span class="k">COPY</span> nginx-main.conf /etc/nginx/nginx.conf<span class="err">
+</span></span></span><span class="line"><span class="ln"> 5</span><span class="cl"><span class="k">COPY</span> nginx.conf /etc/nginx/conf.d/default.conf<span class="err">
 </span></span></span><span class="line"><span class="ln"> 6</span><span class="cl"><span class="err">
-</span></span></span><span class="line"><span class="ln"> 7</span><span class="cl"><span class="err"></span><span class="c"># Expose HTTP and HTTPS ports</span><span class="err">
-</span></span></span><span class="line"><span class="ln"> 8</span><span class="cl"><span class="err"></span><span class="k">EXPOSE</span><span class="w"> </span><span class="s">80</span> <span class="m">443</span><span class="err">
+</span></span></span><span class="line"><span class="ln"> 7</span><span class="cl"><span class="c"># Expose HTTP and HTTPS ports</span><span class="err">
+</span></span></span><span class="line"><span class="ln"> 8</span><span class="cl"><span class="k">EXPOSE</span><span class="w"> </span><span class="s">80</span> <span class="m">443</span><span class="err">
 </span></span></span><span class="line"><span class="ln"> 9</span><span class="cl"><span class="err">
-</span></span></span><span class="line"><span class="ln">10</span><span class="cl"><span class="err"></span><span class="k">CMD</span> <span class="p">[</span><span class="s2">&#34;nginx&#34;</span><span class="p">,</span> <span class="s2">&#34;-g&#34;</span><span class="p">,</span> <span class="s2">&#34;daemon off;&#34;</span><span class="p">]</span></span></span></code></pre></div><hr>
+</span></span></span><span class="line"><span class="ln">10</span><span class="cl"><span class="k">CMD</span> <span class="p">[</span><span class="s2">&#34;nginx&#34;</span><span class="p">,</span> <span class="s2">&#34;-g&#34;</span><span class="p">,</span> <span class="s2">&#34;daemon off;&#34;</span><span class="p">]</span></span></span></code></pre></div><hr>
 <h3 id="step-4-update-docker-compose">Step 4: Update Docker Compose</h3>
 <p>Mount the SSL certificates and expose port 443:</p>
 <p><strong><code>docker-compose.yml</code></strong> (nginx service section):</p>
@@ -580,7 +1006,7 @@ The trace is 14, \(\sigma_2(A)\) collects the 2×2 minors (e.g., \(2\cdot3, 2\cd
 </span></span></span><span class="line"><span class="ln">21</span><span class="cl"><span class="w">      </span><span class="nt">timeout</span><span class="p">:</span><span class="w"> </span><span class="l">10s</span><span class="w">
 </span></span></span><span class="line"><span class="ln">22</span><span class="cl"><span class="w">      </span><span class="nt">retries</span><span class="p">:</span><span class="w"> </span><span class="m">3</span><span class="w">
 </span></span></span><span class="line"><span class="ln">23</span><span class="cl"><span class="w">
-</span></span></span><span class="line"><span class="ln">24</span><span class="cl"><span class="w"></span><span class="nt">networks</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln">24</span><span class="cl"><span class="nt">networks</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="ln">25</span><span class="cl"><span class="w">  </span><span class="nt">app-network</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="ln">26</span><span class="cl"><span class="w">    </span><span class="nt">driver</span><span class="p">:</span><span class="w"> </span><span class="l">bridge</span></span></span></code></pre></div><hr>
 <h3 id="step-5-deploy">Step 5: Deploy</h3>
@@ -798,9 +1224,10 @@ Since these certificates are for specific public domains, you can&rsquo;t easily
       <link>https://KTS-o7.github.io/bear/posts/connection_pool_exhaustion/</link>
       <pubDate>Sat, 06 Dec 2025 12:00:00 +0000</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
       <guid>https://KTS-o7.github.io/bear/posts/connection_pool_exhaustion/</guid>
-      <description>&lt;blockquote&gt;&#xA;&lt;p&gt;&lt;strong&gt;Why increasing maxPoolSize breaks your database.&lt;/strong&gt; A deep dive into MongoDB connection pooling, SDAM, WiredTiger tickets, and preventing transaction pinning.&lt;/p&gt;&lt;/blockquote&gt;&#xA;&lt;h2 id=&#34;introduction&#34;&gt;Introduction&lt;/h2&gt;&#xA;&lt;p&gt;In the MongoDB ecosystem, the &amp;ldquo;connection pool&amp;rdquo; is often treated as a set-and-forget configuration within &lt;code&gt;MongoClient&lt;/code&gt;. However, when latency spikes or the database becomes unresponsive during high traffic, the pool is usually the first mechanism to break.&lt;/p&gt;&#xA;&lt;p&gt;Unlike relational databases that often sit behind proxies like PgBouncer, MongoDB drivers are &amp;ldquo;smart&amp;rdquo;—they maintain direct connections to multiple nodes in a Replica Set or Sharded Cluster. This complexity means exhaustion isn&amp;rsquo;t just about running out of sockets; it&amp;rsquo;s about topology monitoring, transaction pinning, and the brutal reality of the thread-per-connection model on the server side.&lt;/p&gt;</description>
+      <description>&lt;blockquote&gt;&#xA;&lt;p&gt;&lt;strong&gt;Why increasing maxPoolSize breaks your database.&lt;/strong&gt; A deep dive into MongoDB connection pooling, SDAM, WiredTiger tickets, and preventing transaction pinning.&lt;/p&gt;&#xA;&lt;/blockquote&gt;&#xA;&lt;h2 id=&#34;introduction&#34;&gt;Introduction&lt;/h2&gt;&#xA;&lt;p&gt;In the MongoDB ecosystem, the &amp;ldquo;connection pool&amp;rdquo; is often treated as a set-and-forget configuration within &lt;code&gt;MongoClient&lt;/code&gt;. However, when latency spikes or the database becomes unresponsive during high traffic, the pool is usually the first mechanism to break.&lt;/p&gt;&#xA;&lt;p&gt;Unlike relational databases that often sit behind proxies like PgBouncer, MongoDB drivers are &amp;ldquo;smart&amp;rdquo;—they maintain direct connections to multiple nodes in a Replica Set or Sharded Cluster. This complexity means exhaustion isn&amp;rsquo;t just about running out of sockets; it&amp;rsquo;s about topology monitoring, transaction pinning, and the brutal reality of the thread-per-connection model on the server side.&lt;/p&gt;</description>
       <content:encoded><![CDATA[<blockquote>
-<p><strong>Why increasing maxPoolSize breaks your database.</strong> A deep dive into MongoDB connection pooling, SDAM, WiredTiger tickets, and preventing transaction pinning.</p></blockquote>
+<p><strong>Why increasing maxPoolSize breaks your database.</strong> A deep dive into MongoDB connection pooling, SDAM, WiredTiger tickets, and preventing transaction pinning.</p>
+</blockquote>
 <h2 id="introduction">Introduction</h2>
 <p>In the MongoDB ecosystem, the &ldquo;connection pool&rdquo; is often treated as a set-and-forget configuration within <code>MongoClient</code>. However, when latency spikes or the database becomes unresponsive during high traffic, the pool is usually the first mechanism to break.</p>
 <p>Unlike relational databases that often sit behind proxies like PgBouncer, MongoDB drivers are &ldquo;smart&rdquo;—they maintain direct connections to multiple nodes in a Replica Set or Sharded Cluster. This complexity means exhaustion isn&rsquo;t just about running out of sockets; it&rsquo;s about topology monitoring, transaction pinning, and the brutal reality of the thread-per-connection model on the server side.</p>
@@ -1005,13 +1432,13 @@ Since these certificates are for specific public domains, you can&rsquo;t easily
 
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-javascript" data-lang="javascript"><span class="line"><span class="ln">1</span><span class="cl"><span class="kr">const</span> <span class="nx">client</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">MongoClient</span><span class="p">(</span><span class="nx">uri</span><span class="p">,</span> <span class="p">{</span>
 </span></span><span class="line"><span class="ln">2</span><span class="cl">  <span class="nx">maxPoolSize</span><span class="o">:</span> <span class="mi">10</span><span class="p">,</span>              <span class="c1">// Small pool for 16-core DB
-</span></span></span><span class="line"><span class="ln">3</span><span class="cl"><span class="c1"></span>  <span class="nx">minPoolSize</span><span class="o">:</span> <span class="mi">2</span><span class="p">,</span>               <span class="c1">// Pre-warm 2 connections
-</span></span></span><span class="line"><span class="ln">4</span><span class="cl"><span class="c1"></span>  <span class="nx">maxIdleTimeMS</span><span class="o">:</span> <span class="mi">30000</span><span class="p">,</span>         <span class="c1">// Close idle after 30s
-</span></span></span><span class="line"><span class="ln">5</span><span class="cl"><span class="c1"></span>  <span class="nx">waitQueueTimeoutMS</span><span class="o">:</span> <span class="mi">5000</span><span class="p">,</span>     <span class="c1">// Fail after 5s wait
-</span></span></span><span class="line"><span class="ln">6</span><span class="cl"><span class="c1"></span>  <span class="nx">connectTimeoutMS</span><span class="o">:</span> <span class="mi">10000</span><span class="p">,</span>      <span class="c1">// 10s connection timeout
-</span></span></span><span class="line"><span class="ln">7</span><span class="cl"><span class="c1"></span>  <span class="nx">socketTimeoutMS</span><span class="o">:</span> <span class="mi">45000</span><span class="p">,</span>       <span class="c1">// 45s operation timeout
-</span></span></span><span class="line"><span class="ln">8</span><span class="cl"><span class="c1"></span>  <span class="nx">heartbeatFrequencyMS</span><span class="o">:</span> <span class="mi">10000</span>   <span class="c1">// Check every 10s
-</span></span></span><span class="line"><span class="ln">9</span><span class="cl"><span class="c1"></span><span class="p">});</span></span></span></code></pre></div><h2 id="the-cost-of-a-connection-in-mongod">The Cost of a Connection in mongod</h2>
+</span></span></span><span class="line"><span class="ln">3</span><span class="cl">  <span class="nx">minPoolSize</span><span class="o">:</span> <span class="mi">2</span><span class="p">,</span>               <span class="c1">// Pre-warm 2 connections
+</span></span></span><span class="line"><span class="ln">4</span><span class="cl">  <span class="nx">maxIdleTimeMS</span><span class="o">:</span> <span class="mi">30000</span><span class="p">,</span>         <span class="c1">// Close idle after 30s
+</span></span></span><span class="line"><span class="ln">5</span><span class="cl">  <span class="nx">waitQueueTimeoutMS</span><span class="o">:</span> <span class="mi">5000</span><span class="p">,</span>     <span class="c1">// Fail after 5s wait
+</span></span></span><span class="line"><span class="ln">6</span><span class="cl">  <span class="nx">connectTimeoutMS</span><span class="o">:</span> <span class="mi">10000</span><span class="p">,</span>      <span class="c1">// 10s connection timeout
+</span></span></span><span class="line"><span class="ln">7</span><span class="cl">  <span class="nx">socketTimeoutMS</span><span class="o">:</span> <span class="mi">45000</span><span class="p">,</span>       <span class="c1">// 45s operation timeout
+</span></span></span><span class="line"><span class="ln">8</span><span class="cl">  <span class="nx">heartbeatFrequencyMS</span><span class="o">:</span> <span class="mi">10000</span>   <span class="c1">// Check every 10s
+</span></span></span><span class="line"><span class="ln">9</span><span class="cl"><span class="p">});</span></span></span></code></pre></div><h2 id="the-cost-of-a-connection-in-mongod">The Cost of a Connection in mongod</h2>
 <p>While MongoDB has moved toward a more asynchronous networking model in recent versions, historically (and effectively, for resource planning), it relies on a synchronous thread-per-connection model.</p>
 <p>When your application opens a new connection:</p>
 <ol>
@@ -1047,7 +1474,8 @@ In a Transaction (Multi-Document ACID):</p>
 <h3 id="the-exhaustion-scenario">The Exhaustion Scenario</h3>
 <p>If you have <code>maxPoolSize=50</code> and an API endpoint that takes 2 seconds to execute some logic <em>inside</em> a transaction, you can only serve 25 requests per second. The 26th request will wait. If the logic hangs (e.g., waiting for a third-party HTTP call), you will drain the pool instantly, causing a cascading failure across the app.</p>
 <blockquote>
-<p><strong>ʕ•ᴥ•ʔ Critical Rule:</strong> Never perform network I/O or long computations inside a MongoDB transaction. Transactions should be atomic, fast, and only contain database operations.</p></blockquote>
+<p><strong>ʕ•ᴥ•ʔ Critical Rule:</strong> Never perform network I/O or long computations inside a MongoDB transaction. Transactions should be atomic, fast, and only contain database operations.</p>
+</blockquote>
 <h2 id="practical-examples-the-right-way-vs-the-wrong-way">Practical Examples: The Right Way vs. The Wrong Way</h2>
 <h3 id="proper-client-initialization">Proper Client Initialization</h3>
 <p><strong>Node.js - Express (Correct):</strong></p>
@@ -1057,7 +1485,7 @@ In a Transaction (Multi-Document ACID):</p>
 
 
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-javascript" data-lang="javascript"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="c1">// app.js - Initialize once at startup
-</span></span></span><span class="line"><span class="ln"> 2</span><span class="cl"><span class="c1"></span><span class="kr">const</span> <span class="p">{</span> <span class="nx">MongoClient</span> <span class="p">}</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">&#39;mongodb&#39;</span><span class="p">);</span>
+</span></span></span><span class="line"><span class="ln"> 2</span><span class="cl"><span class="kr">const</span> <span class="p">{</span> <span class="nx">MongoClient</span> <span class="p">}</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">&#39;mongodb&#39;</span><span class="p">);</span>
 </span></span><span class="line"><span class="ln"> 3</span><span class="cl">
 </span></span><span class="line"><span class="ln"> 4</span><span class="cl"><span class="kd">let</span> <span class="nx">client</span><span class="p">;</span>
 </span></span><span class="line"><span class="ln"> 5</span><span class="cl"><span class="kd">let</span> <span class="nx">db</span><span class="p">;</span>
@@ -1073,12 +1501,12 @@ In a Transaction (Multi-Document ACID):</p>
 </span></span><span class="line"><span class="ln">15</span><span class="cl"><span class="p">}</span>
 </span></span><span class="line"><span class="ln">16</span><span class="cl">
 </span></span><span class="line"><span class="ln">17</span><span class="cl"><span class="c1">// Initialize before starting server
-</span></span></span><span class="line"><span class="ln">18</span><span class="cl"><span class="c1"></span><span class="nx">initDatabase</span><span class="p">().</span><span class="nx">then</span><span class="p">(()</span> <span class="p">=&gt;</span> <span class="p">{</span>
+</span></span></span><span class="line"><span class="ln">18</span><span class="cl"><span class="nx">initDatabase</span><span class="p">().</span><span class="nx">then</span><span class="p">(()</span> <span class="p">=&gt;</span> <span class="p">{</span>
 </span></span><span class="line"><span class="ln">19</span><span class="cl">  <span class="nx">app</span><span class="p">.</span><span class="nx">listen</span><span class="p">(</span><span class="mi">3000</span><span class="p">);</span>
 </span></span><span class="line"><span class="ln">20</span><span class="cl"><span class="p">});</span>
 </span></span><span class="line"><span class="ln">21</span><span class="cl">
 </span></span><span class="line"><span class="ln">22</span><span class="cl"><span class="c1">// Use the same client instance everywhere
-</span></span></span><span class="line"><span class="ln">23</span><span class="cl"><span class="c1"></span><span class="nx">app</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="s1">&#39;/users&#39;</span><span class="p">,</span> <span class="kr">async</span> <span class="p">(</span><span class="nx">req</span><span class="p">,</span> <span class="nx">res</span><span class="p">)</span> <span class="p">=&gt;</span> <span class="p">{</span>
+</span></span></span><span class="line"><span class="ln">23</span><span class="cl"><span class="nx">app</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="s1">&#39;/users&#39;</span><span class="p">,</span> <span class="kr">async</span> <span class="p">(</span><span class="nx">req</span><span class="p">,</span> <span class="nx">res</span><span class="p">)</span> <span class="p">=&gt;</span> <span class="p">{</span>
 </span></span><span class="line"><span class="ln">24</span><span class="cl">  <span class="kr">const</span> <span class="nx">users</span> <span class="o">=</span> <span class="kr">await</span> <span class="nx">db</span><span class="p">.</span><span class="nx">collection</span><span class="p">(</span><span class="s1">&#39;users&#39;</span><span class="p">).</span><span class="nx">find</span><span class="p">({}).</span><span class="nx">toArray</span><span class="p">();</span>
 </span></span><span class="line"><span class="ln">25</span><span class="cl">  <span class="nx">res</span><span class="p">.</span><span class="nx">json</span><span class="p">(</span><span class="nx">users</span><span class="p">);</span>
 </span></span><span class="line"><span class="ln">26</span><span class="cl"><span class="p">});</span></span></span></code></pre></div><p><strong>Node.js - Express (Wrong - Creates New Pool Per Request):</strong></p>
@@ -1088,13 +1516,13 @@ In a Transaction (Multi-Document ACID):</p>
 
 
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-javascript" data-lang="javascript"><span class="line"><span class="ln">1</span><span class="cl"><span class="c1">// ʕ•̀ω•́ʔ DON&#39;T DO THIS
-</span></span></span><span class="line"><span class="ln">2</span><span class="cl"><span class="c1"></span><span class="nx">app</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="s1">&#39;/users&#39;</span><span class="p">,</span> <span class="kr">async</span> <span class="p">(</span><span class="nx">req</span><span class="p">,</span> <span class="nx">res</span><span class="p">)</span> <span class="p">=&gt;</span> <span class="p">{</span>
+</span></span></span><span class="line"><span class="ln">2</span><span class="cl"><span class="nx">app</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="s1">&#39;/users&#39;</span><span class="p">,</span> <span class="kr">async</span> <span class="p">(</span><span class="nx">req</span><span class="p">,</span> <span class="nx">res</span><span class="p">)</span> <span class="p">=&gt;</span> <span class="p">{</span>
 </span></span><span class="line"><span class="ln">3</span><span class="cl">  <span class="kr">const</span> <span class="nx">client</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">MongoClient</span><span class="p">(</span><span class="nx">uri</span><span class="p">);</span>  <span class="c1">// New pool every request!
-</span></span></span><span class="line"><span class="ln">4</span><span class="cl"><span class="c1"></span>  <span class="kr">await</span> <span class="nx">client</span><span class="p">.</span><span class="nx">connect</span><span class="p">();</span>
+</span></span></span><span class="line"><span class="ln">4</span><span class="cl">  <span class="kr">await</span> <span class="nx">client</span><span class="p">.</span><span class="nx">connect</span><span class="p">();</span>
 </span></span><span class="line"><span class="ln">5</span><span class="cl">  <span class="kr">const</span> <span class="nx">db</span> <span class="o">=</span> <span class="nx">client</span><span class="p">.</span><span class="nx">db</span><span class="p">(</span><span class="s1">&#39;myapp&#39;</span><span class="p">);</span>
 </span></span><span class="line"><span class="ln">6</span><span class="cl">  <span class="kr">const</span> <span class="nx">users</span> <span class="o">=</span> <span class="kr">await</span> <span class="nx">db</span><span class="p">.</span><span class="nx">collection</span><span class="p">(</span><span class="s1">&#39;users&#39;</span><span class="p">).</span><span class="nx">find</span><span class="p">({}).</span><span class="nx">toArray</span><span class="p">();</span>
 </span></span><span class="line"><span class="ln">7</span><span class="cl">  <span class="kr">await</span> <span class="nx">client</span><span class="p">.</span><span class="nx">close</span><span class="p">();</span>  <span class="c1">// Closes pool, but too late
-</span></span></span><span class="line"><span class="ln">8</span><span class="cl"><span class="c1"></span>  <span class="nx">res</span><span class="p">.</span><span class="nx">json</span><span class="p">(</span><span class="nx">users</span><span class="p">);</span>
+</span></span></span><span class="line"><span class="ln">8</span><span class="cl">  <span class="nx">res</span><span class="p">.</span><span class="nx">json</span><span class="p">(</span><span class="nx">users</span><span class="p">);</span>
 </span></span><span class="line"><span class="ln">9</span><span class="cl"><span class="p">});</span></span></span></code></pre></div><p><strong>Python - Gunicorn (Correct):</strong></p>
 
 
@@ -1151,9 +1579,9 @@ In a Transaction (Multi-Document ACID):</p>
 </span></span></span><span class="line"><span class="ln"> 3</span><span class="cl"><span class="w">    </span><span class="n">mongodb</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="ln"> 4</span><span class="cl"><span class="w">      </span><span class="n">uri</span><span class="p">:</span><span class="w"> </span><span class="s">&#34;mongodb://user:pass@host1:27017,host2:27017/?replicaSet=myRS&amp;maxPoolSize=10&amp;minPoolSize=2&amp;maxIdleTimeMS=30000&#34;</span><span class="w">
 </span></span></span><span class="line"><span class="ln"> 5</span><span class="cl"><span class="w">
-</span></span></span><span class="line"><span class="ln"> 6</span><span class="cl"><span class="w"></span><span class="c1">// Or if using a Configurer Bean (safe way to customize without breaking auto-config)</span><span class="w">
-</span></span></span><span class="line"><span class="ln"> 7</span><span class="cl"><span class="w"></span><span class="nd">@Configuration</span><span class="w">
-</span></span></span><span class="line"><span class="ln"> 8</span><span class="cl"><span class="w"></span><span class="kd">public</span><span class="w"> </span><span class="kd">class</span> <span class="nc">MongoConfig</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 6</span><span class="cl"><span class="c1">// Or if using a Configurer Bean (safe way to customize without breaking auto-config)</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 7</span><span class="cl"><span class="nd">@Configuration</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 8</span><span class="cl"><span class="kd">public</span><span class="w"> </span><span class="kd">class</span> <span class="nc">MongoConfig</span><span class="w"> </span><span class="p">{</span><span class="w">
 </span></span></span><span class="line"><span class="ln"> 9</span><span class="cl"><span class="w">    </span><span class="nd">@Bean</span><span class="w">
 </span></span></span><span class="line"><span class="ln">10</span><span class="cl"><span class="w">    </span><span class="kd">public</span><span class="w"> </span><span class="n">MongoClientSettingsBuilderCustomizer</span><span class="w"> </span><span class="nf">customizer</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
 </span></span></span><span class="line"><span class="ln">11</span><span class="cl"><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">builder</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">builder</span><span class="p">.</span><span class="na">applyToConnectionPoolSettings</span><span class="p">(</span><span class="n">pool</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="p">{</span><span class="w">
@@ -1161,9 +1589,10 @@ In a Transaction (Multi-Document ACID):</p>
 </span></span></span><span class="line"><span class="ln">13</span><span class="cl"><span class="w">            </span><span class="n">pool</span><span class="p">.</span><span class="na">maxWaitTime</span><span class="p">(</span><span class="n">5</span><span class="p">,</span><span class="w"> </span><span class="n">TimeUnit</span><span class="p">.</span><span class="na">SECONDS</span><span class="p">);</span><span class="w">
 </span></span></span><span class="line"><span class="ln">14</span><span class="cl"><span class="w">        </span><span class="p">});</span><span class="w">
 </span></span></span><span class="line"><span class="ln">15</span><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
-</span></span></span><span class="line"><span class="ln">16</span><span class="cl"><span class="w"></span><span class="p">}</span></span></span></code></pre></div><p><strong>The Health Check Trap:</strong></p>
+</span></span></span><span class="line"><span class="ln">16</span><span class="cl"><span class="p">}</span></span></span></code></pre></div><p><strong>The Health Check Trap:</strong></p>
 <blockquote>
-<p><strong>ʕ•ᴥ•ʔ Warning:</strong> Do not create a new <code>MongoClient</code> inside your Kubernetes readiness/liveness probe. This is a classic DOS attack on your own database. The probe runs every 10s; if it creates a new connection each time without proper closure, you will exhaust the server limits in minutes. Use the singleton client to run a lightweight command like <code>db.command({ ping: 1 })</code>.</p></blockquote>
+<p><strong>ʕ•ᴥ•ʔ Warning:</strong> Do not create a new <code>MongoClient</code> inside your Kubernetes readiness/liveness probe. This is a classic DOS attack on your own database. The probe runs every 10s; if it creates a new connection each time without proper closure, you will exhaust the server limits in minutes. Use the singleton client to run a lightweight command like <code>db.command({ ping: 1 })</code>.</p>
+</blockquote>
 <h3 id="monitoring-pool-metrics">Monitoring Pool Metrics</h3>
 <p><strong>Node.js - Command Monitoring:</strong></p>
 
@@ -1175,7 +1604,7 @@ In a Transaction (Multi-Document ACID):</p>
 </span></span><span class="line"><span class="ln"> 2</span><span class="cl">
 </span></span><span class="line"><span class="ln"> 3</span><span class="cl"><span class="kr">const</span> <span class="nx">client</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">MongoClient</span><span class="p">(</span><span class="nx">uri</span><span class="p">,</span> <span class="p">{</span>
 </span></span><span class="line"><span class="ln"> 4</span><span class="cl">  <span class="nx">monitorCommands</span><span class="o">:</span> <span class="kc">true</span>  <span class="c1">// Enable command monitoring
-</span></span></span><span class="line"><span class="ln"> 5</span><span class="cl"><span class="c1"></span><span class="p">});</span>
+</span></span></span><span class="line"><span class="ln"> 5</span><span class="cl"><span class="p">});</span>
 </span></span><span class="line"><span class="ln"> 6</span><span class="cl">
 </span></span><span class="line"><span class="ln"> 7</span><span class="cl"><span class="nx">client</span><span class="p">.</span><span class="nx">on</span><span class="p">(</span><span class="s1">&#39;commandStarted&#39;</span><span class="p">,</span> <span class="p">(</span><span class="nx">event</span><span class="p">)</span> <span class="p">=&gt;</span> <span class="p">{</span>
 </span></span><span class="line"><span class="ln"> 8</span><span class="cl">  <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="s1">&#39;Command:&#39;</span><span class="p">,</span> <span class="nx">event</span><span class="p">.</span><span class="nx">commandName</span><span class="p">);</span>
@@ -1186,9 +1615,9 @@ In a Transaction (Multi-Document ACID):</p>
 </span></span><span class="line"><span class="ln">13</span><span class="cl"><span class="p">});</span>
 </span></span><span class="line"><span class="ln">14</span><span class="cl">
 </span></span><span class="line"><span class="ln">15</span><span class="cl"><span class="c1">// For connection pool metrics, use pool monitoring events
-</span></span></span><span class="line"><span class="ln">16</span><span class="cl"><span class="c1"></span><span class="nx">client</span><span class="p">.</span><span class="nx">on</span><span class="p">(</span><span class="s1">&#39;connectionCheckedOut&#39;</span><span class="p">,</span> <span class="p">(</span><span class="nx">event</span><span class="p">)</span> <span class="p">=&gt;</span> <span class="p">{</span>
+</span></span></span><span class="line"><span class="ln">16</span><span class="cl"><span class="nx">client</span><span class="p">.</span><span class="nx">on</span><span class="p">(</span><span class="s1">&#39;connectionCheckedOut&#39;</span><span class="p">,</span> <span class="p">(</span><span class="nx">event</span><span class="p">)</span> <span class="p">=&gt;</span> <span class="p">{</span>
 </span></span><span class="line"><span class="ln">17</span><span class="cl">  <span class="k">if</span> <span class="p">(</span><span class="nx">event</span><span class="p">.</span><span class="nx">duration</span> <span class="o">&gt;</span> <span class="mi">100</span><span class="p">)</span> <span class="p">{</span>  <span class="c1">// Checkout took &gt; 100ms
-</span></span></span><span class="line"><span class="ln">18</span><span class="cl"><span class="c1"></span>    <span class="nx">console</span><span class="p">.</span><span class="nx">warn</span><span class="p">(</span><span class="s1">&#39;Slow connection checkout:&#39;</span><span class="p">,</span> <span class="nx">event</span><span class="p">.</span><span class="nx">duration</span><span class="p">,</span> <span class="s1">&#39;ms&#39;</span><span class="p">);</span>
+</span></span></span><span class="line"><span class="ln">18</span><span class="cl">    <span class="nx">console</span><span class="p">.</span><span class="nx">warn</span><span class="p">(</span><span class="s1">&#39;Slow connection checkout:&#39;</span><span class="p">,</span> <span class="nx">event</span><span class="p">.</span><span class="nx">duration</span><span class="p">,</span> <span class="s1">&#39;ms&#39;</span><span class="p">);</span>
 </span></span><span class="line"><span class="ln">19</span><span class="cl">  <span class="p">}</span>
 </span></span><span class="line"><span class="ln">20</span><span class="cl"><span class="p">});</span>
 </span></span><span class="line"><span class="ln">21</span><span class="cl">
@@ -1205,9 +1634,9 @@ In a Transaction (Multi-Document ACID):</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="kn">import</span><span class="w"> </span><span class="p">(</span><span class="w">
 </span></span></span><span class="line"><span class="ln"> 2</span><span class="cl"><span class="w">    </span><span class="s">&#34;go.mongodb.org/mongo-driver/event&#34;</span><span class="w">
 </span></span></span><span class="line"><span class="ln"> 3</span><span class="cl"><span class="w">    </span><span class="s">&#34;go.mongodb.org/mongo-driver/mongo&#34;</span><span class="w">
-</span></span></span><span class="line"><span class="ln"> 4</span><span class="cl"><span class="w"></span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 4</span><span class="cl"><span class="p">)</span><span class="w">
 </span></span></span><span class="line"><span class="ln"> 5</span><span class="cl"><span class="w">
-</span></span></span><span class="line"><span class="ln"> 6</span><span class="cl"><span class="w"></span><span class="nx">poolMonitor</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="o">&amp;</span><span class="nx">event</span><span class="p">.</span><span class="nx">PoolMonitor</span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 6</span><span class="cl"><span class="nx">poolMonitor</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="o">&amp;</span><span class="nx">event</span><span class="p">.</span><span class="nx">PoolMonitor</span><span class="p">{</span><span class="w">
 </span></span></span><span class="line"><span class="ln"> 7</span><span class="cl"><span class="w">    </span><span class="nx">Event</span><span class="p">:</span><span class="w"> </span><span class="kd">func</span><span class="p">(</span><span class="nx">evt</span><span class="w"> </span><span class="o">*</span><span class="nx">event</span><span class="p">.</span><span class="nx">PoolEvent</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
 </span></span></span><span class="line"><span class="ln"> 8</span><span class="cl"><span class="w">        </span><span class="k">switch</span><span class="w"> </span><span class="nx">evt</span><span class="p">.</span><span class="nx">Type</span><span class="w"> </span><span class="p">{</span><span class="w">
 </span></span></span><span class="line"><span class="ln"> 9</span><span class="cl"><span class="w">        </span><span class="k">case</span><span class="w"> </span><span class="nx">event</span><span class="p">.</span><span class="nx">ConnectionCreated</span><span class="p">:</span><span class="w">
@@ -1220,14 +1649,14 @@ In a Transaction (Multi-Document ACID):</p>
 </span></span></span><span class="line"><span class="ln">16</span><span class="cl"><span class="w">            </span><span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="s">&#34;Connection returned&#34;</span><span class="p">)</span><span class="w">
 </span></span></span><span class="line"><span class="ln">17</span><span class="cl"><span class="w">        </span><span class="p">}</span><span class="w">
 </span></span></span><span class="line"><span class="ln">18</span><span class="cl"><span class="w">    </span><span class="p">},</span><span class="w">
-</span></span></span><span class="line"><span class="ln">19</span><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="ln">19</span><span class="cl"><span class="p">}</span><span class="w">
 </span></span></span><span class="line"><span class="ln">20</span><span class="cl"><span class="w">
-</span></span></span><span class="line"><span class="ln">21</span><span class="cl"><span class="w"></span><span class="nx">clientOptions</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">options</span><span class="p">.</span><span class="nf">Client</span><span class="p">().</span><span class="w">
+</span></span></span><span class="line"><span class="ln">21</span><span class="cl"><span class="nx">clientOptions</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">options</span><span class="p">.</span><span class="nf">Client</span><span class="p">().</span><span class="w">
 </span></span></span><span class="line"><span class="ln">22</span><span class="cl"><span class="w">    </span><span class="nf">ApplyURI</span><span class="p">(</span><span class="nx">uri</span><span class="p">).</span><span class="w">
 </span></span></span><span class="line"><span class="ln">23</span><span class="cl"><span class="w">    </span><span class="nf">SetPoolMonitor</span><span class="p">(</span><span class="nx">poolMonitor</span><span class="p">).</span><span class="w">
 </span></span></span><span class="line"><span class="ln">24</span><span class="cl"><span class="w">    </span><span class="nf">SetMaxPoolSize</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span><span class="w">
 </span></span></span><span class="line"><span class="ln">25</span><span class="cl"><span class="w">
-</span></span></span><span class="line"><span class="ln">26</span><span class="cl"><span class="w"></span><span class="nx">client</span><span class="p">,</span><span class="w"> </span><span class="nx">_</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">mongo</span><span class="p">.</span><span class="nf">Connect</span><span class="p">(</span><span class="nx">context</span><span class="p">.</span><span class="nf">TODO</span><span class="p">(),</span><span class="w"> </span><span class="nx">clientOptions</span><span class="p">)</span></span></span></code></pre></div><h2 id="driver-nuances--pitfalls">Driver Nuances &amp; Pitfalls</h2>
+</span></span></span><span class="line"><span class="ln">26</span><span class="cl"><span class="nx">client</span><span class="p">,</span><span class="w"> </span><span class="nx">_</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">mongo</span><span class="p">.</span><span class="nf">Connect</span><span class="p">(</span><span class="nx">context</span><span class="p">.</span><span class="nf">TODO</span><span class="p">(),</span><span class="w"> </span><span class="nx">clientOptions</span><span class="p">)</span></span></span></code></pre></div><h2 id="driver-nuances--pitfalls">Driver Nuances &amp; Pitfalls</h2>
 <h3 id="nodejs-mongoose--native-driver">Node.js (Mongoose / Native Driver)</h3>
 <p>The Node driver is asynchronous, but the pool logic is strict.</p>
 <ul>
@@ -1744,7 +2173,7 @@ Basically its 2^n combinations.</p>
 
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;stdio.h&gt;</span><span class="cp">
 </span></span></span><span class="line"><span class="ln"> 2</span><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;stdlib.h&gt;</span><span class="cp">
-</span></span></span><span class="line"><span class="ln"> 3</span><span class="cl"><span class="cp"></span>
+</span></span></span><span class="line"><span class="ln"> 3</span><span class="cl">
 </span></span><span class="line"><span class="ln"> 4</span><span class="cl"><span class="kt">int</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
 </span></span><span class="line"><span class="ln"> 5</span><span class="cl">    <span class="kt">int</span> <span class="n">n</span><span class="p">;</span>
 </span></span><span class="line"><span class="ln"> 6</span><span class="cl">    <span class="nf">scanf</span><span class="p">(</span><span class="s">&#34;%d&#34;</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">n</span><span class="p">);</span>
@@ -2180,7 +2609,8 @@ where <code>n</code> is the number of terms, <code>a</code> is the first term, a
 <p>Collatz conjecture is a conjecture in mathematics that states that for any positive integer <code>n</code>, the sequence of numbers generated by the following algorithm will eventually reach 1.</p>
 <p>So far, the conjecture has been verified for all positive integers up to 2^68.</p>
 <blockquote>
-<p>Wikipedia link: <a href="https://en.wikipedia.org/wiki/Collatz_conjecture">Collatz conjecture</a></p></blockquote>
+<p>Wikipedia link: <a href="https://en.wikipedia.org/wiki/Collatz_conjecture">Collatz conjecture</a></p>
+</blockquote>
 ]]></content:encoded>
     </item>
     <item>
@@ -2461,7 +2891,10 @@ $$<h3 id="this-is-how-code-looks-like">This is how code looks like</h3>
 <blockquote>
 <p>This is a nested blockquote</p>
 <blockquote>
-<p>This is a nested nested blockquote</p></blockquote></blockquote></blockquote>
+<p>This is a nested nested blockquote</p>
+</blockquote>
+</blockquote>
+</blockquote>
 <h3 id="this-is-how-a-table-looks-like">This is how a table looks like</h3>
 <table>
   <thead>
