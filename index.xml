@@ -9,7 +9,7 @@
     <managingEditor>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</managingEditor>
     <webMaster>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</webMaster>
     <copyright>Krishnatejaswi S</copyright>
-    <lastBuildDate>Mon, 16 Feb 2026 00:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Tue, 17 Feb 2026 00:00:00 +0000</lastBuildDate>
     <atom:link href="https://KTS-o7.github.io/bear/index.xml" rel="self" type="application/rss+xml" />
     <item>
       <title>About</title>
@@ -59,6 +59,417 @@ drop a hi there if you see me around!</p>
 </table>
 <hr>
 <p><em>Thanks for visiting my blog! If you enjoyed reading my posts, consider checking out the RSS feed to stay updated with my posts</em></p>
+]]></content:encoded>
+    </item>
+    <item>
+      <title>From Manual Deploys to SHA-Tagged Containers: CI/CD for a K8s Platform</title>
+      <link>https://KTS-o7.github.io/bear/posts/cicd_docker_buildx_sha_deploys/</link>
+      <pubDate>Tue, 17 Feb 2026 00:00:00 +0000</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/posts/cicd_docker_buildx_sha_deploys/</guid>
+      <description>&lt;p&gt;Someone tagged an image &lt;code&gt;latest&lt;/code&gt;, pushed it to ECR, and overwrote the image another service was using. Four hours of debugging later, we figured out we were running the wrong binary entirely. That was the week I decided to stop treating deployment as a manual process.&lt;/p&gt;&#xA;&lt;p&gt;This post covers three CI/CD problems I solved with Docker Buildx, SHA-based image tagging, and dynamic workflow generation — and one thing I broke along the way.&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>Someone tagged an image <code>latest</code>, pushed it to ECR, and overwrote the image another service was using. Four hours of debugging later, we figured out we were running the wrong binary entirely. That was the week I decided to stop treating deployment as a manual process.</p>
+<p>This post covers three CI/CD problems I solved with Docker Buildx, SHA-based image tagging, and dynamic workflow generation — and one thing I broke along the way.</p>
+<h2 id="why-latest-is-a-lie">Why <code>latest</code> is a lie</h2>
+<p>Container registries store images by tag. Tags are mutable pointers. When you <code>docker push myapp:latest</code>, you&rsquo;re moving a pointer — the old image behind <code>latest</code> is now unreferenced. If two services share the tag <code>latest</code> or two people push to the same tag concurrently, you get a race condition on a mutable pointer. This is exactly the class of bug that version control systems solved decades ago.</p>
+<p>The fundamental problem: <strong>image tags have no inherent ordering, no history, and no integrity guarantee.</strong> They&rsquo;re a name, not a version.</p>
+<p>The solution is to use a content-addressable identifier you already have: the Git commit SHA.</p>
+<h2 id="sha-based-image-tagging">SHA-based image tagging</h2>
+<p>Every commit has a unique SHA-1 hash. Using it as the image tag creates an injective mapping from source code state → deployed artifact:</p>
+
+
+
+
+
+<pre tabindex="0"><code>commit a1b2c3d → image registry/service:a1b2c3d → K8s pod spec</code></pre><p>The implementation in GitHub Actions:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="ln">1</span><span class="cl">- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">Derive image tag from commit</span><span class="w">
+</span></span></span><span class="line"><span class="ln">2</span><span class="cl"><span class="w">  </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="p">|</span><span class="sd">
+</span></span></span><span class="line"><span class="ln">3</span><span class="cl"><span class="sd">    # Short SHA is sufficient — collision probability
+</span></span></span><span class="line"><span class="ln">4</span><span class="cl"><span class="sd">    # across 2^28 commits is negligible for any single repo
+</span></span></span><span class="line"><span class="ln">5</span><span class="cl"><span class="sd">    echo &#34;IMAGE_TAG=${GITHUB_SHA::7}&#34; &gt;&gt; $GITHUB_ENV</span></span></span></code></pre></div><p>This gives you two things that <code>latest</code> never can:</p>
+<ol>
+<li><strong>Bijective traceability.</strong> Given a running pod, you can recover the exact source:</li>
+</ol>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">$ kubectl get pod <span class="nv">$POD</span> -o <span class="nv">jsonpath</span><span class="o">=</span><span class="s1">&#39;{.spec.containers[0].image}&#39;</span>
+</span></span><span class="line"><span class="ln">2</span><span class="cl">123456789.dkr.ecr.us-east-1.amazonaws.com/myservice:a1b2c3d
+</span></span><span class="line"><span class="ln">3</span><span class="cl">
+</span></span><span class="line"><span class="ln">4</span><span class="cl">$ git show a1b2c3d --stat</span></span></code></pre></div><ol start="2">
+<li><strong>Immutable deployment records.</strong> The tag <code>a1b2c3d</code> either exists or it doesn&rsquo;t. It can&rsquo;t silently change meaning.</li>
+</ol>
+<h3 id="propagating-the-tag-to-kubernetes-manifests">Propagating the tag to Kubernetes manifests</h3>
+<p>A tagged image is useless if the deployment spec still references <code>latest</code>. We close the loop by having CI update the manifest and commit the change:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="ln"> 1</span><span class="cl">- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">Patch deployment manifest</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 2</span><span class="cl"><span class="w">  </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="p">|</span><span class="sd">
+</span></span></span><span class="line"><span class="ln"> 3</span><span class="cl"><span class="sd">    sed -i &#34;s|image: $REGISTRY/$SERVICE:.*|image: $REGISTRY/$SERVICE:${IMAGE_TAG}|&#34; \
+</span></span></span><span class="line"><span class="ln"> 4</span><span class="cl"><span class="sd">      k8s/$ENVIRONMENT/${SERVICE}-deployment.yaml</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 5</span><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="ln"> 6</span><span class="cl">- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">Commit manifest update</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 7</span><span class="cl"><span class="w">  </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="p">|</span><span class="sd">
+</span></span></span><span class="line"><span class="ln"> 8</span><span class="cl"><span class="sd">    git config user.name &#34;ci-bot&#34;
+</span></span></span><span class="line"><span class="ln"> 9</span><span class="cl"><span class="sd">    git config user.email &#34;ci-bot@noreply&#34;
+</span></span></span><span class="line"><span class="ln">10</span><span class="cl"><span class="sd">    git add k8s/
+</span></span></span><span class="line"><span class="ln">11</span><span class="cl"><span class="sd">    git diff --cached --quiet || \
+</span></span></span><span class="line"><span class="ln">12</span><span class="cl"><span class="sd">      git commit -m &#34;deploy($ENVIRONMENT): $SERVICE → $IMAGE_TAG&#34;
+</span></span></span><span class="line"><span class="ln">13</span><span class="cl"><span class="sd">    git push</span></span></span></code></pre></div><p>Now <code>git log k8s/staging/</code> is your deployment history. Every deployment is a commit. Every rollback is <code>git revert</code>. This is the minimal viable GitOps pattern — your Git repo is the single source of truth for cluster state.</p>
+<p>The <code>git diff --cached --quiet</code> guard prevents empty commits when nothing actually changed (e.g., the service wasn&rsquo;t rebuilt).</p>
+<h2 id="docker-buildx-layer-caching-in-ci">Docker Buildx: layer caching in CI</h2>
+<p>The default <code>docker build</code> in CI has no cache. Every run downloads the base image, reinstalls all dependencies, copies all source files. For a Python service with 200+ packages, this is 8–12 minutes of work repeated identically on every push.</p>
+<p>Docker Buildx provides two things that fix this: <strong>persistent builder instances</strong> and <strong>pluggable cache backends</strong>.</p>
+<h3 id="how-docker-layer-caching-works">How Docker layer caching works</h3>
+<p>Docker images are a stack of layers. Each Dockerfile instruction creates a layer. Docker caches layers by their input hash — if the instruction and all preceding layers are identical, the cached layer is reused.</p>
+
+
+
+
+
+<pre tabindex="0"><code>Layer 4: COPY . .                    ← changes every commit
+Layer 3: RUN pip install -r req.txt  ← changes weekly
+Layer 2: RUN apt-get install gcc     ← changes monthly
+Layer 1: FROM python:3.11-slim       ← changes rarely</code></pre><p>Cache invalidation is <strong>top-down</strong>: if Layer 2 changes, Layers 3 and 4 are invalidated too, even if <code>requirements.txt</code> hasn&rsquo;t changed. This means <strong>Dockerfile instruction ordering directly determines cache efficiency.</strong></p>
+<p>The optimal ordering principle: <strong>sort instructions by change frequency, ascending.</strong> System deps → language deps → application source.</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-dockerfile" data-lang="dockerfile"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="k">FROM</span><span class="w"> </span><span class="s">python:3.11-slim</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="s">base</span><span class="err">
+</span></span></span><span class="line"><span class="ln"> 2</span><span class="cl"><span class="k">WORKDIR</span><span class="w"> </span><span class="s">/app</span><span class="err">
+</span></span></span><span class="line"><span class="ln"> 3</span><span class="cl"><span class="err">
+</span></span></span><span class="line"><span class="ln"> 4</span><span class="cl"><span class="c"># Layer 1: System dependencies (changes ~monthly)</span><span class="err">
+</span></span></span><span class="line"><span class="ln"> 5</span><span class="cl"><span class="k">RUN</span> apt-get update <span class="o">&amp;&amp;</span> apt-get install -y --no-install-recommends <span class="se">\
+</span></span></span><span class="line"><span class="ln"> 6</span><span class="cl">    gcc libpq-dev <span class="o">&amp;&amp;</span> rm -rf /var/lib/apt/lists/*<span class="err">
+</span></span></span><span class="line"><span class="ln"> 7</span><span class="cl"><span class="err">
+</span></span></span><span class="line"><span class="ln"> 8</span><span class="cl"><span class="c"># Layer 2: Python dependencies (changes ~weekly)</span><span class="err">
+</span></span></span><span class="line"><span class="ln"> 9</span><span class="cl"><span class="k">COPY</span> requirements.txt .<span class="err">
+</span></span></span><span class="line"><span class="ln">10</span><span class="cl"><span class="k">RUN</span> pip install --no-cache-dir -r requirements.txt<span class="err">
+</span></span></span><span class="line"><span class="ln">11</span><span class="cl"><span class="err">
+</span></span></span><span class="line"><span class="ln">12</span><span class="cl"><span class="c"># Layer 3: Application source (changes every commit)</span><span class="err">
+</span></span></span><span class="line"><span class="ln">13</span><span class="cl"><span class="k">COPY</span> . .<span class="err">
+</span></span></span><span class="line"><span class="ln">14</span><span class="cl"><span class="err">
+</span></span></span><span class="line"><span class="ln">15</span><span class="cl"><span class="k">CMD</span> <span class="p">[</span><span class="s2">&#34;uvicorn&#34;</span><span class="p">,</span> <span class="s2">&#34;main:app&#34;</span><span class="p">,</span> <span class="s2">&#34;--host&#34;</span><span class="p">,</span> <span class="s2">&#34;0.0.0.0&#34;</span><span class="p">,</span> <span class="s2">&#34;--port&#34;</span><span class="p">,</span> <span class="s2">&#34;8000&#34;</span><span class="p">]</span></span></span></code></pre></div><h3 id="github-actions-cache-backend">GitHub Actions cache backend</h3>
+<p>The key Buildx configuration:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="ln"> 1</span><span class="cl">- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">Set up Docker Buildx</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 2</span><span class="cl"><span class="w">  </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l">docker/setup-buildx-action@v3</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 3</span><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="ln"> 4</span><span class="cl">- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">Build and push</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 5</span><span class="cl"><span class="w">  </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l">docker/build-push-action@v5</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 6</span><span class="cl"><span class="w">  </span><span class="nt">with</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 7</span><span class="cl"><span class="w">    </span><span class="nt">context</span><span class="p">:</span><span class="w"> </span><span class="l">services/${{ matrix.service }}</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 8</span><span class="cl"><span class="w">    </span><span class="nt">push</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 9</span><span class="cl"><span class="w">    </span><span class="nt">tags</span><span class="p">:</span><span class="w"> </span><span class="p">|</span><span class="sd">
+</span></span></span><span class="line"><span class="ln">10</span><span class="cl"><span class="sd">      ${{ env.REGISTRY }}/${{ matrix.service }}:${{ env.IMAGE_TAG }}</span><span class="w">
+</span></span></span><span class="line"><span class="ln">11</span><span class="cl"><span class="w">    </span><span class="nt">cache-from</span><span class="p">:</span><span class="w"> </span><span class="l">type=gha</span><span class="w">
+</span></span></span><span class="line"><span class="ln">12</span><span class="cl"><span class="w">    </span><span class="nt">cache-to</span><span class="p">:</span><span class="w"> </span><span class="l">type=gha,mode=max</span></span></span></code></pre></div><p><code>type=gha</code> uses GitHub Actions&rsquo; built-in cache as the layer storage backend. This is important because CI runners are ephemeral — without an external cache backend, every run starts cold.</p>
+<p><code>mode=max</code> is critical and often missed. By default, Buildx only exports layers from the final stage. <code>mode=max</code> exports <strong>all intermediate layers</strong>, including those from multi-stage build stages. Without it, your <code>pip install</code> layer from a builder stage won&rsquo;t be cached.</p>
+<p>Under the hood, Buildx serializes each layer as a content-addressed blob and stores it via the GitHub Actions cache API. On subsequent runs, it checks the cache by layer digest before executing the instruction.</p>
+<h3 id="cache-efficiency-in-practice">Cache efficiency in practice</h3>
+<p>The difference is dramatic:</p>
+<table>
+  <thead>
+      <tr>
+          <th>Scenario</th>
+          <th style="text-align: center">Without cache</th>
+          <th style="text-align: center">With Buildx + GHA cache</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>Full build (cold cache)</td>
+          <td style="text-align: center">10 min</td>
+          <td style="text-align: center">10 min</td>
+      </tr>
+      <tr>
+          <td>Source-only change</td>
+          <td style="text-align: center">10 min</td>
+          <td style="text-align: center">45 sec</td>
+      </tr>
+      <tr>
+          <td>Dependency change</td>
+          <td style="text-align: center">10 min</td>
+          <td style="text-align: center">4 min</td>
+      </tr>
+      <tr>
+          <td>No change (skip with change detection)</td>
+          <td style="text-align: center">10 min</td>
+          <td style="text-align: center">0 sec</td>
+      </tr>
+  </tbody>
+</table>
+<p>The dominant cost axis shifts from build time to cache lookup time. For a source-only change, the only layer that rebuilds is <code>COPY . .</code>, which takes seconds.</p>
+<h3 id="multi-stage-builds-and-image-size">Multi-stage builds and image size</h3>
+<p>If your final image includes build tools (<code>gcc</code>, <code>python3-dev</code>, header files), you&rsquo;re shipping dead weight. Multi-stage builds separate the build environment from the runtime environment:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-dockerfile" data-lang="dockerfile"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="c"># Stage 1: Build (includes compilers, headers)</span><span class="err">
+</span></span></span><span class="line"><span class="ln"> 2</span><span class="cl"><span class="k">FROM</span><span class="w"> </span><span class="s">python:3.11-slim</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="s">builder</span><span class="err">
+</span></span></span><span class="line"><span class="ln"> 3</span><span class="cl"><span class="k">WORKDIR</span><span class="w"> </span><span class="s">/build</span><span class="err">
+</span></span></span><span class="line"><span class="ln"> 4</span><span class="cl"><span class="k">RUN</span> apt-get update <span class="o">&amp;&amp;</span> apt-get install -y gcc libffi-dev<span class="err">
+</span></span></span><span class="line"><span class="ln"> 5</span><span class="cl"><span class="k">COPY</span> requirements.txt .<span class="err">
+</span></span></span><span class="line"><span class="ln"> 6</span><span class="cl"><span class="k">RUN</span> pip install --no-cache-dir --prefix<span class="o">=</span>/install -r requirements.txt<span class="err">
+</span></span></span><span class="line"><span class="ln"> 7</span><span class="cl"><span class="err">
+</span></span></span><span class="line"><span class="ln"> 8</span><span class="cl"><span class="c"># Stage 2: Runtime (minimal)</span><span class="err">
+</span></span></span><span class="line"><span class="ln"> 9</span><span class="cl"><span class="k">FROM</span><span class="w"> </span><span class="s">python:3.11-slim</span><span class="err">
+</span></span></span><span class="line"><span class="ln">10</span><span class="cl"><span class="k">WORKDIR</span><span class="w"> </span><span class="s">/app</span><span class="err">
+</span></span></span><span class="line"><span class="ln">11</span><span class="cl"><span class="k">COPY</span> --from<span class="o">=</span>builder /install /usr/local<span class="err">
+</span></span></span><span class="line"><span class="ln">12</span><span class="cl"><span class="k">COPY</span> . .<span class="err">
+</span></span></span><span class="line"><span class="ln">13</span><span class="cl"><span class="k">CMD</span> <span class="p">[</span><span class="s2">&#34;uvicorn&#34;</span><span class="p">,</span> <span class="s2">&#34;main:app&#34;</span><span class="p">,</span> <span class="s2">&#34;--host&#34;</span><span class="p">,</span> <span class="s2">&#34;0.0.0.0&#34;</span><span class="p">,</span> <span class="s2">&#34;--port&#34;</span><span class="p">,</span> <span class="s2">&#34;8000&#34;</span><span class="p">]</span></span></span></code></pre></div><p>The <code>--prefix=/install</code> flag tells pip to install into a separate directory tree, which we then <code>COPY --from=builder</code> into the clean runtime image. The final image has no <code>gcc</code>, no header files, no pip cache.</p>
+<p>Impact: image sizes dropped from 1.2GB to ~450MB. This matters for pull times during rollouts — a 450MB image pulls in ~15 seconds vs ~45 seconds for 1.2GB. During a rolling update across 6 replicas, that&rsquo;s 3 minutes saved per deployment.</p>
+<h2 id="dynamic-service-discovery-in-ci">Dynamic service discovery in CI</h2>
+<p>Hardcoding a service list in your workflow is a maintenance hazard:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="ln">1</span><span class="cl"><span class="c"># ❌ This will drift</span><span class="w">
+</span></span></span><span class="line"><span class="ln">2</span><span class="cl"><span class="nt">strategy</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln">3</span><span class="cl"><span class="w">  </span><span class="nt">matrix</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln">4</span><span class="cl"><span class="w">    </span><span class="nt">service</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="l">auth, api, worker, processor]</span></span></span></code></pre></div><p>When someone deletes <code>processor/</code> and forgets to update the workflow, CI breaks. When someone adds a new service and forgets to add it, it never gets built. Both happen eventually.</p>
+<h3 id="filesystem-driven-matrix-generation">Filesystem-driven matrix generation</h3>
+<p>Instead of declaring services, discover them:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="nt">jobs</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 2</span><span class="cl"><span class="w">  </span><span class="nt">discover</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 3</span><span class="cl"><span class="w">    </span><span class="nt">runs-on</span><span class="p">:</span><span class="w"> </span><span class="l">ubuntu-latest</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 4</span><span class="cl"><span class="w">    </span><span class="nt">outputs</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 5</span><span class="cl"><span class="w">      </span><span class="nt">services</span><span class="p">:</span><span class="w"> </span><span class="l">${{ steps.find.outputs.services }}</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 6</span><span class="cl"><span class="w">    </span><span class="nt">steps</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 7</span><span class="cl"><span class="w">      </span>- <span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l">actions/checkout@v4</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 8</span><span class="cl"><span class="w">      </span>- <span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l">find</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 9</span><span class="cl"><span class="w">        </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="p">|</span><span class="sd">
+</span></span></span><span class="line"><span class="ln">10</span><span class="cl"><span class="sd">          services=$(find services/ -name Dockerfile -maxdepth 2 \
+</span></span></span><span class="line"><span class="ln">11</span><span class="cl"><span class="sd">            | xargs -I{} dirname {} \
+</span></span></span><span class="line"><span class="ln">12</span><span class="cl"><span class="sd">            | xargs -I{} basename {} \
+</span></span></span><span class="line"><span class="ln">13</span><span class="cl"><span class="sd">            | jq -R -s -c &#39;split(&#34;\n&#34;) | map(select(length &gt; 0))&#39;)
+</span></span></span><span class="line"><span class="ln">14</span><span class="cl"><span class="sd">          echo &#34;services=$services&#34; &gt;&gt; $GITHUB_OUTPUT</span><span class="w">
+</span></span></span><span class="line"><span class="ln">15</span><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="ln">16</span><span class="cl"><span class="w">  </span><span class="nt">build</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln">17</span><span class="cl"><span class="w">    </span><span class="nt">needs</span><span class="p">:</span><span class="w"> </span><span class="l">discover</span><span class="w">
+</span></span></span><span class="line"><span class="ln">18</span><span class="cl"><span class="w">    </span><span class="nt">strategy</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln">19</span><span class="cl"><span class="w">      </span><span class="nt">matrix</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln">20</span><span class="cl"><span class="w">        </span><span class="nt">service</span><span class="p">:</span><span class="w"> </span><span class="l">${{ fromJson(needs.discover.outputs.services) }}</span></span></span></code></pre></div><p>The contract becomes: a directory under <code>services/</code> with a <code>Dockerfile</code> is a deployable service. No other registration needed. Add a service → add a directory with a Dockerfile. Remove a service → remove the directory.</p>
+<h3 id="change-detection-only-build-whats-affected">Change detection: only build what&rsquo;s affected</h3>
+<p>Even with caching, there&rsquo;s no reason to build 8 services when 1 file changed. The <code>git diff</code> between the previous and current commit tells you what changed:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="ln"> 1</span><span class="cl">- <span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l">actions/checkout@v4</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 2</span><span class="cl"><span class="w">  </span><span class="nt">with</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 3</span><span class="cl"><span class="w">    </span><span class="nt">fetch-depth</span><span class="p">:</span><span class="w"> </span><span class="m">0</span><span class="w">  </span><span class="c"># Required for accurate git diff</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 4</span><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="ln"> 5</span><span class="cl">- <span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l">changes</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 6</span><span class="cl"><span class="w">  </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="p">|</span><span class="sd">
+</span></span></span><span class="line"><span class="ln"> 7</span><span class="cl"><span class="sd">    changed=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }})
+</span></span></span><span class="line"><span class="ln"> 8</span><span class="cl"><span class="sd">    if echo &#34;$changed&#34; | grep -q &#34;^services/${{ matrix.service }}/&#34;; then
+</span></span></span><span class="line"><span class="ln"> 9</span><span class="cl"><span class="sd">      echo &#34;build=true&#34; &gt;&gt; $GITHUB_OUTPUT
+</span></span></span><span class="line"><span class="ln">10</span><span class="cl"><span class="sd">    elif echo &#34;$changed&#34; | grep -q &#34;^libs/shared/&#34;; then
+</span></span></span><span class="line"><span class="ln">11</span><span class="cl"><span class="sd">      echo &#34;build=true&#34; &gt;&gt; $GITHUB_OUTPUT
+</span></span></span><span class="line"><span class="ln">12</span><span class="cl"><span class="sd">    else
+</span></span></span><span class="line"><span class="ln">13</span><span class="cl"><span class="sd">      echo &#34;build=false&#34; &gt;&gt; $GITHUB_OUTPUT
+</span></span></span><span class="line"><span class="ln">14</span><span class="cl"><span class="sd">    fi</span><span class="w">
+</span></span></span><span class="line"><span class="ln">15</span><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="ln">16</span><span class="cl">- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">Build and push</span><span class="w">
+</span></span></span><span class="line"><span class="ln">17</span><span class="cl"><span class="w">  </span><span class="nt">if</span><span class="p">:</span><span class="w"> </span><span class="l">steps.changes.outputs.build == &#39;true&#39;</span><span class="w">
+</span></span></span><span class="line"><span class="ln">18</span><span class="cl"><span class="w">  </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l">docker/build-push-action@v5</span><span class="w">
+</span></span></span><span class="line"><span class="ln">19</span><span class="cl"><span class="w">  </span><span class="c"># ...</span></span></span></code></pre></div><p>The <code>fetch-depth: 0</code> is essential. GitHub Actions performs a shallow clone by default (<code>fetch-depth: 1</code>), which means <code>git diff</code> doesn&rsquo;t have enough history and will treat everything as &ldquo;new.&rdquo; We discovered this when our changelogs started showing every file in the repo as changed.</p>
+<p>The <code>libs/shared/</code> check handles transitive dependencies — if a shared library changes, all services that could depend on it get rebuilt.</p>
+<h2 id="edge-cases-that-will-bite-you">Edge cases that will bite you</h2>
+<h3 id="ecr-lifecycle-policies">ECR lifecycle policies</h3>
+<p>SHA tags accumulate. At 5 pushes/day × 8 services × ~800MB average image size, that&rsquo;s 32GB/day of new images. Without cleanup, you&rsquo;ll hit storage budget limits within weeks.</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-json" data-lang="json"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl">  <span class="nt">&#34;rules&#34;</span><span class="p">:</span> <span class="p">[</span>
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl">    <span class="p">{</span>
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl">      <span class="nt">&#34;rulePriority&#34;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl">      <span class="nt">&#34;description&#34;</span><span class="p">:</span> <span class="s2">&#34;Keep last 20 tagged images&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">      <span class="nt">&#34;selection&#34;</span><span class="p">:</span> <span class="p">{</span>
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl">        <span class="nt">&#34;tagStatus&#34;</span><span class="p">:</span> <span class="s2">&#34;tagged&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl">        <span class="nt">&#34;countType&#34;</span><span class="p">:</span> <span class="s2">&#34;imageCountMoreThan&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">        <span class="nt">&#34;countNumber&#34;</span><span class="p">:</span> <span class="mi">20</span>
+</span></span><span class="line"><span class="ln">10</span><span class="cl">      <span class="p">},</span>
+</span></span><span class="line"><span class="ln">11</span><span class="cl">      <span class="nt">&#34;action&#34;</span><span class="p">:</span> <span class="p">{</span> <span class="nt">&#34;type&#34;</span><span class="p">:</span> <span class="s2">&#34;expire&#34;</span> <span class="p">}</span>
+</span></span><span class="line"><span class="ln">12</span><span class="cl">    <span class="p">},</span>
+</span></span><span class="line"><span class="ln">13</span><span class="cl">    <span class="p">{</span>
+</span></span><span class="line"><span class="ln">14</span><span class="cl">      <span class="nt">&#34;rulePriority&#34;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln">15</span><span class="cl">      <span class="nt">&#34;description&#34;</span><span class="p">:</span> <span class="s2">&#34;Expire untagged images after 24h&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln">16</span><span class="cl">      <span class="nt">&#34;selection&#34;</span><span class="p">:</span> <span class="p">{</span>
+</span></span><span class="line"><span class="ln">17</span><span class="cl">        <span class="nt">&#34;tagStatus&#34;</span><span class="p">:</span> <span class="s2">&#34;untagged&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln">18</span><span class="cl">        <span class="nt">&#34;countType&#34;</span><span class="p">:</span> <span class="s2">&#34;sinceImagePushed&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln">19</span><span class="cl">        <span class="nt">&#34;countUnit&#34;</span><span class="p">:</span> <span class="s2">&#34;days&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln">20</span><span class="cl">        <span class="nt">&#34;countNumber&#34;</span><span class="p">:</span> <span class="mi">1</span>
+</span></span><span class="line"><span class="ln">21</span><span class="cl">      <span class="p">},</span>
+</span></span><span class="line"><span class="ln">22</span><span class="cl">      <span class="nt">&#34;action&#34;</span><span class="p">:</span> <span class="p">{</span> <span class="nt">&#34;type&#34;</span><span class="p">:</span> <span class="s2">&#34;expire&#34;</span> <span class="p">}</span>
+</span></span><span class="line"><span class="ln">23</span><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="ln">24</span><span class="cl">  <span class="p">]</span>
+</span></span><span class="line"><span class="ln">25</span><span class="cl"><span class="p">}</span></span></span></code></pre></div><p>20 tagged images gives you ~4 days of rollback runway at 5 pushes/day, which is plenty. Untagged images (intermediate layers from multi-stage builds) expire after 24 hours.</p>
+<h3 id="concurrent-manifest-commits">Concurrent manifest commits</h3>
+<p>If two workflow runs try to commit manifest changes simultaneously, the second <code>git push</code> fails. A retry loop with rebase handles this:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="ln"> 1</span><span class="cl">- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">Push manifest update</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 2</span><span class="cl"><span class="w">  </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="p">|</span><span class="sd">
+</span></span></span><span class="line"><span class="ln"> 3</span><span class="cl"><span class="sd">    for attempt in 1 2 3; do
+</span></span></span><span class="line"><span class="ln"> 4</span><span class="cl"><span class="sd">      git pull --rebase origin main
+</span></span></span><span class="line"><span class="ln"> 5</span><span class="cl"><span class="sd">      git add k8s/
+</span></span></span><span class="line"><span class="ln"> 6</span><span class="cl"><span class="sd">      git diff --cached --quiet &amp;&amp; exit 0
+</span></span></span><span class="line"><span class="ln"> 7</span><span class="cl"><span class="sd">      git commit -m &#34;deploy: $SERVICE → $IMAGE_TAG&#34;
+</span></span></span><span class="line"><span class="ln"> 8</span><span class="cl"><span class="sd">      git push &amp;&amp; exit 0
+</span></span></span><span class="line"><span class="ln"> 9</span><span class="cl"><span class="sd">      echo &#34;Push failed (attempt $attempt), retrying...&#34;
+</span></span></span><span class="line"><span class="ln">10</span><span class="cl"><span class="sd">      sleep $((attempt * 2))
+</span></span></span><span class="line"><span class="ln">11</span><span class="cl"><span class="sd">    done
+</span></span></span><span class="line"><span class="ln">12</span><span class="cl"><span class="sd">    echo &#34;::error::Manifest push failed after 3 attempts&#34;
+</span></span></span><span class="line"><span class="ln">13</span><span class="cl"><span class="sd">    exit 1</span></span></span></code></pre></div><p>The exponential backoff (<code>sleep $((attempt * 2))</code>) avoids thundering herd on concurrent pushes. In practice, this retries successfully on the first attempt 99% of the time.</p>
+<h3 id="build-context-bloat">Build context bloat</h3>
+<p>Docker sends the entire build context directory to the daemon before building. In a monorepo, that context can be enormous if you&rsquo;re not careful. Each service needs a <code>.dockerignore</code>:</p>
+
+
+
+
+
+<pre tabindex="0"><code>**/__pycache__
+*.pyc
+.git
+.env
+tests/
+docs/
+*.md
+node_modules/</code></pre><p>Without this, we were sending ~500MB of context for services that only needed ~20MB of source. The context upload alone added 2 minutes to every build.</p>
+<h3 id="silent-auth-failures">Silent auth failures</h3>
+<p>ECR login can silently succeed without actually authenticating (e.g., when secrets aren&rsquo;t available in fork PRs). The build proceeds, spends 10 minutes compiling, and only fails at <code>docker push</code>.</p>
+<p>Add an explicit access check early:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="ln">1</span><span class="cl">- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">Verify registry access</span><span class="w">
+</span></span></span><span class="line"><span class="ln">2</span><span class="cl"><span class="w">  </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="p">|</span><span class="sd">
+</span></span></span><span class="line"><span class="ln">3</span><span class="cl"><span class="sd">    aws ecr describe-repositories \
+</span></span></span><span class="line"><span class="ln">4</span><span class="cl"><span class="sd">      --repository-names &#34;${{ matrix.service }}&#34; &gt; /dev/null 2&gt;&amp;1 \
+</span></span></span><span class="line"><span class="ln">5</span><span class="cl"><span class="sd">    || { echo &#34;::error::ECR access failed for ${{ matrix.service }}&#34;; exit 1; }</span></span></span></code></pre></div><p>Fail at second 5, not minute 12.</p>
+<h2 id="the-pipeline-end-to-end">The pipeline end-to-end</h2>
+
+
+
+
+
+<pre tabindex="0"><code>git push origin main
+        │
+        ▼
+┌──────────────┐
+│   Discover   │  find services/ -name Dockerfile
+│   Services   │  → [&#34;auth&#34;, &#34;api&#34;, &#34;worker&#34;]
+└──────┬───────┘
+       │
+       ▼
+┌─────────────────────────────────────────────────┐
+│  Per-service matrix job (parallel)              │
+│                                                 │
+│  1. Checkout (fetch-depth: 0)                   │
+│  2. git diff → should this service build?       │
+│     └── no → skip remaining steps               │
+│  3. Verify ECR access                           │
+│  4. Set up Buildx                               │
+│  5. Build + push (SHA tag, GHA layer cache)     │
+│  6. sed manifest with new SHA                   │
+│  7. git commit + push manifest (retry loop)     │
+└──────┬──────────────────────────────────────────┘
+       │
+       ▼
+┌──────────────┐
+│  GitOps sync │  ArgoCD / Flux / kubectl apply
+│  picks up    │  detects manifest diff → rolling update
+└──────────────┘</code></pre><p>Typical wall-clock time for a single-service source change: <strong>~90 seconds</strong> from push to new pod running.</p>
+<h2 id="key-metrics">Key metrics</h2>
+<table>
+  <thead>
+      <tr>
+          <th>Metric</th>
+          <th style="text-align: center">Manual process</th>
+          <th style="text-align: center">Automated pipeline</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>Deploy time</td>
+          <td style="text-align: center">~15 min</td>
+          <td style="text-align: center">~90 sec</td>
+      </tr>
+      <tr>
+          <td>Builds per push</td>
+          <td style="text-align: center">All services</td>
+          <td style="text-align: center">Only changed</td>
+      </tr>
+      <tr>
+          <td>Image traceability</td>
+          <td style="text-align: center">None (<code>latest</code>)</td>
+          <td style="text-align: center">Commit SHA</td>
+      </tr>
+      <tr>
+          <td>Rollback mechanism</td>
+          <td style="text-align: center">&ldquo;Redeploy the old one&rdquo;</td>
+          <td style="text-align: center"><code>git revert</code> + sync</td>
+      </tr>
+      <tr>
+          <td>CI minutes/week</td>
+          <td style="text-align: center">~400</td>
+          <td style="text-align: center">~90</td>
+      </tr>
+      <tr>
+          <td>Wrong-image incidents</td>
+          <td style="text-align: center">~1/month</td>
+          <td style="text-align: center">0</td>
+      </tr>
+  </tbody>
+</table>
+<h2 id="checklist">Checklist</h2>
+<ul>
+<li><input disabled="" type="checkbox"> <strong>Tag with commit SHA, not <code>latest</code>.</strong> Mutable tags are mutable bugs.</li>
+<li><input disabled="" type="checkbox"> <strong>Order Dockerfile by change frequency.</strong> System deps → language deps → source. Cache invalidation is top-down.</li>
+<li><input disabled="" type="checkbox"> <strong>Use <code>cache-from: type=gha</code> with <code>mode=max</code>.</strong> Without <code>mode=max</code>, intermediate stage layers aren&rsquo;t cached.</li>
+<li><input disabled="" type="checkbox"> <strong><code>fetch-depth: 0</code> on checkout.</strong> Shallow clones break <code>git diff</code> and changelog generation.</li>
+<li><input disabled="" type="checkbox"> <strong>Discover services from the filesystem.</strong> Hardcoded lists drift. Dockerfiles are the contract.</li>
+<li><input disabled="" type="checkbox"> <strong>Skip unchanged services.</strong> <code>git diff</code> + path matching. Don&rsquo;t forget shared library paths as rebuild triggers.</li>
+<li><input disabled="" type="checkbox"> <strong>Set ECR lifecycle policies.</strong> 20 tagged images + 24h untagged expiry is a reasonable starting point.</li>
+<li><input disabled="" type="checkbox"> <strong><code>.dockerignore</code> per service.</strong> Build context size ∝ upload time. Ship source, not tests.</li>
+<li><input disabled="" type="checkbox"> <strong>Verify registry auth early.</strong> Don&rsquo;t spend 10 minutes building an image you can&rsquo;t push.</li>
+<li><input disabled="" type="checkbox"> <strong>Retry manifest pushes.</strong> Concurrent CI runs will race on <code>git push</code>. Rebase + retry handles it.</li>
+</ul>
 ]]></content:encoded>
     </item>
     <item>
