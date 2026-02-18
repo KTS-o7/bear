@@ -9,7 +9,7 @@
     <managingEditor>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</managingEditor>
     <webMaster>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</webMaster>
     <copyright>Krishnatejaswi S</copyright>
-    <lastBuildDate>Tue, 17 Feb 2026 00:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Thu, 19 Feb 2026 00:00:00 +0530</lastBuildDate>
     <atom:link href="https://KTS-o7.github.io/bear/index.xml" rel="self" type="application/rss+xml" />
     <item>
       <title>About</title>
@@ -59,6 +59,176 @@ drop a hi there if you see me around!</p>
 </table>
 <hr>
 <p><em>Thanks for visiting my blog! If you enjoyed reading my posts, consider checking out the RSS feed to stay updated with my posts</em></p>
+]]></content:encoded>
+    </item>
+    <item>
+      <title>Many Small Tasks, One Deadline: Running Parallel AI Agents with Git Worktrees</title>
+      <link>https://KTS-o7.github.io/bear/posts/codex_worktrees_adventure/</link>
+      <pubDate>Thu, 19 Feb 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/posts/codex_worktrees_adventure/</guid>
+      <description>&lt;p&gt;I thought this would be an easy day.&lt;/p&gt;&#xA;&lt;p&gt;The tasks were small. The backlog was not. This is the worst possible combo for a normal workflow because the fixed overhead dominates: branch setup, dependency sync, commits, reviewable diffs, and PR management. Doing it serially feels safe, but it is slow in a way that doesn&amp;rsquo;t show up in estimates.&lt;/p&gt;&#xA;&lt;p&gt;So I tried the obvious cheat: run multiple AI agents in parallel.&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>I thought this would be an easy day.</p>
+<p>The tasks were small. The backlog was not. This is the worst possible combo for a normal workflow because the fixed overhead dominates: branch setup, dependency sync, commits, reviewable diffs, and PR management. Doing it serially feels safe, but it is slow in a way that doesn&rsquo;t show up in estimates.</p>
+<p>So I tried the obvious cheat: run multiple AI agents in parallel.</p>
+<p>It worked, but only after I tripped over three problems that are easy to reproduce if you try this without thinking through git state, shells, and sandbox boundaries.</p>
+<h2 id="what-the-system-looked-like-so-you-dont-think-this-is-a-demo-problem">What the system looked like (so you don&rsquo;t think this is a demo problem)</h2>
+<p>I ended up writing a small orchestration script with three phases:</p>
+<ol>
+<li>Create (or reuse) one worktree per task.</li>
+<li>Install dependencies in parallel.</li>
+<li>Run <code>codex exec</code> in batched parallel, then push branches and open draft PRs.</li>
+</ol>
+<p>The key detail is that batching wasn&rsquo;t “run everything at once”. It was “parallel within a batch, sequential across batches”, grouped by expected file overlap.</p>
+<p>Here is the redacted shape of the script (this is not pseudocode; it&rsquo;s a sanitized skeleton of what I ran):</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-zsh" data-lang="zsh"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="cp">#!/usr/bin/env zsh
+</span></span></span><span class="line"><span class="ln"> 2</span><span class="cl"><span class="nb">set</span> -euo pipefail
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl">
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl"><span class="nv">WORKTREE_DIR</span><span class="o">=</span><span class="s2">&#34;.worktrees&#34;</span>
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl"><span class="nv">BASE_BRANCH</span><span class="o">=</span><span class="s2">&#34;&lt;base-branch&gt;&#34;</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl"><span class="nv">LOG_DIR</span><span class="o">=</span><span class="s2">&#34;</span><span class="si">${</span><span class="nv">WORKTREE_DIR</span><span class="si">}</span><span class="s2">/_logs&#34;</span>
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl">
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl">mkdir -p <span class="s2">&#34;</span><span class="si">${</span><span class="nv">WORKTREE_DIR</span><span class="si">}</span><span class="s2">&#34;</span> <span class="s2">&#34;</span><span class="si">${</span><span class="nv">LOG_DIR</span><span class="si">}</span><span class="s2">&#34;</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">
+</span></span><span class="line"><span class="ln">10</span><span class="cl"><span class="c1"># Phase 1: worktrees + deps (parallel installs)</span>
+</span></span><span class="line"><span class="ln">11</span><span class="cl">hdr <span class="s2">&#34;Phase 1: Setting up worktrees&#34;</span>
+</span></span><span class="line"><span class="ln">12</span><span class="cl">git worktree add -b <span class="s2">&#34;&lt;feature-branch&gt;&#34;</span> <span class="s2">&#34;</span><span class="si">${</span><span class="nv">WORKTREE_DIR</span><span class="si">}</span><span class="s2">/&lt;lane&gt;&#34;</span> <span class="s2">&#34;</span><span class="si">${</span><span class="nv">BASE_BRANCH</span><span class="si">}</span><span class="s2">&#34;</span>
+</span></span><span class="line"><span class="ln">13</span><span class="cl"><span class="o">(</span><span class="nb">cd</span> <span class="s2">&#34;</span><span class="si">${</span><span class="nv">WORKTREE_DIR</span><span class="si">}</span><span class="s2">/&lt;lane&gt;/frontend&#34;</span> <span class="o">&amp;&amp;</span> bun install --frozen-lockfile<span class="o">)</span> <span class="p">&amp;</span>
+</span></span><span class="line"><span class="ln">14</span><span class="cl"><span class="o">(</span><span class="nb">cd</span> <span class="s2">&#34;</span><span class="si">${</span><span class="nv">WORKTREE_DIR</span><span class="si">}</span><span class="s2">/&lt;lane&gt;/backend&#34;</span>  <span class="o">&amp;&amp;</span> uv sync<span class="o">)</span> <span class="p">&amp;</span>
+</span></span><span class="line"><span class="ln">15</span><span class="cl"><span class="nb">wait</span>
+</span></span><span class="line"><span class="ln">16</span><span class="cl">
+</span></span><span class="line"><span class="ln">17</span><span class="cl"><span class="c1"># Phase 2: batched parallel codex exec (one log per lane)</span>
+</span></span><span class="line"><span class="ln">18</span><span class="cl">hdr <span class="s2">&#34;Phase 2: Running Codex&#34;</span>
+</span></span><span class="line"><span class="ln">19</span><span class="cl">codex <span class="nb">exec</span> --dangerously-bypass-approvals-and-sandbox -C <span class="s2">&#34;</span><span class="si">${</span><span class="nv">WORKTREE_DIR</span><span class="si">}</span><span class="s2">/&lt;lane&gt;&#34;</span> -m <span class="s2">&#34;</span><span class="si">${</span><span class="nv">CODEX_MODEL</span><span class="si">}</span><span class="s2">&#34;</span> <span class="s2">&#34;&lt;prompt&gt;&#34;</span> &gt; <span class="s2">&#34;</span><span class="si">${</span><span class="nv">LOG_DIR</span><span class="si">}</span><span class="s2">/&lt;lane&gt;.log&#34;</span> 2&gt;<span class="p">&amp;</span><span class="m">1</span> <span class="p">&amp;</span>
+</span></span><span class="line"><span class="ln">20</span><span class="cl"><span class="nb">wait</span>
+</span></span><span class="line"><span class="ln">21</span><span class="cl">
+</span></span><span class="line"><span class="ln">22</span><span class="cl"><span class="c1"># Phase 3: push + PRs</span>
+</span></span><span class="line"><span class="ln">23</span><span class="cl">hdr <span class="s2">&#34;Phase 3: PRs to </span><span class="si">${</span><span class="nv">BASE_BRANCH</span><span class="si">}</span><span class="s2">&#34;</span>
+</span></span><span class="line"><span class="ln">24</span><span class="cl">git -C <span class="s2">&#34;</span><span class="si">${</span><span class="nv">WORKTREE_DIR</span><span class="si">}</span><span class="s2">/&lt;lane&gt;&#34;</span> push -u origin <span class="s2">&#34;&lt;feature-branch&gt;&#34;</span>
+</span></span><span class="line"><span class="ln">25</span><span class="cl">gh pr create --base <span class="s2">&#34;</span><span class="si">${</span><span class="nv">BASE_BRANCH</span><span class="si">}</span><span class="s2">&#34;</span> --head <span class="s2">&#34;&lt;feature-branch&gt;&#34;</span> --draft --body <span class="s2">&#34;&lt;templated body&gt;&#34;</span></span></span></code></pre></div><p>Notice what this gives you immediately: one directory per lane, one log file per lane, and a clean boundary between “make changes” and “publish changes”.</p>
+<p>Now for the parts that went wrong.</p>
+<h2 id="failure-1-the-shell-lied-about-what-bash-means">Failure #1: The shell lied about what “Bash” means</h2>
+<p>The first failure happened before any parallelism even started. The orchestration was written with associative arrays, and the system shell rejected it with:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-text" data-lang="text"><span class="line"><span class="ln">1</span><span class="cl">declare: -A: invalid option</span></span></code></pre></div><p>This is the kind of bug that looks embarrassing until you realize it is inevitable. macOS ships an older Bash; other environments may default to <code>sh</code>; CI runners may use different interpreters. If your control-plane script can&rsquo;t build the lane-to-branch mapping reliably, your entire run becomes a dice roll.</p>
+<p>The fix was not “make it work on my machine”. The fix was pinning the interpreter and failing fast (<code>set -euo pipefail</code>). Once the script ran under the interpreter it was written for, this class of failure disappeared.</p>
+<h2 id="failure-2-the-sandbox-was-fine-until-it-touched-git">Failure #2: The sandbox was fine until it touched <code>.git</code></h2>
+<p>The second failure was more instructive: everything looked successful until commit/push time, and then git failed when trying to write worktree metadata:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-text" data-lang="text"><span class="line"><span class="ln">1</span><span class="cl">fatal: Unable to create &#39;.git/worktrees/&lt;lane&gt;/index.lock&#39;: Operation not permitted</span></span></code></pre></div><p>The important mental model is: “can edit files” is not equivalent to “can finish delivery”. Git history mutation needs to create locks and update metadata under <code>.git/</code>. Sandboxed agents often allow workspace file edits while denying <code>.git</code> writes by design.</p>
+<p>The fix is to treat permissions as architecture. In my runbook now, implementation and version-control mutation are distinct phases. I keep guardrails on while generating and editing code, and only elevate privileges for <code>commit</code>, <code>rebase</code>, <code>push</code>, and PR creation. That sounds procedural, but it is the difference between parallelism and chaos.</p>
+<h2 id="failure-3-the-pr-diff-was-computed-against-the-wrong-reality">Failure #3: The PR diff was computed against the wrong reality</h2>
+<p>The third failure was the “ghost diff” class: the PR contained changes that “weren&rsquo;t part of the task” even though the worktree looked clean locally. This is not a GitHub bug. It is a merge-base bug.</p>
+<p>PR diff is computed from:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-text" data-lang="text"><span class="line"><span class="ln">1</span><span class="cl">merge_base(feature, base) .. feature</span></span></code></pre></div><p>If your base ref is stale when the feature branch is compared, <code>merge_base</code> resolves behind your intended base, and commits that should be “already in base” appear as if they were introduced by the feature.</p>
+<p>The only reliable approach is to verify ancestry before review and rebase if needed:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">git merge-base --is-ancestor origin/&lt;base-branch&gt; HEAD <span class="o">||</span> <span class="nb">echo</span> REBASE_REQUIRED
+</span></span><span class="line"><span class="ln">2</span><span class="cl">git diff --name-only origin/&lt;base-branch&gt;...HEAD</span></span></code></pre></div><p>This takes seconds and saves you from burning reviewer attention on diff noise.</p>
+<h2 id="what-changed-once-i-actually-read-the-codex-cli-docs">What changed once I actually read the Codex CLI docs</h2>
+<p>My first attempt treated Codex like a generic shell command that prints code. The docs made the control surface explicit, and that changed how I designed the run.</p>
+<p>Approval and sandbox mode became part of the plan instead of an afterthought. Configuration precedence became something I could reason about when a lane behaved differently. Non-interactive <code>codex exec</code> became the default because it is scriptable and produces logs you can archive. And built-in review flows (like <code>/review</code>) became a lane-local quality gate before humans ever see the PR.</p>
+<p>I also stopped mixing two different kinds of parallelism. Worktrees are for isolating tasks across lanes. Multi-agent mode is for decomposing one task inside a lane. When you treat them as separate tools, your system stays debuggable.</p>
+<h2 id="the-boring-checklist">The boring checklist</h2>
+<p>At this point the process is intentionally boring, which is exactly what you want near a deadline. My checklist is short:</p>
+<ul>
+<li>If the lane can&rsquo;t commit/push, it doesn&rsquo;t “count” as done. Fix the permission boundary first.</li>
+<li>If the PR diff scope isn&rsquo;t what you expect, stop and fix ancestry before asking for review.</li>
+<li>If a lane doesn&rsquo;t have a log file, assume it didn&rsquo;t run deterministically.</li>
+</ul>
+<h2 id="appendix-redacted-script-skeleton">Appendix: Redacted Script Skeleton</h2>
+<p>Below is a condensed, anonymized skeleton of the script I used. It preserves the mechanics (worktrees, batching, logs, PR creation) but removes identity details.</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-zsh" data-lang="zsh"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="cp">#!/usr/bin/env zsh
+</span></span></span><span class="line"><span class="ln"> 2</span><span class="cl"><span class="nb">set</span> -euo pipefail
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl">
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl"><span class="nv">BASE_BRANCH</span><span class="o">=</span><span class="s2">&#34;&lt;base-branch&gt;&#34;</span>
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl"><span class="nv">WORKTREE_DIR</span><span class="o">=</span><span class="s2">&#34;.worktrees&#34;</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl"><span class="nv">LOG_DIR</span><span class="o">=</span><span class="s2">&#34;</span><span class="si">${</span><span class="nv">WORKTREE_DIR</span><span class="si">}</span><span class="s2">/_logs&#34;</span>
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl">
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl">mkdir -p <span class="s2">&#34;</span><span class="si">${</span><span class="nv">WORKTREE_DIR</span><span class="si">}</span><span class="s2">&#34;</span> <span class="s2">&#34;</span><span class="si">${</span><span class="nv">LOG_DIR</span><span class="si">}</span><span class="s2">&#34;</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">
+</span></span><span class="line"><span class="ln">10</span><span class="cl"><span class="nb">typeset</span> -A TASK_BRANCH TASK_TITLE TASK_PLAN TASK_LABEL
+</span></span><span class="line"><span class="ln">11</span><span class="cl">TASK_BRANCH<span class="o">[</span>001<span class="o">]=</span><span class="s2">&#34;feature/lane-001&#34;</span>
+</span></span><span class="line"><span class="ln">12</span><span class="cl">TASK_TITLE<span class="o">[</span>001<span class="o">]=</span><span class="s2">&#34;Lane 001: &lt;title&gt;&#34;</span>
+</span></span><span class="line"><span class="ln">13</span><span class="cl">TASK_PLAN<span class="o">[</span>001<span class="o">]=</span><span class="s2">&#34;docs/plans/&lt;plan&gt;.md&#34;</span>
+</span></span><span class="line"><span class="ln">14</span><span class="cl">TASK_LABEL<span class="o">[</span>001<span class="o">]=</span><span class="s2">&#34;&lt;label&gt;&#34;</span>
+</span></span><span class="line"><span class="ln">15</span><span class="cl">
+</span></span><span class="line"><span class="ln">16</span><span class="cl"><span class="nv">BATCH_1</span><span class="o">=(</span><span class="m">001</span> 002<span class="o">)</span>
+</span></span><span class="line"><span class="ln">17</span><span class="cl"><span class="nv">BATCH_2</span><span class="o">=(</span>003<span class="o">)</span>
+</span></span><span class="line"><span class="ln">18</span><span class="cl">
+</span></span><span class="line"><span class="ln">19</span><span class="cl">setup_lane<span class="o">()</span> <span class="o">{</span>
+</span></span><span class="line"><span class="ln">20</span><span class="cl">  <span class="nb">local</span> <span class="nv">id</span><span class="o">=</span><span class="s2">&#34;</span><span class="nv">$1</span><span class="s2">&#34;</span>
+</span></span><span class="line"><span class="ln">21</span><span class="cl">  <span class="nb">local</span> <span class="nv">branch</span><span class="o">=</span><span class="s2">&#34;</span><span class="si">${</span><span class="nv">TASK_BRANCH</span><span class="p">[</span><span class="nv">$id</span><span class="p">]</span><span class="si">}</span><span class="s2">&#34;</span>
+</span></span><span class="line"><span class="ln">22</span><span class="cl">  <span class="nb">local</span> <span class="nv">worktree</span><span class="o">=</span><span class="s2">&#34;</span><span class="si">${</span><span class="nv">WORKTREE_DIR</span><span class="si">}</span><span class="s2">/lane-</span><span class="si">${</span><span class="nv">id</span><span class="si">}</span><span class="s2">&#34;</span>
+</span></span><span class="line"><span class="ln">23</span><span class="cl">
+</span></span><span class="line"><span class="ln">24</span><span class="cl">  <span class="k">if</span> <span class="o">[[</span> -d <span class="s2">&#34;</span><span class="si">${</span><span class="nv">worktree</span><span class="si">}</span><span class="s2">&#34;</span> <span class="o">]]</span><span class="p">;</span> <span class="k">then</span>
+</span></span><span class="line"><span class="ln">25</span><span class="cl">    <span class="nb">echo</span> <span class="s2">&#34;Reusing </span><span class="si">${</span><span class="nv">worktree</span><span class="si">}</span><span class="s2">&#34;</span>
+</span></span><span class="line"><span class="ln">26</span><span class="cl">  <span class="k">else</span>
+</span></span><span class="line"><span class="ln">27</span><span class="cl">    git worktree add -b <span class="s2">&#34;</span><span class="si">${</span><span class="nv">branch</span><span class="si">}</span><span class="s2">&#34;</span> <span class="s2">&#34;</span><span class="si">${</span><span class="nv">worktree</span><span class="si">}</span><span class="s2">&#34;</span> <span class="s2">&#34;</span><span class="si">${</span><span class="nv">BASE_BRANCH</span><span class="si">}</span><span class="s2">&#34;</span>
+</span></span><span class="line"><span class="ln">28</span><span class="cl">  <span class="k">fi</span>
+</span></span><span class="line"><span class="ln">29</span><span class="cl">
+</span></span><span class="line"><span class="ln">30</span><span class="cl">  <span class="o">(</span><span class="nb">cd</span> <span class="s2">&#34;</span><span class="si">${</span><span class="nv">worktree</span><span class="si">}</span><span class="s2">/frontend&#34;</span> <span class="o">&amp;&amp;</span> bun install --frozen-lockfile<span class="o">)</span> <span class="p">&amp;</span>
+</span></span><span class="line"><span class="ln">31</span><span class="cl">  <span class="o">(</span><span class="nb">cd</span> <span class="s2">&#34;</span><span class="si">${</span><span class="nv">worktree</span><span class="si">}</span><span class="s2">/backend&#34;</span>  <span class="o">&amp;&amp;</span> uv sync<span class="o">)</span> <span class="p">&amp;</span>
+</span></span><span class="line"><span class="ln">32</span><span class="cl">  <span class="nb">wait</span>
+</span></span><span class="line"><span class="ln">33</span><span class="cl"><span class="o">}</span>
+</span></span><span class="line"><span class="ln">34</span><span class="cl">
+</span></span><span class="line"><span class="ln">35</span><span class="cl">run_lane<span class="o">()</span> <span class="o">{</span>
+</span></span><span class="line"><span class="ln">36</span><span class="cl">  <span class="nb">local</span> <span class="nv">id</span><span class="o">=</span><span class="s2">&#34;</span><span class="nv">$1</span><span class="s2">&#34;</span>
+</span></span><span class="line"><span class="ln">37</span><span class="cl">  <span class="nb">local</span> <span class="nv">worktree</span><span class="o">=</span><span class="s2">&#34;</span><span class="si">${</span><span class="nv">WORKTREE_DIR</span><span class="si">}</span><span class="s2">/lane-</span><span class="si">${</span><span class="nv">id</span><span class="si">}</span><span class="s2">&#34;</span>
+</span></span><span class="line"><span class="ln">38</span><span class="cl">  <span class="nb">local</span> <span class="nv">log</span><span class="o">=</span><span class="s2">&#34;</span><span class="si">${</span><span class="nv">LOG_DIR</span><span class="si">}</span><span class="s2">/lane-</span><span class="si">${</span><span class="nv">id</span><span class="si">}</span><span class="s2">.log&#34;</span>
+</span></span><span class="line"><span class="ln">39</span><span class="cl">  <span class="nb">local</span> <span class="nv">prompt</span><span class="o">=</span><span class="s2">&#34;&lt;redacted prompt built from plan + conventions&gt;&#34;</span>
+</span></span><span class="line"><span class="ln">40</span><span class="cl">
+</span></span><span class="line"><span class="ln">41</span><span class="cl">  codex <span class="nb">exec</span> --dangerously-bypass-approvals-and-sandbox -C <span class="s2">&#34;</span><span class="si">${</span><span class="nv">worktree</span><span class="si">}</span><span class="s2">&#34;</span> <span class="s2">&#34;</span><span class="si">${</span><span class="nv">prompt</span><span class="si">}</span><span class="s2">&#34;</span> &gt; <span class="s2">&#34;</span><span class="si">${</span><span class="nv">log</span><span class="si">}</span><span class="s2">&#34;</span> 2&gt;<span class="p">&amp;</span><span class="m">1</span>
+</span></span><span class="line"><span class="ln">42</span><span class="cl"><span class="o">}</span>
+</span></span><span class="line"><span class="ln">43</span><span class="cl">
+</span></span><span class="line"><span class="ln">44</span><span class="cl">create_pr<span class="o">()</span> <span class="o">{</span>
+</span></span><span class="line"><span class="ln">45</span><span class="cl">  <span class="nb">local</span> <span class="nv">id</span><span class="o">=</span><span class="s2">&#34;</span><span class="nv">$1</span><span class="s2">&#34;</span>
+</span></span><span class="line"><span class="ln">46</span><span class="cl">  <span class="nb">local</span> <span class="nv">branch</span><span class="o">=</span><span class="s2">&#34;</span><span class="si">${</span><span class="nv">TASK_BRANCH</span><span class="p">[</span><span class="nv">$id</span><span class="p">]</span><span class="si">}</span><span class="s2">&#34;</span>
+</span></span><span class="line"><span class="ln">47</span><span class="cl">  <span class="nb">local</span> <span class="nv">title</span><span class="o">=</span><span class="s2">&#34;</span><span class="si">${</span><span class="nv">TASK_TITLE</span><span class="p">[</span><span class="nv">$id</span><span class="p">]</span><span class="si">}</span><span class="s2">&#34;</span>
+</span></span><span class="line"><span class="ln">48</span><span class="cl">  <span class="nb">local</span> <span class="nv">worktree</span><span class="o">=</span><span class="s2">&#34;</span><span class="si">${</span><span class="nv">WORKTREE_DIR</span><span class="si">}</span><span class="s2">/lane-</span><span class="si">${</span><span class="nv">id</span><span class="si">}</span><span class="s2">&#34;</span>
+</span></span><span class="line"><span class="ln">49</span><span class="cl">
+</span></span><span class="line"><span class="ln">50</span><span class="cl">  git -C <span class="s2">&#34;</span><span class="si">${</span><span class="nv">worktree</span><span class="si">}</span><span class="s2">&#34;</span> push -u origin <span class="s2">&#34;</span><span class="si">${</span><span class="nv">branch</span><span class="si">}</span><span class="s2">&#34;</span>
+</span></span><span class="line"><span class="ln">51</span><span class="cl">  gh pr create --base <span class="s2">&#34;</span><span class="si">${</span><span class="nv">BASE_BRANCH</span><span class="si">}</span><span class="s2">&#34;</span> --head <span class="s2">&#34;</span><span class="si">${</span><span class="nv">branch</span><span class="si">}</span><span class="s2">&#34;</span> --draft --title <span class="s2">&#34;</span><span class="si">${</span><span class="nv">title</span><span class="si">}</span><span class="s2">&#34;</span> --body <span class="s2">&#34;&lt;templated body&gt;&#34;</span>
+</span></span><span class="line"><span class="ln">52</span><span class="cl"><span class="o">}</span></span></span></code></pre></div><h2 id="references">References</h2>
+<ul>
+<li>Codex docs hub: <a href="https://developers.openai.com/codex">https://developers.openai.com/codex</a></li>
+<li>Codex CLI overview: <a href="https://developers.openai.com/codex/cli">https://developers.openai.com/codex/cli</a></li>
+<li>Codex CLI features: <a href="https://developers.openai.com/codex/cli/features">https://developers.openai.com/codex/cli/features</a></li>
+<li>Codex multi-agent docs: <a href="https://developers.openai.com/codex/multi-agent">https://developers.openai.com/codex/multi-agent</a></li>
+<li>Codex security/sandbox docs: <a href="https://developers.openai.com/codex/security">https://developers.openai.com/codex/security</a></li>
+<li>Codex config basics: <a href="https://developers.openai.com/codex/config-basic">https://developers.openai.com/codex/config-basic</a></li>
+<li>Codex config reference: <a href="https://developers.openai.com/codex/config-reference">https://developers.openai.com/codex/config-reference</a></li>
+<li>Codex CLI GitHub README: <a href="https://github.com/openai/codex/blob/main/README.md">https://github.com/openai/codex/blob/main/README.md</a></li>
+<li>Ralph loop agent (Vercel Labs): <a href="https://github.com/vercel-labs/ralph-loop-agent">https://github.com/vercel-labs/ralph-loop-agent</a></li>
+<li>Ralph from first principles (Geoffrey Huntley): <a href="https://www.youtube.com/watch?v=4Nna09dG_c0">https://www.youtube.com/watch?v=4Nna09dG_c0</a></li>
+<li>Git worktree docs: <a href="https://git-scm.com/docs/git-worktree">https://git-scm.com/docs/git-worktree</a></li>
+</ul>
 ]]></content:encoded>
     </item>
     <item>
