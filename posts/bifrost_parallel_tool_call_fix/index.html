@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en-us">
+
+<head>
+  <meta http-equiv="X-Clacks-Overhead" content="GNU Terry Pratchett" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="shortcut icon" href="https://KTS-o7.github.io/bear/images/favicon.png" />
+<title>Fixing Parallel Tool Call Streaming in Bifrost: An OSS Bug Hunt | </title>
+<meta name="title" content="Fixing Parallel Tool Call Streaming in Bifrost: An OSS Bug Hunt" />
+<meta name="description" content="An AI agent calls three tools in parallel. The LLM streams back interleaved deltas — a few bytes of search_documents arguments, then a few bytes of get_user, then more search_documents. On the other end, the gateway reassembles these fragments into complete tool calls.
+Except it doesn&rsquo;t. It concatenates them all into one call: search_documentsget_usersearch_documents. The agent hallucinates, retries, and loops. I stared at the telemetry for twenty minutes before I realized the bug wasn&rsquo;t in the agent — it was in the gateway&rsquo;s streaming accumulator." />
+<meta name="author" content="" />
+<meta name="keywords" content="" />
+
+
+
+
+
+
+  
+  <meta property="og:url" content="https://KTS-o7.github.io/bear/posts/bifrost_parallel_tool_call_fix/">
+  <meta property="og:title" content="Fixing Parallel Tool Call Streaming in Bifrost: An OSS Bug Hunt">
+  <meta property="og:description" content="An AI agent calls three tools in parallel. The LLM streams back interleaved deltas — a few bytes of search_documents arguments, then a few bytes of get_user, then more search_documents. On the other end, the gateway reassembles these fragments into complete tool calls.
+Except it doesn’t. It concatenates them all into one call: search_documentsget_usersearch_documents. The agent hallucinates, retries, and loops. I stared at the telemetry for twenty minutes before I realized the bug wasn’t in the agent — it was in the gateway’s streaming accumulator.">
+  <meta property="og:locale" content="en_us">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="posts">
+    <meta property="article:published_time" content="2026-03-02T00:00:00+00:00">
+    <meta property="article:modified_time" content="2026-03-02T00:00:00+00:00">
+    <meta property="og:image" content="https://KTS-o7.github.io/bear/images/share.webp">
+
+
+  
+  
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://KTS-o7.github.io/bear/images/share.webp">
+  <meta name="twitter:title" content="Fixing Parallel Tool Call Streaming in Bifrost: An OSS Bug Hunt">
+  <meta name="twitter:description" content="An AI agent calls three tools in parallel. The LLM streams back interleaved deltas — a few bytes of search_documents arguments, then a few bytes of get_user, then more search_documents. On the other end, the gateway reassembles these fragments into complete tool calls.
+Except it doesn’t. It concatenates them all into one call: search_documentsget_usersearch_documents. The agent hallucinates, retries, and loops. I stared at the telemetry for twenty minutes before I realized the bug wasn’t in the agent — it was in the gateway’s streaming accumulator.">
+
+
+  
+  
+  <meta itemprop="name" content="Fixing Parallel Tool Call Streaming in Bifrost: An OSS Bug Hunt">
+  <meta itemprop="description" content="An AI agent calls three tools in parallel. The LLM streams back interleaved deltas — a few bytes of search_documents arguments, then a few bytes of get_user, then more search_documents. On the other end, the gateway reassembles these fragments into complete tool calls.
+Except it doesn’t. It concatenates them all into one call: search_documentsget_usersearch_documents. The agent hallucinates, retries, and loops. I stared at the telemetry for twenty minutes before I realized the bug wasn’t in the agent — it was in the gateway’s streaming accumulator.">
+  <meta itemprop="datePublished" content="2026-03-02T00:00:00+00:00">
+  <meta itemprop="dateModified" content="2026-03-02T00:00:00+00:00">
+  <meta itemprop="wordCount" content="1756">
+  <meta itemprop="image" content="https://KTS-o7.github.io/bear/images/share.webp">
+
+<meta name="referrer" content="no-referrer-when-downgrade" />
+
+  
+  <link href="/bear/herman.min.css" rel="stylesheet">
+
+  
+    
+    <link href="/bear/syntax.min.css" rel="stylesheet">
+  
+
+  
+
+  
+
+  
+</head>
+
+<body>
+  <header><a class="skip-link" href="#main-content">Skip to main content</a>
+
+<a href="/bear/" class="title"><h1></h1></a>
+<nav>
+  <a href="/bear/">Home</a>
+
+  <a href="/bear/posts/">Posts</a>
+
+  <a href="/bear/about/">About</a>
+
+  <a href="/bear/ml/">ML Stuff</a>
+
+  <a href="/bear/cses.fi/">CSES.fi</a>
+
+<a href='https://KTS-o7.github.io/bear/index.xml'>RSS</a>
+
+
+
+
+
+
+
+</nav>
+</header>
+  <main id="main-content">
+
+<h1>Fixing Parallel Tool Call Streaming in Bifrost: An OSS Bug Hunt</h1>
+<p class="byline">
+  <time datetime='2026-03-02' pubdate>
+    2026-03-02
+  </time>
+  
+</p>
+
+<content>
+  <p>An AI agent calls three tools in parallel. The LLM streams back interleaved deltas — a few bytes of <code>search_documents</code> arguments, then a few bytes of <code>get_user</code>, then more <code>search_documents</code>. On the other end, the gateway reassembles these fragments into complete tool calls.</p>
+<p>Except it doesn&rsquo;t. It concatenates them all into one call: <code>search_documentsget_usersearch_documents</code>. The agent hallucinates, retries, and loops. I stared at the telemetry for twenty minutes before I realized the bug wasn&rsquo;t in the agent — it was in the gateway&rsquo;s streaming accumulator.</p>
+<p>This is the story of how I found and fixed a parallel tool call merging bug in <a href="https://github.com/maximhq/bifrost">Bifrost</a>, a 2.6k-star open-source AI gateway.</p>
+<h2 id="what-is-bifrost">What is Bifrost?</h2>
+<p>Bifrost is a high-performance AI gateway written in Go. It sits between your application and LLM providers (OpenAI, Anthropic, Bedrock, Vertex, etc.), providing a unified OpenAI-compatible API with automatic failover, load balancing, semantic caching, and streaming support. Think of it as an intelligent reverse proxy for AI — one API, fifteen providers, ~11µs overhead at 5k RPS.</p>
+<p>The relevant piece here is the <strong>streaming accumulator</strong>. When you make a streaming chat completion request, the LLM sends back a sequence of Server-Sent Events (SSE), each containing a small delta — a few tokens of text, or a fragment of a tool call&rsquo;s arguments. The accumulator&rsquo;s job is to reassemble these deltas into complete messages.</p>
+<h2 id="the-bug-recency-based-routing">The bug: recency-based routing</h2>
+<p>Here&rsquo;s the scenario. You ask Claude or GPT to call two tools in parallel:</p>
+
+
+
+
+
+<pre tabindex="0"><code>User: &#34;Search for compliance circulars about RBI and also get the user&#39;s profile&#34;</code></pre><p>The model decides to call both <code>search_circulars</code> and <code>get_user_profile</code> simultaneously. During streaming, the provider sends interleaved deltas:</p>
+
+
+
+
+
+<pre tabindex="0"><code>Delta 1: tool_call[0] name=&#34;search&#34; (index=0, id=call_abc)
+Delta 2: tool_call[1] name=&#34;get_us&#34; (index=1, id=call_xyz)
+Delta 3: tool_call[0] args=&#39;{&#34;query&#34;: &#34;RBI&#39;   (index=0)
+Delta 4: tool_call[1] args=&#39;{&#34;user_id&#34;: &#34;u&#39;   (index=1)
+Delta 5: tool_call[0] args=&#39; circulars&#34;}&#39;      (index=0)
+Delta 6: tool_call[1] args=&#39;123&#34;}&#39;             (index=1)</code></pre><p>Each delta carries an <code>index</code> (and optionally an <code>id</code>) that identifies which tool call it belongs to. The expected behavior: two distinct tool calls with their own names and arguments.</p>
+<p>The actual behavior in Bifrost&rsquo;s accumulator before the fix:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="ln">1</span><span class="cl"><span class="c1">// Old logic (simplified)</span><span class="w">
+</span></span></span><span class="line"><span class="ln">2</span><span class="cl"><span class="k">if</span><span class="w"> </span><span class="nx">deltaToolCall</span><span class="p">.</span><span class="nx">Function</span><span class="p">.</span><span class="nx">Name</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln">3</span><span class="cl"><span class="w">    </span><span class="c1">// New tool call — create it</span><span class="w">
+</span></span></span><span class="line"><span class="ln">4</span><span class="cl"><span class="w">    </span><span class="nx">existingToolCalls</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nb">append</span><span class="p">(</span><span class="nx">existingToolCalls</span><span class="p">,</span><span class="w"> </span><span class="nx">newToolCall</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="ln">5</span><span class="cl"><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln">6</span><span class="cl"><span class="w">    </span><span class="c1">// Argument delta — append to the LAST tool call</span><span class="w">
+</span></span></span><span class="line"><span class="ln">7</span><span class="cl"><span class="w">    </span><span class="nx">toolCallToModify</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="o">&amp;</span><span class="nx">existingToolCalls</span><span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="nx">existingToolCalls</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="w">
+</span></span></span><span class="line"><span class="ln">8</span><span class="cl"><span class="w">    </span><span class="nx">toolCallToModify</span><span class="p">.</span><span class="nx">Function</span><span class="p">.</span><span class="nx">Arguments</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="nx">deltaToolCall</span><span class="p">.</span><span class="nx">Function</span><span class="p">.</span><span class="nx">Arguments</span><span class="w">
+</span></span></span><span class="line"><span class="ln">9</span><span class="cl"><span class="p">}</span></span></span></code></pre></div><p>The routing logic was based on <strong>recency</strong>: if a delta has a <code>Name</code>, it&rsquo;s a new tool call; otherwise, append arguments to the most recent one. This works perfectly when tool calls arrive sequentially. It breaks completely when they&rsquo;re interleaved.</p>
+<p>With the deltas above:</p>
+<ul>
+<li>Delta 3 (index=0 args) arrives → appended to the <strong>last</strong> tool call, which is <code>get_user_profile</code> (index=1). Wrong target.</li>
+<li>Delta 5 (index=0 args) arrives → again appended to <code>get_user_profile</code>. Now <code>get_user_profile</code> has arguments from two different calls mashed together.</li>
+</ul>
+<p>The result: concatenated tool names, merged arguments, and an agent stuck in a retry loop trying to invoke <code>search_circularsget_user_profile</code> — a tool that doesn&rsquo;t exist.</p>
+<h2 id="finding-the-bug">Finding the bug</h2>
+<p>I hit this in production. Our compliance platform uses an AI agent that calls multiple tools in parallel — searching circulars, fetching regulatory data, looking up user context. The agent kept failing with tool resolution errors, and the telemetry showed impossible tool names:</p>
+
+
+
+
+
+<pre tabindex="0"><code>search_circularsearch_circularsearch_circular</code></pre><p>At first I suspected the agent&rsquo;s tool-calling logic. Then I looked at the raw SSE stream from the provider — the deltas were correct. Each one had the right <code>index</code> and <code>id</code>. The corruption was happening between the provider response and the final accumulated message.</p>
+<p>I traced it to <code>accumulateToolCallsInMessage</code> in <code>framework/streaming/accumulator.go</code>. The function had no concept of tool call identity. It used the presence of a <code>Name</code> field as a heuristic for &ldquo;new vs. continuation,&rdquo; which is fragile and incorrect when deltas arrive out of order.</p>
+<h2 id="the-fix">The fix</h2>
+<p>The fix is conceptually simple: <strong>route deltas by identity, not by recency.</strong></p>
+<p>Each tool call delta carries two potential identifiers:</p>
+<ol>
+<li><code>tool_call.id</code> — a string like <code>call_abc123</code> (set by OpenAI/Anthropic)</li>
+<li><code>tool_call.index</code> — an integer position (0, 1, 2, &hellip;)</li>
+</ol>
+<p>The new logic builds lookup maps on existing tool calls and uses them to route each incoming delta to the correct target:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="ln">1</span><span class="cl"><span class="c1">// Build lookup maps for identity-based routing</span><span class="w">
+</span></span></span><span class="line"><span class="ln">2</span><span class="cl"><span class="nx">idToIndex</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nb">make</span><span class="p">(</span><span class="kd">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="kt">int</span><span class="p">,</span><span class="w"> </span><span class="nb">len</span><span class="p">(</span><span class="nx">existingToolCalls</span><span class="p">))</span><span class="w">
+</span></span></span><span class="line"><span class="ln">3</span><span class="cl"><span class="nx">indexToIndex</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nb">make</span><span class="p">(</span><span class="kd">map</span><span class="p">[</span><span class="kt">uint16</span><span class="p">]</span><span class="kt">int</span><span class="p">,</span><span class="w"> </span><span class="nb">len</span><span class="p">(</span><span class="nx">existingToolCalls</span><span class="p">))</span><span class="w">
+</span></span></span><span class="line"><span class="ln">4</span><span class="cl"><span class="k">for</span><span class="w"> </span><span class="nx">i</span><span class="p">,</span><span class="w"> </span><span class="nx">toolCall</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="k">range</span><span class="w"> </span><span class="nx">existingToolCalls</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln">5</span><span class="cl"><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">toolCall</span><span class="p">.</span><span class="nx">ID</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="o">*</span><span class="nx">toolCall</span><span class="p">.</span><span class="nx">ID</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="s">&#34;&#34;</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln">6</span><span class="cl"><span class="w">        </span><span class="nx">idToIndex</span><span class="p">[</span><span class="o">*</span><span class="nx">toolCall</span><span class="p">.</span><span class="nx">ID</span><span class="p">]</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nx">i</span><span class="w">
+</span></span></span><span class="line"><span class="ln">7</span><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="ln">8</span><span class="cl"><span class="w">    </span><span class="nx">indexToIndex</span><span class="p">[</span><span class="nx">toolCall</span><span class="p">.</span><span class="nx">Index</span><span class="p">]</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nx">i</span><span class="w">
+</span></span></span><span class="line"><span class="ln">9</span><span class="cl"><span class="p">}</span></span></span></code></pre></div><p>For each incoming delta, routing follows a priority chain:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="k">for</span><span class="w"> </span><span class="nx">_</span><span class="p">,</span><span class="w"> </span><span class="nx">deltaToolCall</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="k">range</span><span class="w"> </span><span class="nx">deltaToolCalls</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 2</span><span class="cl"><span class="w">    </span><span class="nx">index</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 3</span><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="ln"> 4</span><span class="cl"><span class="w">    </span><span class="c1">// Priority 1: match by tool_call.id</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 5</span><span class="cl"><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">deltaToolCall</span><span class="p">.</span><span class="nx">ID</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="o">*</span><span class="nx">deltaToolCall</span><span class="p">.</span><span class="nx">ID</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="s">&#34;&#34;</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 6</span><span class="cl"><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="nx">existingIndex</span><span class="p">,</span><span class="w"> </span><span class="nx">ok</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">idToIndex</span><span class="p">[</span><span class="o">*</span><span class="nx">deltaToolCall</span><span class="p">.</span><span class="nx">ID</span><span class="p">];</span><span class="w"> </span><span class="nx">ok</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 7</span><span class="cl"><span class="w">            </span><span class="nx">index</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nx">existingIndex</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 8</span><span class="cl"><span class="w">        </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 9</span><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="ln">10</span><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="ln">11</span><span class="cl"><span class="w">    </span><span class="c1">// Priority 2: match by tool_call.index</span><span class="w">
+</span></span></span><span class="line"><span class="ln">12</span><span class="cl"><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">index</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln">13</span><span class="cl"><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="nx">existingIndex</span><span class="p">,</span><span class="w"> </span><span class="nx">ok</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">indexToIndex</span><span class="p">[</span><span class="nx">deltaToolCall</span><span class="p">.</span><span class="nx">Index</span><span class="p">];</span><span class="w"> </span><span class="nx">ok</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln">14</span><span class="cl"><span class="w">            </span><span class="nx">index</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nx">existingIndex</span><span class="w">
+</span></span></span><span class="line"><span class="ln">15</span><span class="cl"><span class="w">        </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="ln">16</span><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="ln">17</span><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="ln">18</span><span class="cl"><span class="w">    </span><span class="c1">// Priority 3: no match → create new tool call (if name present)</span><span class="w">
+</span></span></span><span class="line"><span class="ln">19</span><span class="cl"><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">index</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln">20</span><span class="cl"><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="nx">deltaToolCall</span><span class="p">.</span><span class="nx">Function</span><span class="p">.</span><span class="nx">Name</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln">21</span><span class="cl"><span class="w">            </span><span class="c1">// Can&#39;t create a tool call without a name</span><span class="w">
+</span></span></span><span class="line"><span class="ln">22</span><span class="cl"><span class="w">            </span><span class="k">continue</span><span class="w">
+</span></span></span><span class="line"><span class="ln">23</span><span class="cl"><span class="w">        </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="ln">24</span><span class="cl"><span class="w">        </span><span class="nx">newToolCall</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">schemas</span><span class="p">.</span><span class="nx">ChatAssistantMessageToolCall</span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln">25</span><span class="cl"><span class="w">            </span><span class="nx">Index</span><span class="p">:</span><span class="w">    </span><span class="nx">deltaToolCall</span><span class="p">.</span><span class="nx">Index</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="ln">26</span><span class="cl"><span class="w">            </span><span class="nx">ID</span><span class="p">:</span><span class="w">       </span><span class="nx">deltaToolCall</span><span class="p">.</span><span class="nx">ID</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="ln">27</span><span class="cl"><span class="w">            </span><span class="nx">Function</span><span class="p">:</span><span class="w"> </span><span class="cm">/* ... */</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="ln">28</span><span class="cl"><span class="w">        </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="ln">29</span><span class="cl"><span class="w">        </span><span class="nx">existingToolCalls</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nb">append</span><span class="p">(</span><span class="nx">existingToolCalls</span><span class="p">,</span><span class="w"> </span><span class="nx">newToolCall</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="ln">30</span><span class="cl"><span class="w">        </span><span class="c1">// Update maps for future deltas</span><span class="w">
+</span></span></span><span class="line"><span class="ln">31</span><span class="cl"><span class="w">        </span><span class="nx">indexToIndex</span><span class="p">[</span><span class="nx">newToolCall</span><span class="p">.</span><span class="nx">Index</span><span class="p">]</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nb">len</span><span class="p">(</span><span class="nx">existingToolCalls</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="w">
+</span></span></span><span class="line"><span class="ln">32</span><span class="cl"><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="nx">newToolCall</span><span class="p">.</span><span class="nx">ID</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln">33</span><span class="cl"><span class="w">            </span><span class="nx">idToIndex</span><span class="p">[</span><span class="o">*</span><span class="nx">newToolCall</span><span class="p">.</span><span class="nx">ID</span><span class="p">]</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nb">len</span><span class="p">(</span><span class="nx">existingToolCalls</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="w">
+</span></span></span><span class="line"><span class="ln">34</span><span class="cl"><span class="w">        </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="ln">35</span><span class="cl"><span class="w">        </span><span class="k">continue</span><span class="w">
+</span></span></span><span class="line"><span class="ln">36</span><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="ln">37</span><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="ln">38</span><span class="cl"><span class="w">    </span><span class="c1">// Append arguments to the correct tool call</span><span class="w">
+</span></span></span><span class="line"><span class="ln">39</span><span class="cl"><span class="w">    </span><span class="nx">existingToolCalls</span><span class="p">[</span><span class="nx">index</span><span class="p">].</span><span class="nx">Function</span><span class="p">.</span><span class="nx">Arguments</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="nx">deltaToolCall</span><span class="p">.</span><span class="nx">Function</span><span class="p">.</span><span class="nx">Arguments</span><span class="w">
+</span></span></span><span class="line"><span class="ln">40</span><span class="cl"><span class="p">}</span></span></span></code></pre></div><p>The key insight is that the maps are updated as new tool calls are created, so subsequent deltas for the same call always find their target — even if they arrive many chunks later.</p>
+<h2 id="the-same-bug-twice">The same bug, twice</h2>
+<p>During code review, a reviewer (<a href="https://github.com/Pratham-Mishra04">Pratham-Mishra04</a>) pointed out that the same recency-based routing existed in a second code path: the <strong>Responses API streaming</strong> handler in <code>responses.go</code>.</p>
+<p>The Responses API is OpenAI&rsquo;s newer streaming format (the <code>/v1/responses</code> endpoint). It uses <code>ItemID</code> instead of <code>tool_call.index</code>, but the accumulation logic had the same flaw — <code>FunctionCallArgumentsDelta</code> events were always appended to the last message:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="ln">1</span><span class="cl"><span class="c1">// Old responses.go logic</span><span class="w">
+</span></span></span><span class="line"><span class="ln">2</span><span class="cl"><span class="k">if</span><span class="w"> </span><span class="nx">resp</span><span class="p">.</span><span class="nx">Delta</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">len</span><span class="p">(</span><span class="nx">messages</span><span class="p">)</span><span class="w"> </span><span class="p">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln">3</span><span class="cl"><span class="w">    </span><span class="c1">// Always targets the last message — wrong for parallel calls</span><span class="w">
+</span></span></span><span class="line"><span class="ln">4</span><span class="cl"><span class="w">    </span><span class="nx">a</span><span class="p">.</span><span class="nf">appendFunctionArgumentsDeltaToResponsesMessage</span><span class="p">(</span><span class="w">
+</span></span></span><span class="line"><span class="ln">5</span><span class="cl"><span class="w">        </span><span class="o">&amp;</span><span class="nx">messages</span><span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="nx">messages</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span><span class="w"> </span><span class="o">*</span><span class="nx">resp</span><span class="p">.</span><span class="nx">Delta</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="ln">6</span><span class="cl"><span class="p">}</span></span></span></code></pre></div><p>The fix follows the same pattern: search for a message matching <code>resp.ItemID</code>, and only fall back to the last message when no <code>ItemID</code> is present. If an <code>ItemID</code> exists but no message matches, create a stub message to hold the delta rather than merging it into the wrong call:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="k">if</span><span class="w"> </span><span class="nx">resp</span><span class="p">.</span><span class="nx">Delta</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">len</span><span class="p">(</span><span class="nx">messages</span><span class="p">)</span><span class="w"> </span><span class="p">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 2</span><span class="cl"><span class="w">    </span><span class="nx">targetIdx</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nb">len</span><span class="p">(</span><span class="nx">messages</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 3</span><span class="cl"><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">resp</span><span class="p">.</span><span class="nx">ItemID</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 4</span><span class="cl"><span class="w">        </span><span class="nx">targetIdx</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 5</span><span class="cl"><span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nb">len</span><span class="p">(</span><span class="nx">messages</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="nx">i</span><span class="o">--</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 6</span><span class="cl"><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="nx">messages</span><span class="p">[</span><span class="nx">i</span><span class="p">].</span><span class="nx">ID</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="o">*</span><span class="nx">messages</span><span class="p">[</span><span class="nx">i</span><span class="p">].</span><span class="nx">ID</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="o">*</span><span class="nx">resp</span><span class="p">.</span><span class="nx">ItemID</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 7</span><span class="cl"><span class="w">                </span><span class="nx">targetIdx</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nx">i</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 8</span><span class="cl"><span class="w">                </span><span class="k">break</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 9</span><span class="cl"><span class="w">            </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="ln">10</span><span class="cl"><span class="w">        </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="ln">11</span><span class="cl"><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="nx">targetIdx</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln">12</span><span class="cl"><span class="w">            </span><span class="c1">// Create stub to avoid merging into wrong message</span><span class="w">
+</span></span></span><span class="line"><span class="ln">13</span><span class="cl"><span class="w">            </span><span class="nx">id</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="o">*</span><span class="nx">resp</span><span class="p">.</span><span class="nx">ItemID</span><span class="w">
+</span></span></span><span class="line"><span class="ln">14</span><span class="cl"><span class="w">            </span><span class="nx">messages</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nb">append</span><span class="p">(</span><span class="nx">messages</span><span class="p">,</span><span class="w"> </span><span class="nx">schemas</span><span class="p">.</span><span class="nx">ResponsesMessage</span><span class="p">{</span><span class="nx">ID</span><span class="p">:</span><span class="w"> </span><span class="o">&amp;</span><span class="nx">id</span><span class="p">})</span><span class="w">
+</span></span></span><span class="line"><span class="ln">15</span><span class="cl"><span class="w">            </span><span class="nx">targetIdx</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nb">len</span><span class="p">(</span><span class="nx">messages</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="w">
+</span></span></span><span class="line"><span class="ln">16</span><span class="cl"><span class="w">        </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="ln">17</span><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="ln">18</span><span class="cl"><span class="w">    </span><span class="nx">a</span><span class="p">.</span><span class="nf">appendFunctionArgumentsDeltaToResponsesMessage</span><span class="p">(</span><span class="w">
+</span></span></span><span class="line"><span class="ln">19</span><span class="cl"><span class="w">        </span><span class="o">&amp;</span><span class="nx">messages</span><span class="p">[</span><span class="nx">targetIdx</span><span class="p">],</span><span class="w"> </span><span class="o">*</span><span class="nx">resp</span><span class="p">.</span><span class="nx">Delta</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="ln">20</span><span class="cl"><span class="p">}</span></span></span></code></pre></div><h2 id="testing-parallel-accumulation">Testing parallel accumulation</h2>
+<p>The regression test simulates the exact interleaving pattern that triggers the bug:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="kd">func</span><span class="w"> </span><span class="nf">TestAccumulateToolCallsInterleavedParallel</span><span class="p">(</span><span class="nx">t</span><span class="w"> </span><span class="o">*</span><span class="nx">testing</span><span class="p">.</span><span class="nx">T</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 2</span><span class="cl"><span class="w">    </span><span class="c1">// ...</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 3</span><span class="cl"><span class="w">    </span><span class="nx">toolCallID0</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="s">&#34;call_0&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 4</span><span class="cl"><span class="w">    </span><span class="nx">toolCallID1</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="s">&#34;call_1&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 5</span><span class="cl"><span class="w">    </span><span class="nx">toolNameAdd</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="s">&#34;add&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 6</span><span class="cl"><span class="w">    </span><span class="nx">toolNameMultiply</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="s">&#34;multiply&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 7</span><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="ln"> 8</span><span class="cl"><span class="w">    </span><span class="c1">// Simulate interleaved deltas</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 9</span><span class="cl"><span class="w">    </span><span class="nf">accumulate</span><span class="p">(</span><span class="nf">makeDelta</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="nx">toolCallID0</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="nx">toolNameAdd</span><span class="p">,</span><span class="w"> </span><span class="s">&#34;&#34;</span><span class="p">))</span><span class="w">       </span><span class="c1">// create call 0</span><span class="w">
+</span></span></span><span class="line"><span class="ln">10</span><span class="cl"><span class="w">    </span><span class="nf">accumulate</span><span class="p">(</span><span class="nf">makeDelta</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="nx">toolCallID1</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="nx">toolNameMultiply</span><span class="p">,</span><span class="w"> </span><span class="s">&#34;&#34;</span><span class="p">))</span><span class="w">  </span><span class="c1">// create call 1</span><span class="w">
+</span></span></span><span class="line"><span class="ln">11</span><span class="cl"><span class="w">    </span><span class="nf">accumulate</span><span class="p">(</span><span class="nf">makeDelta</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="kc">nil</span><span class="p">,</span><span class="w"> </span><span class="kc">nil</span><span class="p">,</span><span class="w"> </span><span class="s">`{&#34;a&#34;: 1`</span><span class="p">))</span><span class="w">                  </span><span class="c1">// args for call 0</span><span class="w">
+</span></span></span><span class="line"><span class="ln">12</span><span class="cl"><span class="w">    </span><span class="nf">accumulate</span><span class="p">(</span><span class="nf">makeDelta</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="kc">nil</span><span class="p">,</span><span class="w"> </span><span class="kc">nil</span><span class="p">,</span><span class="w"> </span><span class="s">`{&#34;a&#34;: 2`</span><span class="p">))</span><span class="w">                  </span><span class="c1">// args for call 1</span><span class="w">
+</span></span></span><span class="line"><span class="ln">13</span><span class="cl"><span class="w">    </span><span class="nf">accumulate</span><span class="p">(</span><span class="nf">makeDelta</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="kc">nil</span><span class="p">,</span><span class="w"> </span><span class="kc">nil</span><span class="p">,</span><span class="w"> </span><span class="s">`, &#34;b&#34;: 3}`</span><span class="p">))</span><span class="w">                </span><span class="c1">// more args for call 0</span><span class="w">
+</span></span></span><span class="line"><span class="ln">14</span><span class="cl"><span class="w">    </span><span class="nf">accumulate</span><span class="p">(</span><span class="nf">makeDelta</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="kc">nil</span><span class="p">,</span><span class="w"> </span><span class="kc">nil</span><span class="p">,</span><span class="w"> </span><span class="s">`, &#34;b&#34;: 4}`</span><span class="p">))</span><span class="w">                </span><span class="c1">// more args for call 1</span><span class="w">
+</span></span></span><span class="line"><span class="ln">15</span><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="ln">16</span><span class="cl"><span class="w">    </span><span class="c1">// Assert: two distinct tool calls with correct arguments</span><span class="w">
+</span></span></span><span class="line"><span class="ln">17</span><span class="cl"><span class="w">    </span><span class="nf">assert</span><span class="p">(</span><span class="nx">addCall</span><span class="p">.</span><span class="nx">Arguments</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s">`{&#34;a&#34;: 1, &#34;b&#34;: 3}`</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="ln">18</span><span class="cl"><span class="w">    </span><span class="nf">assert</span><span class="p">(</span><span class="nx">multiplyCall</span><span class="p">.</span><span class="nx">Arguments</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s">`{&#34;a&#34;: 2, &#34;b&#34;: 4}`</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="ln">19</span><span class="cl"><span class="p">}</span></span></span></code></pre></div><p>Without the fix, <code>add</code> would end up with <code>multiply</code>&rsquo;s arguments concatenated in. With the fix, each call accumulates only its own deltas.</p>
+<p>A second test covers the Responses API path with <code>ItemID</code>-based routing, using the same interleaving pattern but with <code>OutputItemAdded</code> + <code>FunctionCallArgumentsDelta</code> events.</p>
+<h2 id="the-pr-lifecycle">The PR lifecycle</h2>
+<p>I filed <a href="https://github.com/maximhq/bifrost/issues/1829">Issue #1829</a> with reproduction details from production telemetry, then opened <a href="https://github.com/maximhq/bifrost/pull/1830">PR #1830</a> with the fix and tests.</p>
+<p>The review process was smooth:</p>
+<ol>
+<li>First commit: fix the Chat Completions accumulator + regression test</li>
+<li>Reviewer feedback: same bug exists in Responses API — please fix there too + add changelog entries</li>
+<li>Second commit: fix Responses API routing + regression test + changelogs</li>
+<li>Merged by <a href="https://github.com/akshaydeo">akshaydeo</a> (Bifrost maintainer)</li>
+</ol>
+<p>Total: 3 commits, ~280 lines of Go across 5 files. Same-day turnaround from issue to merge.</p>
+<h2 id="what-i-learned">What I learned</h2>
+<h3 id="1-recency-is-not-identity">1. Recency is not identity</h3>
+<p>The original code used position (last element) as a proxy for identity. This is a common pattern in sequential streaming — and it works, until the stream isn&rsquo;t sequential. The fix is to use the actual identity field that the protocol already provides.</p>
+<p>This is a general principle: <strong>if the protocol gives you an ID field, use it.</strong> Don&rsquo;t rely on ordering assumptions that hold today but break when concurrency enters.</p>
+<h3 id="2-the-same-bug-pattern-repeats-across-api-surfaces">2. The same bug pattern repeats across API surfaces</h3>
+<p>Bifrost supports two streaming formats: Chat Completions (the classic <code>tool_calls</code> array) and Responses API (the newer <code>ItemID</code>-based format). Both had the same routing flaw because the accumulation logic was duplicated rather than shared. The reviewer catching this in a different file was the most valuable part of the review.</p>
+<h3 id="3-oss-contributions-are-about-context-not-complexity">3. OSS contributions are about context, not complexity</h3>
+<p>The fix itself is straightforward — build a map, use it for lookup. The hard part was:</p>
+<ul>
+<li><strong>Finding</strong> the bug in a codebase I&rsquo;d never seen before</li>
+<li><strong>Understanding</strong> why the existing approach was wrong</li>
+<li><strong>Testing</strong> with realistic interleaved deltas</li>
+<li><strong>Responding</strong> to review feedback about a parallel code path I hadn&rsquo;t initially noticed</li>
+</ul>
+<p>The code change was ~100 lines. The context-building was hours.</p>
+<h3 id="4-production-telemetry-is-the-best-bug-report">4. Production telemetry is the best bug report</h3>
+<p>The issue report included the exact malformed tool name from production: <code>search_circularsearch_circularsearch_circular</code>. That single string made the bug immediately reproducible and the fix trivially verifiable. If you&rsquo;re filing a bug, include the malformed output — it&rsquo;s worth more than a paragraph of description.</p>
+<h2 id="links">Links</h2>
+<ul>
+<li><strong>PR</strong>: <a href="https://github.com/maximhq/bifrost/pull/1830">fix: preserve parallel tool call deltas — #1830</a></li>
+<li><strong>Issue</strong>: <a href="https://github.com/maximhq/bifrost/issues/1829">Streaming tool call deltas merge in parallel tool calling — #1829</a></li>
+<li><strong>Project</strong>: <a href="https://github.com/maximhq/bifrost">Bifrost AI Gateway</a> — 2.6k ⭐, fastest enterprise AI gateway</li>
+</ul>
+
+</content>
+<p>
+  
+</p>
+
+
+  <p>
+    <a href='mailto:shentharkrishnatejaswi@gmail.com?subject=Reply%20to%20"Fixing%20Parallel%20Tool%20Call%20Streaming%20in%20Bifrost%3a%20An%20OSS%20Bug%20Hunt"'>
+      Reply to this post by email ↪
+    </a>
+  </p>
+
+
+
+  </main>
+  <footer><small>
+  Krishnatejaswi S | Made with <a href="https://github.com/clente/hugo-bearcub">Bear Cub</a>
+</small></footer>
+
+    
+</body>
+
+</html>
