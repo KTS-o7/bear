@@ -9,7 +9,7 @@
     <managingEditor>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</managingEditor>
     <webMaster>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</webMaster>
     <copyright>Krishnatejaswi S</copyright>
-    <lastBuildDate>Mon, 02 Mar 2026 00:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Sat, 14 Mar 2026 00:00:00 +0530</lastBuildDate>
     <atom:link href="https://KTS-o7.github.io/bear/index.xml" rel="self" type="application/rss+xml" />
     <item>
       <title>About</title>
@@ -59,6 +59,278 @@ drop a hi there if you see me around!</p>
 </table>
 <hr>
 <p><em>Thanks for visiting my blog! If you enjoyed reading my posts, consider checking out the RSS feed to stay updated with my posts</em></p>
+]]></content:encoded>
+    </item>
+    <item>
+      <title>Freeseek: Turning DeepSeek&#39;s Web Chat into an OpenAI-Compatible API</title>
+      <link>https://KTS-o7.github.io/bear/posts/freeseek_proxy/</link>
+      <pubDate>Sat, 14 Mar 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/posts/freeseek_proxy/</guid>
+      <description>&lt;p&gt;I wanted to use DeepSeek with tools that only speak OpenAI&amp;rsquo;s API. DeepSeek&amp;rsquo;s official API has rate limits and costs money. Their web chat is free and unrestricted but it isn&amp;rsquo;t an API — it&amp;rsquo;s a browser session with Cloudflare protection, Proof-of-Work challenges, and a proprietary SSE format.&lt;/p&gt;&#xA;&lt;p&gt;So I built &lt;a href=&#34;https://github.com/KTS-o7/freeseek-proxy&#34;&gt;freeseek-proxy&lt;/a&gt;: a local proxy that sits between OpenAI-compatible clients (opencode, Claude Code, any SDK) and DeepSeek&amp;rsquo;s web chat backend. You send standard &lt;code&gt;/v1/chat/completions&lt;/code&gt; requests; it handles sessions, PoW, TLS fingerprinting, and SSE translation behind the scenes.&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>I wanted to use DeepSeek with tools that only speak OpenAI&rsquo;s API. DeepSeek&rsquo;s official API has rate limits and costs money. Their web chat is free and unrestricted but it isn&rsquo;t an API — it&rsquo;s a browser session with Cloudflare protection, Proof-of-Work challenges, and a proprietary SSE format.</p>
+<p>So I built <a href="https://github.com/KTS-o7/freeseek-proxy">freeseek-proxy</a>: a local proxy that sits between OpenAI-compatible clients (opencode, Claude Code, any SDK) and DeepSeek&rsquo;s web chat backend. You send standard <code>/v1/chat/completions</code> requests; it handles sessions, PoW, TLS fingerprinting, and SSE translation behind the scenes.</p>
+<p>This post covers the four hardest problems I had to solve.</p>
+<h2 id="the-architecture-its-two-processes-not-one">The architecture (it&rsquo;s two processes, not one)</h2>
+<p>The proxy is split into two halves that talk over localhost:</p>
+
+
+
+
+
+<pre tabindex="0"><code>                  ┌──────────────────────────┐
+                  │   Client                 │
+                  │   (opencode / curl / SDK)│
+                  └────────────┬─────────────┘
+                               │
+                  POST /v1/chat/completions
+                       (OpenAI format)
+                               │
+                  ┌────────────▼─────────────┐
+                  │   TypeScript Proxy       │
+                  │   Hono on Bun :9123      │
+                  │                          │
+                  │   · Request normalization│
+                  │   · Tool-call compat     │
+                  │   · SSE reformatting     │
+                  │   · Session management   │
+                  └────────────┬─────────────┘
+                               │
+                    HTTP localhost:8081
+                               │
+                  ┌────────────▼─────────────┐
+                  │   Python Backend         │
+                  │   FastAPI + uvicorn      │
+                  │                          │
+                  │   · curl_cffi (TLS spoof)│
+                  │   · WASM PoW solver      │
+                  │   · Cookie management    │
+                  │   · Auth (token / login) │
+                  └────────────┬─────────────┘
+                               │
+                   HTTPS chat.deepseek.com
+                               │
+                  ┌────────────▼─────────────┐
+                  │      DeepSeek API        │
+                  └──────────────────────────┘</code></pre><p>Why two languages? DeepSeek does browser fingerprinting. Their servers check TLS fingerprints, and if yours looks like <code>python-requests</code> or <code>node-fetch</code>, you get blocked. The Python side uses <code>curl_cffi</code> with <code>impersonate=&quot;chrome120&quot;</code> to produce a TLS handshake indistinguishable from Chrome. The TypeScript side handles everything else — request translation, streaming, tool calls — where Bun&rsquo;s performance and type safety matter more.</p>
+<h2 id="problem-1-proof-of-work-with-a-wasm-sha3-solver">Problem 1: Proof-of-Work with a WASM SHA3 solver</h2>
+<p>DeepSeek doesn&rsquo;t just check your auth token. Before every chat completion, you must solve a Proof-of-Work challenge. The flow is:</p>
+<ol>
+<li>Request a challenge from <code>/api/v0/chat/create_pow_challenge</code></li>
+<li>The server returns a challenge string, salt, difficulty, and expiry</li>
+<li>You run a SHA3-based hash computation until you find a valid answer</li>
+<li>Encode the answer as base64 JSON and send it as <code>x-ds-pow-response</code> header</li>
+</ol>
+<p>The catch: DeepSeek&rsquo;s PoW algorithm is implemented in a WebAssembly module. In the browser, this runs natively. Outside the browser, you need a WASM runtime.</p>
+<p>The solver uses <code>wasmtime</code> (a standalone WASM runtime for Python) to load DeepSeek&rsquo;s own <code>sha3_wasm_bg.wasm</code> binary and call its exported <code>wasm_solve</code> function:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="k">class</span> <span class="nc">DeepSeekHash</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl">    <span class="k">def</span> <span class="nf">init</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">wasm_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl">        <span class="n">engine</span> <span class="o">=</span> <span class="n">wasmtime</span><span class="o">.</span><span class="n">Engine</span><span class="p">()</span>
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl">        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">wasm_path</span><span class="p">,</span> <span class="s2">&#34;rb&#34;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl">            <span class="n">wasm_bytes</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">        <span class="n">module</span> <span class="o">=</span> <span class="n">wasmtime</span><span class="o">.</span><span class="n">Module</span><span class="p">(</span><span class="n">engine</span><span class="p">,</span> <span class="n">wasm_bytes</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl">        <span class="bp">self</span><span class="o">.</span><span class="n">store</span> <span class="o">=</span> <span class="n">wasmtime</span><span class="o">.</span><span class="n">Store</span><span class="p">(</span><span class="n">engine</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl">        <span class="n">linker</span> <span class="o">=</span> <span class="n">wasmtime</span><span class="o">.</span><span class="n">Linker</span><span class="p">(</span><span class="n">engine</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">        <span class="n">linker</span><span class="o">.</span><span class="n">define_wasi</span><span class="p">()</span>
+</span></span><span class="line"><span class="ln">10</span><span class="cl">        <span class="bp">self</span><span class="o">.</span><span class="n">instance</span> <span class="o">=</span> <span class="n">linker</span><span class="o">.</span><span class="n">instantiate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">store</span><span class="p">,</span> <span class="n">module</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">11</span><span class="cl">        <span class="bp">self</span><span class="o">.</span><span class="n">memory</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="o">.</span><span class="n">exports</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">store</span><span class="p">)[</span><span class="s2">&#34;memory&#34;</span><span class="p">]</span>
+</span></span><span class="line"><span class="ln">12</span><span class="cl">        <span class="k">return</span> <span class="bp">self</span>
+</span></span><span class="line"><span class="ln">13</span><span class="cl">
+</span></span><span class="line"><span class="ln">14</span><span class="cl">    <span class="k">def</span> <span class="nf">calculate_hash</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">algorithm</span><span class="p">,</span> <span class="n">challenge</span><span class="p">,</span> <span class="n">salt</span><span class="p">,</span> <span class="n">difficulty</span><span class="p">,</span> <span class="n">expire_at</span><span class="p">):</span>
+</span></span><span class="line"><span class="ln">15</span><span class="cl">        <span class="n">prefix</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&#34;</span><span class="si">{</span><span class="n">salt</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">expire_at</span><span class="si">}</span><span class="s2">_&#34;</span>
+</span></span><span class="line"><span class="ln">16</span><span class="cl">        <span class="c1"># Allocate WASM memory, write challenge + prefix</span>
+</span></span><span class="line"><span class="ln">17</span><span class="cl">        <span class="n">challenge_ptr</span><span class="p">,</span> <span class="n">challenge_len</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_write_to_memory</span><span class="p">(</span><span class="n">challenge</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">18</span><span class="cl">        <span class="n">prefix_ptr</span><span class="p">,</span> <span class="n">prefix_len</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_write_to_memory</span><span class="p">(</span><span class="n">prefix</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">19</span><span class="cl">        <span class="c1"># Call the exported solver</span>
+</span></span><span class="line"><span class="ln">20</span><span class="cl">        <span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="o">.</span><span class="n">exports</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">store</span><span class="p">)[</span><span class="s2">&#34;wasm_solve&#34;</span><span class="p">](</span>
+</span></span><span class="line"><span class="ln">21</span><span class="cl">            <span class="bp">self</span><span class="o">.</span><span class="n">store</span><span class="p">,</span> <span class="n">retptr</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln">22</span><span class="cl">            <span class="n">challenge_ptr</span><span class="p">,</span> <span class="n">challenge_len</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln">23</span><span class="cl">            <span class="n">prefix_ptr</span><span class="p">,</span> <span class="n">prefix_len</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln">24</span><span class="cl">            <span class="nb">float</span><span class="p">(</span><span class="n">difficulty</span><span class="p">),</span>
+</span></span><span class="line"><span class="ln">25</span><span class="cl">        <span class="p">)</span>
+</span></span><span class="line"><span class="ln">26</span><span class="cl">        <span class="c1"># Read the answer from WASM memory</span>
+</span></span><span class="line"><span class="ln">27</span><span class="cl">        <span class="n">value_bytes</span> <span class="o">=</span> <span class="nb">bytes</span><span class="p">(</span><span class="n">memory_view</span><span class="p">[</span><span class="n">retptr</span> <span class="o">+</span> <span class="mi">8</span> <span class="p">:</span> <span class="n">retptr</span> <span class="o">+</span> <span class="mi">16</span><span class="p">])</span>
+</span></span><span class="line"><span class="ln">28</span><span class="cl">        <span class="n">value</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">frombuffer</span><span class="p">(</span><span class="n">value_bytes</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+</span></span><span class="line"><span class="ln">29</span><span class="cl">        <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">value</span><span class="p">)</span></span></span></code></pre></div><p>The memory management is manual — you allocate via <code>__wbindgen_export_0</code>, write UTF-8 bytes one at a time, call the solver, then read the result from a return pointer. Stack pointer cleanup happens in a <code>finally</code> block. It&rsquo;s the kind of code where one off-by-one error means silent corruption.</p>
+<p><strong>Why Python 3.11 specifically?</strong> The <code>wasmtime</code> + <code>numpy</code> + <code>curl_cffi</code> stack was verified working on 3.11. Python 3.14 caused silent failures in the WASM path during testing — the process would get <code>killed</code> mid-computation with no error message. This isn&rsquo;t a &ldquo;should work&rdquo; situation; it&rsquo;s a &ldquo;was tested and doesn&rsquo;t&rdquo; situation.</p>
+<h2 id="problem-2-tls-fingerprinting-and-cloudflare">Problem 2: TLS fingerprinting and Cloudflare</h2>
+<p>DeepSeek sits behind Cloudflare. Standard HTTP clients get 403s or &ldquo;Just a moment&hellip;&rdquo; challenge pages because their TLS Client Hello doesn&rsquo;t match what a real browser sends.</p>
+<p>The fix is <code>curl_cffi</code> with browser impersonation:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="ln">1</span><span class="cl"><span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span>
+</span></span><span class="line"><span class="ln">2</span><span class="cl">    <span class="sa">f</span><span class="s2">&#34;</span><span class="si">{</span><span class="n">BASE_URL</span><span class="si">}{</span><span class="n">path</span><span class="si">}</span><span class="s2">&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln">3</span><span class="cl">    <span class="n">headers</span><span class="o">=</span><span class="n">headers</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln">4</span><span class="cl">    <span class="n">json</span><span class="o">=</span><span class="n">body</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln">5</span><span class="cl">    <span class="n">cookies</span><span class="o">=</span><span class="n">cookies</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln">6</span><span class="cl">    <span class="n">impersonate</span><span class="o">=</span><span class="s2">&#34;chrome120&#34;</span><span class="p">,</span>  <span class="c1"># TLS fingerprint matches Chrome 120</span>
+</span></span><span class="line"><span class="ln">7</span><span class="cl">    <span class="n">stream</span><span class="o">=</span><span class="n">stream</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln">8</span><span class="cl"><span class="p">)</span></span></span></code></pre></div><p><code>impersonate=&quot;chrome120&quot;</code> makes the TLS handshake (cipher suites, extensions, ALPN) identical to Chrome 120. This is why the backend is Python, not Node — there&rsquo;s no equivalent library in the JS ecosystem that matches real browser TLS fingerprints this precisely.</p>
+<p>The cookie management layer adds another defense: if a request hits Cloudflare anyway, the proxy can automatically refresh cookies via a configurable shell command:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="ln">1</span><span class="cl"><span class="k">def</span> <span class="nf">refresh_cookies</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
+</span></span><span class="line"><span class="ln">2</span><span class="cl">    <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">refresh_command</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">3</span><span class="cl">        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_cookies</span><span class="p">()</span>
+</span></span><span class="line"><span class="ln">4</span><span class="cl">    <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">refresh_command</span><span class="p">,</span> <span class="n">shell</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">check</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">5</span><span class="cl">    <span class="n">cookies</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_cookies</span><span class="p">()</span>
+</span></span><span class="line"><span class="ln">6</span><span class="cl">    <span class="bp">self</span><span class="o">.</span><span class="n">save_cookies</span><span class="p">(</span><span class="n">cookies</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">7</span><span class="cl">    <span class="k">return</span> <span class="n">cookies</span></span></span></code></pre></div><p>This lets you plug in whatever cookie extraction tool you prefer — a headless browser script, a browser extension export, etc.</p>
+<h2 id="problem-3-translating-sse-formats">Problem 3: Translating SSE formats</h2>
+<p>DeepSeek&rsquo;s streaming format is not OpenAI&rsquo;s streaming format. Both use Server-Sent Events, but the payload structure is completely different.</p>
+<p><strong>OpenAI format</strong> (what clients expect):</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-json" data-lang="json"><span class="line"><span class="ln">1</span><span class="cl"><span class="err">data:</span> <span class="p">{</span><span class="nt">&#34;choices&#34;</span><span class="p">:[{</span><span class="nt">&#34;delta&#34;</span><span class="p">:{</span><span class="nt">&#34;content&#34;</span><span class="p">:</span><span class="s2">&#34;Hello&#34;</span><span class="p">},</span><span class="nt">&#34;index&#34;</span><span class="p">:</span><span class="mi">0</span><span class="p">}],</span><span class="nt">&#34;model&#34;</span><span class="p">:</span><span class="s2">&#34;gpt-4&#34;</span><span class="p">}</span></span></span></code></pre></div><p><strong>DeepSeek format</strong> (what the server sends):</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-json" data-lang="json"><span class="line"><span class="ln">1</span><span class="cl"><span class="err">data:</span> <span class="p">{</span><span class="nt">&#34;v&#34;</span><span class="p">:{</span><span class="nt">&#34;response&#34;</span><span class="p">:{</span><span class="nt">&#34;fragments&#34;</span><span class="p">:[{</span><span class="nt">&#34;type&#34;</span><span class="p">:</span><span class="s2">&#34;text&#34;</span><span class="p">,</span><span class="nt">&#34;content&#34;</span><span class="p">:</span><span class="s2">&#34;Hello&#34;</span><span class="p">}]}},</span><span class="nt">&#34;o&#34;</span><span class="p">:</span><span class="s2">&#34;APPEND&#34;</span><span class="p">}</span></span></span></code></pre></div><p>DeepSeek uses a nested structure where content lives inside <code>response.fragments</code>, operations can be <code>APPEND</code>, <code>SET</code>, or <code>BATCH</code>, and thinking content is separated from regular content by fragment type. There&rsquo;s also metadata like <code>response/status</code> and <code>response/accumulated_token_usage</code> mixed into the stream that clients don&rsquo;t want.</p>
+<p>The proxy handles this translation in <code>parseSSELine</code> and <code>extractDeepSeekContent</code>:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-typescript" data-lang="typescript"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="kd">function</span> <span class="nx">extractDeepSeekContent</span><span class="p">(</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl">  <span class="nx">data</span>: <span class="kt">DeepSeekSSEData</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl">  <span class="nx">includeThinking</span>: <span class="kt">boolean</span>
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl"><span class="p">)</span><span class="o">:</span> <span class="kt">string</span> <span class="p">{</span>
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl">  <span class="c1">// DeepSeek nests content in multiple possible locations
+</span></span></span><span class="line"><span class="ln"> 6</span><span class="cl">  <span class="kr">const</span> <span class="nx">target</span> <span class="o">=</span> <span class="nx">data</span><span class="p">.</span><span class="nx">v</span><span class="o">?</span><span class="p">.</span><span class="nx">response</span> <span class="o">??</span> <span class="nx">data</span><span class="p">.</span><span class="nx">response</span> <span class="o">??</span> <span class="nx">data</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl">  <span class="kr">const</span> <span class="nx">fragments</span> <span class="o">=</span> <span class="nx">target</span><span class="o">?</span><span class="p">.</span><span class="nx">fragments</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl">
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">  <span class="k">if</span> <span class="p">(</span><span class="nb">Array</span><span class="p">.</span><span class="nx">isArray</span><span class="p">(</span><span class="nx">fragments</span><span class="p">))</span> <span class="p">{</span>
+</span></span><span class="line"><span class="ln">10</span><span class="cl">    <span class="k">return</span> <span class="nx">fragments</span>
+</span></span><span class="line"><span class="ln">11</span><span class="cl">      <span class="p">.</span><span class="nx">filter</span><span class="p">(</span><span class="nx">f</span> <span class="o">=&gt;</span> <span class="nx">includeThinking</span> <span class="o">||</span> <span class="nx">f</span><span class="p">.</span><span class="kr">type</span> <span class="o">!==</span> <span class="s2">&#34;thinking&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">12</span><span class="cl">      <span class="p">.</span><span class="nx">map</span><span class="p">(</span><span class="nx">f</span> <span class="o">=&gt;</span> <span class="nx">f</span><span class="p">.</span><span class="nx">content</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">13</span><span class="cl">      <span class="p">.</span><span class="nx">join</span><span class="p">(</span><span class="s2">&#34;&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="ln">14</span><span class="cl">  <span class="p">}</span>
+</span></span><span class="line"><span class="ln">15</span><span class="cl">
+</span></span><span class="line"><span class="ln">16</span><span class="cl">  <span class="c1">// Fallback: direct content field
+</span></span></span><span class="line"><span class="ln">17</span><span class="cl">  <span class="k">if</span> <span class="p">(</span><span class="k">typeof</span> <span class="nx">data</span><span class="p">.</span><span class="nx">v</span> <span class="o">===</span> <span class="s2">&#34;string&#34;</span><span class="p">)</span> <span class="k">return</span> <span class="nx">data</span><span class="p">.</span><span class="nx">v</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln">18</span><span class="cl">  <span class="k">if</span> <span class="p">(</span><span class="k">typeof</span> <span class="nx">data</span><span class="p">.</span><span class="nx">content</span> <span class="o">===</span> <span class="s2">&#34;string&#34;</span><span class="p">)</span> <span class="k">return</span> <span class="nx">data</span><span class="p">.</span><span class="nx">content</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln">19</span><span class="cl">  <span class="k">return</span> <span class="s2">&#34;&#34;</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln">20</span><span class="cl"><span class="p">}</span></span></span></code></pre></div><p>For streaming responses, each DeepSeek SSE chunk gets translated into an OpenAI <code>chat.completion.chunk</code> on the fly. For non-streaming, the proxy accumulates all chunks, then builds a single <code>chat.completion</code> response.</p>
+<h2 id="problem-4-tool-calls-on-a-model-that-doesnt-support-them">Problem 4: Tool calls on a model that doesn&rsquo;t support them</h2>
+<p>This is the most interesting problem. DeepSeek&rsquo;s web chat API doesn&rsquo;t support OpenAI-style tool calls. There&rsquo;s no <code>tools</code> parameter, no <code>tool_choice</code>, no <code>tool_calls</code> in the response. But clients like opencode and Claude Code rely heavily on tool use — without it, the agent can&rsquo;t read files, run commands, or interact with your codebase.</p>
+<p>The solution is a prompt-engineering compatibility layer. When the proxy detects tool-related fields in the request, it:</p>
+<ol>
+<li><strong>Injects a system prompt</strong> describing available tools and the expected JSON format</li>
+<li><strong>Flattens the conversation</strong> into a single prompt (including tool results from previous turns)</li>
+<li><strong>Parses the model&rsquo;s response</strong> for JSON tool call envelopes</li>
+<li><strong>Translates back</strong> into OpenAI&rsquo;s <code>tool_calls</code> format</li>
+</ol>
+<p>The injected system prompt instructs the model to output tool calls as JSON:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-typescript" data-lang="typescript"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="kd">function</span> <span class="nx">buildToolSystemPrompt</span><span class="p">(</span><span class="nx">tools</span><span class="p">,</span> <span class="nx">toolChoice</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl">  <span class="k">return</span> <span class="p">[</span>
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl">    <span class="s2">&#34;You are replying through an OpenAI-compatible proxy that supports tool use.&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl">    <span class="nx">toolChoiceRule</span><span class="p">,</span> <span class="c1">// varies by mode: auto/required/none/function
+</span></span></span><span class="line"><span class="ln"> 5</span><span class="cl">    <span class="sb">`If you decide to call a tool, output only valid JSON with this exact shape:`</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">    <span class="sb">`{&#34;opencode_tool_call&#34;: {&#34;name&#34;: &#34;tool_name&#34;, &#34;arguments&#34;: { ... }}}.`</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl">    <span class="sb">`For multiple calls: {&#34;opencode_tool_calls&#34;: [...]}.`</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl">    <span class="s2">&#34;Do not wrap the JSON in markdown.&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">    <span class="s2">&#34;Available tools:&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln">10</span><span class="cl">    <span class="nx">availableTools</span><span class="p">,</span> <span class="c1">// name, description, JSON schema for each
+</span></span></span><span class="line"><span class="ln">11</span><span class="cl">  <span class="p">].</span><span class="nx">join</span><span class="p">(</span><span class="s2">&#34;\n\n&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="ln">12</span><span class="cl"><span class="p">}</span></span></span></code></pre></div><p>The conversation history gets flattened because DeepSeek&rsquo;s chat API takes a single prompt string, not an array of messages:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-typescript" data-lang="typescript"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="kd">function</span> <span class="nx">formatConversationForDeepSeek</span><span class="p">(</span><span class="nx">messages</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl">  <span class="k">return</span> <span class="nx">messages</span><span class="p">.</span><span class="nx">map</span><span class="p">(</span><span class="nx">message</span> <span class="o">=&gt;</span> <span class="p">{</span>
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="nx">message</span><span class="p">.</span><span class="nx">role</span> <span class="o">===</span> <span class="s2">&#34;system&#34;</span><span class="p">)</span> <span class="k">return</span> <span class="sb">`System: </span><span class="si">${</span><span class="nx">content</span><span class="si">}</span><span class="sb">`</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="nx">message</span><span class="p">.</span><span class="nx">role</span> <span class="o">===</span> <span class="s2">&#34;user&#34;</span><span class="p">)</span> <span class="k">return</span> <span class="sb">`User: </span><span class="si">${</span><span class="nx">content</span><span class="si">}</span><span class="sb">`</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="nx">message</span><span class="p">.</span><span class="nx">role</span> <span class="o">===</span> <span class="s2">&#34;assistant&#34;</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">      <span class="k">if</span> <span class="p">(</span><span class="nx">message</span><span class="p">.</span><span class="nx">tool_calls</span><span class="o">?</span><span class="p">.</span><span class="nx">length</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl">        <span class="k">return</span> <span class="sb">`Assistant tool request: </span><span class="si">${</span><span class="nx">formatted</span> <span class="nx">calls</span><span class="si">}</span><span class="sb">`</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl">      <span class="k">return</span> <span class="sb">`Assistant: </span><span class="si">${</span><span class="nx">content</span><span class="si">}</span><span class="sb">`</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="ln">10</span><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="nx">message</span><span class="p">.</span><span class="nx">role</span> <span class="o">===</span> <span class="s2">&#34;tool&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">11</span><span class="cl">      <span class="k">return</span> <span class="sb">`Tool (</span><span class="si">${</span><span class="nx">message</span><span class="p">.</span><span class="nx">tool_call_id</span><span class="si">}</span><span class="sb">) result: </span><span class="si">${</span><span class="nx">content</span><span class="si">}</span><span class="sb">`</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln">12</span><span class="cl">  <span class="p">}).</span><span class="nx">join</span><span class="p">(</span><span class="s2">&#34;\n\n&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="ln">13</span><span class="cl"><span class="p">}</span></span></span></code></pre></div><p>On the response side, <code>parseToolEnvelope</code> scans the model output for JSON objects containing <code>opencode_tool_call</code> or <code>opencode_tool_calls</code> keys, validates that the function names match known tools, and converts them into proper OpenAI <code>tool_calls</code> with generated IDs:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-typescript" data-lang="typescript"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="kd">function</span> <span class="nx">parseToolEnvelope</span><span class="p">(</span><span class="nx">text</span><span class="p">,</span> <span class="nx">tools</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl">  <span class="k">for</span> <span class="p">(</span><span class="kr">const</span> <span class="nx">candidate</span> <span class="k">of</span> <span class="nx">extractJsonObjectCandidates</span><span class="p">(</span><span class="nx">text</span><span class="p">.</span><span class="nx">trim</span><span class="p">()))</span> <span class="p">{</span>
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl">    <span class="kr">const</span> <span class="nx">payload</span> <span class="o">=</span> <span class="nx">JSON</span><span class="p">.</span><span class="nx">parse</span><span class="p">(</span><span class="nx">candidate</span><span class="p">);</span>
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl">    <span class="kr">const</span> <span class="nx">rawCalls</span> <span class="o">=</span> <span class="nx">payload</span><span class="p">.</span><span class="nx">opencode_tool_calls</span> <span class="o">??</span> <span class="p">[</span><span class="nx">payload</span><span class="p">.</span><span class="nx">opencode_tool_call</span><span class="p">];</span>
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl">    <span class="kr">const</span> <span class="nx">toolCalls</span> <span class="o">=</span> <span class="nx">rawCalls</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">      <span class="p">.</span><span class="nx">filter</span><span class="p">(</span><span class="nx">call</span> <span class="o">=&gt;</span> <span class="nx">tools</span><span class="p">.</span><span class="nx">some</span><span class="p">(</span><span class="nx">t</span> <span class="o">=&gt;</span> <span class="nx">t</span><span class="p">.</span><span class="kd">function</span><span class="p">.</span><span class="nx">name</span> <span class="o">===</span> <span class="nx">call</span><span class="p">.</span><span class="nx">name</span><span class="p">))</span>
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl">      <span class="p">.</span><span class="nx">map</span><span class="p">(</span><span class="nx">call</span> <span class="o">=&gt;</span> <span class="p">({</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl">        <span class="nx">id</span><span class="o">:</span> <span class="sb">`call_</span><span class="si">${</span><span class="nx">uuidv4</span><span class="p">()</span><span class="si">}</span><span class="sb">`</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">        <span class="kr">type</span><span class="o">:</span> <span class="s2">&#34;function&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln">10</span><span class="cl">        <span class="kd">function</span><span class="o">:</span> <span class="p">{</span> <span class="nx">name</span>: <span class="kt">call.name</span><span class="p">,</span> <span class="nx">arguments</span>: <span class="kt">JSON.stringify</span><span class="p">(</span><span class="nx">call</span><span class="p">.</span><span class="nx">arguments</span><span class="p">)</span> <span class="p">},</span>
+</span></span><span class="line"><span class="ln">11</span><span class="cl">      <span class="p">}));</span>
+</span></span><span class="line"><span class="ln">12</span><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="nx">toolCalls</span><span class="p">.</span><span class="nx">length</span><span class="p">)</span> <span class="k">return</span> <span class="p">{</span> <span class="nx">toolCalls</span> <span class="p">};</span>
+</span></span><span class="line"><span class="ln">13</span><span class="cl">  <span class="p">}</span>
+</span></span><span class="line"><span class="ln">14</span><span class="cl">  <span class="k">return</span> <span class="kc">null</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln">15</span><span class="cl"><span class="p">}</span></span></span></code></pre></div><p>The JSON extraction is deliberately robust — it uses a bracket-depth parser to find JSON objects embedded in natural language, handles escaped strings, and tries multiple candidates. This matters because the model sometimes wraps tool calls in explanatory text despite being told not to.</p>
+<p>For streaming with tools, there&rsquo;s an extra step. The proxy can&rsquo;t stream tool calls token-by-token (the client needs the complete tool call object). So when tools are present, the proxy collects the full response first, parses tool calls, then re-streams the result as a synthetic SSE sequence. This adds ~latency but is the only correct approach.</p>
+<h2 id="what-the-client-sees">What the client sees</h2>
+<p>After all this translation, what comes out the other end is a standard OpenAI response:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">curl http://localhost:9123/v1/chat/completions <span class="se">\
+</span></span></span><span class="line"><span class="ln">2</span><span class="cl">  -H <span class="s2">&#34;Content-Type: application/json&#34;</span> <span class="se">\
+</span></span></span><span class="line"><span class="ln">3</span><span class="cl">  -d <span class="s1">&#39;{
+</span></span></span><span class="line"><span class="ln">4</span><span class="cl"><span class="s1">    &#34;model&#34;: &#34;deepseek-chat&#34;,
+</span></span></span><span class="line"><span class="ln">5</span><span class="cl"><span class="s1">    &#34;messages&#34;: [{&#34;role&#34;: &#34;user&#34;, &#34;content&#34;: &#34;Hello&#34;}],
+</span></span></span><span class="line"><span class="ln">6</span><span class="cl"><span class="s1">    &#34;stream&#34;: true
+</span></span></span><span class="line"><span class="ln">7</span><span class="cl"><span class="s1">  }&#39;</span></span></span></code></pre></div>
+
+
+
+
+<pre tabindex="0"><code>data: {&#34;id&#34;:&#34;chatcmpl-abc&#34;,&#34;object&#34;:&#34;chat.completion.chunk&#34;,&#34;choices&#34;:[{&#34;delta&#34;:{&#34;role&#34;:&#34;assistant&#34;},&#34;index&#34;:0}]}
+data: {&#34;id&#34;:&#34;chatcmpl-abc&#34;,&#34;object&#34;:&#34;chat.completion.chunk&#34;,&#34;choices&#34;:[{&#34;delta&#34;:{&#34;content&#34;:&#34;Hello&#34;},&#34;index&#34;:0}]}
+data: {&#34;id&#34;:&#34;chatcmpl-abc&#34;,&#34;object&#34;:&#34;chat.completion.chunk&#34;,&#34;choices&#34;:[{&#34;delta&#34;:{&#34;content&#34;:&#34;!&#34;},&#34;index&#34;:0}]}
+data: [DONE]</code></pre><p>Indistinguishable from OpenAI. Any client that speaks the OpenAI protocol works without modification.</p>
+<h2 id="what-i-learned">What I learned</h2>
+<h3 id="wasm-outside-the-browser-is-viable-but-fragile">WASM outside the browser is viable but fragile</h3>
+<p>The <code>wasmtime</code> runtime works, but debugging WASM memory issues from Python is miserable. There&rsquo;s no stack trace when you read the wrong offset — you just get garbage bytes. The debug flags in <code>pow.py</code> exist because I needed them.</p>
+<h3 id="tls-fingerprinting-is-the-real-gate-not-auth-tokens">TLS fingerprinting is the real gate, not auth tokens</h3>
+<p>I initially thought the hard part would be authentication. It wasn&rsquo;t. The hard part was making HTTP requests that don&rsquo;t get blocked. <code>curl_cffi</code> with browser impersonation is the only reliable solution I found for Python. If you&rsquo;re building any kind of web scraper or API proxy in 2026, TLS fingerprinting is the first problem you&rsquo;ll hit.</p>
+<h3 id="tool-call-compatibility-via-prompting-is-surprisingly-reliable">Tool call compatibility via prompting is surprisingly reliable</h3>
+<p>I expected the prompt-engineering approach to tool calls to be flaky. It&rsquo;s not. DeepSeek&rsquo;s models are good at following structured output instructions, and the JSON extraction parser handles edge cases well. The key is being very explicit about the expected format and validating against the known tool list.</p>
+<h3 id="two-process-architecture-was-the-right-call">Two-process architecture was the right call</h3>
+<p>Splitting into TypeScript + Python felt like overengineering at first. It wasn&rsquo;t. Each language does what it&rsquo;s best at: Python for the &ldquo;pretend to be a browser&rdquo; parts (TLS, WASM), TypeScript for the &ldquo;translate between API formats&rdquo; parts (streaming, types, request handling). Trying to do both in one language would have meant worse tooling for at least half the problem.</p>
+<h2 id="links">Links</h2>
+<ul>
+<li><strong>Repo</strong>: <a href="https://github.com/KTS-o7/freeseek-proxy">freeseek-proxy</a></li>
+<li><strong>curl_cffi</strong>: <a href="https://curl-cffi.readthedocs.io/">docs</a> — Python HTTP client with browser TLS impersonation</li>
+<li><strong>wasmtime-py</strong>: <a href="https://github.com/bytecodealliance/wasmtime-py">GitHub</a> — Python bindings for the Wasmtime WASM runtime</li>
+<li><strong>Hono</strong>: <a href="https://hono.dev/">hono.dev</a> — Lightweight web framework for Bun/Node/Deno</li>
+</ul>
 ]]></content:encoded>
     </item>
     <item>
