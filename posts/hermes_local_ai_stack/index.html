@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en-us">
+
+<head>
+  <meta http-equiv="X-Clacks-Overhead" content="GNU Terry Pratchett" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="shortcut icon" href="https://KTS-o7.github.io/bear/images/favicon.png" />
+<title>Building a Local AI Stack: Hermes, Bifrost, Telegram, and Camoufox | </title>
+<meta name="title" content="Building a Local AI Stack: Hermes, Bifrost, Telegram, and Camoufox" />
+<meta name="description" content="I wanted a persistent AI agent that lives on my machine, reaches cloud models through a single gateway, and talks back to me on Telegram. Not a SaaS. Not a wrapper. Something I own end-to-end.
+This is the story of setting that up in one session, and the parts that went sideways.
+The Stack
+Four moving parts:
+
+Bifrost &ndash; LLM gateway already running on localhost:24242, routing to Ollama cloud models
+Hermes Agent &ndash; open-source AI agent framework by Nous Research, pointed at Bifrost
+Ollama &ndash; cloud relay for gemma4 and qwen3.5 cloud models via ollama.com
+Camoufox &ndash; Firefox fork with TLS fingerprint spoofing for scraping tasks
+
+The goal was to have Hermes run as a Telegram bot so I could assign it tasks from my phone, with all model traffic flowing through Bifrost so routing stays centralized." />
+<meta name="author" content="" />
+<meta name="keywords" content="" />
+
+
+
+
+
+
+  
+  <meta property="og:url" content="https://KTS-o7.github.io/bear/posts/hermes_local_ai_stack/">
+  <meta property="og:title" content="Building a Local AI Stack: Hermes, Bifrost, Telegram, and Camoufox">
+  <meta property="og:description" content="I wanted a persistent AI agent that lives on my machine, reaches cloud models through a single gateway, and talks back to me on Telegram. Not a SaaS. Not a wrapper. Something I own end-to-end.
+This is the story of setting that up in one session, and the parts that went sideways.
+The Stack Four moving parts:
+Bifrost – LLM gateway already running on localhost:24242, routing to Ollama cloud models Hermes Agent – open-source AI agent framework by Nous Research, pointed at Bifrost Ollama – cloud relay for gemma4 and qwen3.5 cloud models via ollama.com Camoufox – Firefox fork with TLS fingerprint spoofing for scraping tasks The goal was to have Hermes run as a Telegram bot so I could assign it tasks from my phone, with all model traffic flowing through Bifrost so routing stays centralized.">
+  <meta property="og:locale" content="en_us">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="posts">
+    <meta property="article:published_time" content="2026-04-15T00:00:00+05:30">
+    <meta property="article:modified_time" content="2026-04-15T00:00:00+05:30">
+    <meta property="og:image" content="https://KTS-o7.github.io/bear/images/share.webp">
+
+
+  
+  
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://KTS-o7.github.io/bear/images/share.webp">
+  <meta name="twitter:title" content="Building a Local AI Stack: Hermes, Bifrost, Telegram, and Camoufox">
+  <meta name="twitter:description" content="I wanted a persistent AI agent that lives on my machine, reaches cloud models through a single gateway, and talks back to me on Telegram. Not a SaaS. Not a wrapper. Something I own end-to-end.
+This is the story of setting that up in one session, and the parts that went sideways.
+The Stack Four moving parts:
+Bifrost – LLM gateway already running on localhost:24242, routing to Ollama cloud models Hermes Agent – open-source AI agent framework by Nous Research, pointed at Bifrost Ollama – cloud relay for gemma4 and qwen3.5 cloud models via ollama.com Camoufox – Firefox fork with TLS fingerprint spoofing for scraping tasks The goal was to have Hermes run as a Telegram bot so I could assign it tasks from my phone, with all model traffic flowing through Bifrost so routing stays centralized.">
+
+
+  
+  
+  <meta itemprop="name" content="Building a Local AI Stack: Hermes, Bifrost, Telegram, and Camoufox">
+  <meta itemprop="description" content="I wanted a persistent AI agent that lives on my machine, reaches cloud models through a single gateway, and talks back to me on Telegram. Not a SaaS. Not a wrapper. Something I own end-to-end.
+This is the story of setting that up in one session, and the parts that went sideways.
+The Stack Four moving parts:
+Bifrost – LLM gateway already running on localhost:24242, routing to Ollama cloud models Hermes Agent – open-source AI agent framework by Nous Research, pointed at Bifrost Ollama – cloud relay for gemma4 and qwen3.5 cloud models via ollama.com Camoufox – Firefox fork with TLS fingerprint spoofing for scraping tasks The goal was to have Hermes run as a Telegram bot so I could assign it tasks from my phone, with all model traffic flowing through Bifrost so routing stays centralized.">
+  <meta itemprop="datePublished" content="2026-04-15T00:00:00+05:30">
+  <meta itemprop="dateModified" content="2026-04-15T00:00:00+05:30">
+  <meta itemprop="wordCount" content="967">
+  <meta itemprop="image" content="https://KTS-o7.github.io/bear/images/share.webp">
+
+<meta name="referrer" content="no-referrer-when-downgrade" />
+
+  
+  <link href="/bear/herman.min.css" rel="stylesheet">
+
+  
+    
+    <link href="/bear/syntax.min.css" rel="stylesheet">
+  
+
+  
+
+  
+
+  
+</head>
+
+<body>
+  <header><a class="skip-link" href="#main-content">Skip to main content</a>
+
+<a href="/bear/" class="title"><h1></h1></a>
+<nav>
+  <a href="/bear/">Home</a>
+
+  <a href="/bear/posts/">Posts</a>
+
+  <a href="/bear/about/">About</a>
+
+  <a href="/bear/ml/">ML Stuff</a>
+
+  <a href="/bear/cses.fi/">CSES.fi</a>
+
+<a href='https://KTS-o7.github.io/bear/index.xml'>RSS</a>
+
+
+
+
+
+
+
+</nav>
+</header>
+  <main id="main-content">
+
+<h1>Building a Local AI Stack: Hermes, Bifrost, Telegram, and Camoufox</h1>
+<p class="byline">
+  <time datetime='2026-04-15' pubdate>
+    2026-04-15
+  </time>
+  
+</p>
+
+<content>
+  <p>I wanted a persistent AI agent that lives on my machine, reaches cloud models through a single gateway, and talks back to me on Telegram. Not a SaaS. Not a wrapper. Something I own end-to-end.</p>
+<p>This is the story of setting that up in one session, and the parts that went sideways.</p>
+<h2 id="the-stack">The Stack</h2>
+<p>Four moving parts:</p>
+<ul>
+<li><strong>Bifrost</strong> &ndash; LLM gateway already running on localhost:24242, routing to Ollama cloud models</li>
+<li><strong>Hermes Agent</strong> &ndash; open-source AI agent framework by Nous Research, pointed at Bifrost</li>
+<li><strong>Ollama</strong> &ndash; cloud relay for gemma4 and qwen3.5 cloud models via ollama.com</li>
+<li><strong>Camoufox</strong> &ndash; Firefox fork with TLS fingerprint spoofing for scraping tasks</li>
+</ul>
+<p>The goal was to have Hermes run as a Telegram bot so I could assign it tasks from my phone, with all model traffic flowing through Bifrost so routing stays centralized.</p>
+<h2 id="bifrost-first">Bifrost First</h2>
+<p>Bifrost was already up on port 24242 with Ollama configured. The only addition needed was an <code>ollama-cloud</code> provider pointing at <code>https://ollama.com</code> rather than localhost. This is a non-obvious distinction.</p>
+<p>The trap: Ollama&rsquo;s OpenAI-compatible endpoint (<code>/v1/chat/completions</code>) does not work for cloud models. It hangs. Cloud models only work through Ollama&rsquo;s native <code>/api/chat</code> endpoint. Pointing Bifrost directly at <code>https://ollama.com</code> instead of <code>localhost:11434</code> bypasses the broken compat layer and hits the right path.</p>
+<p>Once the provider was registered and <code>OLLAMA_API_KEY</code> was set in <code>.zshrc</code>, both cloud models confirmed working:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">ollama pull gemma4:31b-cloud
+</span></span><span class="line"><span class="ln">2</span><span class="cl">ollama pull qwen3.5:cloud</span></span></code></pre></div><h2 id="installing-hermes">Installing Hermes</h2>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh <span class="p">|</span> bash</span></span></code></pre></div><p>That puts everything under <code>~/.hermes/</code>. The setup wizard runs next:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">hermes setup</span></span></code></pre></div><p>It walks through provider selection interactively. I pointed it at the Bifrost custom endpoint (<code>http://localhost:24242/v1</code>) and picked <code>ollama-cloud/gemma4:31b-cloud</code> as the default model.</p>
+<p>Key config paths:</p>
+
+
+
+
+
+<pre tabindex="0"><code>~/.hermes/config.yaml    -- main settings
+~/.hermes/.env           -- secrets and API keys
+~/.hermes/skills/        -- reusable agent procedures
+~/.hermes/sessions/      -- full conversation history (searchable)</code></pre><p>After setup, a quick smoke test confirmed the agent was up and routing through Bifrost correctly:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">hermes chat -q <span class="s2">&#34;what model are you using and where does traffic go&#34;</span></span></span></code></pre></div><h2 id="context-window">Context Window</h2>
+<p>The default context length was under 20k tokens. Ollama cloud models support much larger windows. One config set:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">hermes config <span class="nb">set</span> model.context_length <span class="m">200000</span></span></span></code></pre></div><p>Takes effect on the next session restart.</p>
+<h2 id="telegram-bot">Telegram Bot</h2>
+<p>This is where Hermes gets genuinely useful. The gateway turns it into a bot that accepts tasks from any platform you connect.</p>
+<p>Create a bot via BotFather, get the token, then add it to <code>~/.hermes/.env</code>:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl"><span class="nv">TELEGRAM_BOT_TOKEN</span><span class="o">=</span>&lt;your-bot-token&gt;
+</span></span><span class="line"><span class="ln">2</span><span class="cl"><span class="nv">TELEGRAM_ALLOWED_USERS</span><span class="o">=</span>&lt;your-numeric-telegram-id&gt;</span></span></code></pre></div><p><code>TELEGRAM_ALLOWED_USERS</code> takes the numeric user ID, not the username. Lock it down. Anyone who finds the bot URL can send it commands if this is not set.</p>
+<p>Start the gateway:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">hermes gateway run</span></span></code></pre></div><p>For persistent background operation, install it as a service:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">hermes gateway install
+</span></span><span class="line"><span class="ln">2</span><span class="cl">hermes gateway start</span></span></code></pre></div><p>A set of aliases in <code>.zshrc</code> makes it easier to manage day to day:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl"><span class="nb">alias</span> hermes-gateway-start<span class="o">=</span><span class="s2">&#34;hermes gateway start&#34;</span>
+</span></span><span class="line"><span class="ln">2</span><span class="cl"><span class="nb">alias</span> hermes-gateway-stop<span class="o">=</span><span class="s2">&#34;hermes gateway stop&#34;</span>
+</span></span><span class="line"><span class="ln">3</span><span class="cl"><span class="nb">alias</span> hermes-gateway-log<span class="o">=</span><span class="s2">&#34;tail -f ~/.hermes/logs/gateway.log&#34;</span></span></span></code></pre></div><p>First run hit a missing Python dependency and failed silently. The fix was running <code>hermes gateway run</code> in the foreground once to see the real error, installing the missing package, then moving back to the service.</p>
+<h2 id="camoufox">Camoufox</h2>
+<p>Camoufox is a Firefox fork built for scraping. It spoofs TLS fingerprints so sites see a legitimate browser rather than a Playwright or CDP signature. It exposes a CDP endpoint that Hermes&rsquo;s browser tool connects to.</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">git clone https://github.com/daijro/camoufox
+</span></span><span class="line"><span class="ln">2</span><span class="cl"><span class="nb">cd</span> camoufox <span class="o">&amp;&amp;</span> npm install
+</span></span><span class="line"><span class="ln">3</span><span class="cl">python -m camoufox fetch   <span class="c1"># ~300MB download</span></span></span></code></pre></div><p>The <code>camoufox fetch</code> step downloads the actual browser binary and does not run automatically via postinstall. If you skip it, the first start fails silently. Run it manually and wait for the download to finish before starting the server.</p>
+<p>Start it on port 9377:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">python -m camoufox server --port <span class="m">9377</span> <span class="p">&amp;</span></span></span></code></pre></div><p>Smoke test via Hermes:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">hermes chat -q <span class="s2">&#34;use the browser to fetch the title of example.com&#34;</span></span></span></code></pre></div><p>Aliases for day-to-day:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl"><span class="nb">alias</span> camofox-start<span class="o">=</span><span class="s2">&#34;python -m camoufox server --port 9377 &amp;&#34;</span>
+</span></span><span class="line"><span class="ln">2</span><span class="cl"><span class="nb">alias</span> camofox-stop<span class="o">=</span><span class="s2">&#34;pkill -f &#39;camoufox server&#39;&#34;</span></span></span></code></pre></div><h2 id="what-actually-went-wrong">What Actually Went Wrong</h2>
+<p><strong>Ollama native vs compat endpoint.</strong> Already covered above, but it cost a couple of hours. If a cloud model hangs at the provider level, check whether your gateway is talking to the right API path.</p>
+<p><strong>Camoufox silent failure.</strong> The binary fetch is not in postinstall. No error, just no browser. Always run <code>python -m camoufox fetch</code> explicitly before the first start.</p>
+<p><strong>Hermes gateway dependency.</strong> First start printed nothing useful. Run in foreground before daemonizing so you can see the actual error.</p>
+<p><strong>Bifrost and empty API keys.</strong> Ollama initially rejected non-empty dummy keys in the Authorization header. Setting the key to an empty string before switching to the real <code>OLLAMA_API_KEY</code> got things unstuck. The order mattered.</p>
+<p><strong>Session corruption in OpenCode.</strong> An OpenCode session used to orchestrate this setup got a zombie assistant message from an interrupted stream. The message had an empty string for content. Bifrost converted that empty string to null before forwarding, and the upstream provider rejected the entire next request with <code>messages.315.member.content must not be null</code>. Every retry included the same zombie in history, so the error was permanent until manually fixed.</p>
+<p>The fix is to delete the zombie row directly from the OpenCode SQLite database:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">sqlite3 ~/.local/share/opencode/opencode.db <span class="se">\
+</span></span></span><span class="line"><span class="ln">2</span><span class="cl">  <span class="s2">&#34;DELETE FROM message WHERE id = &#39;&lt;zombie-message-id&gt;&#39; AND session_id = &#39;&lt;session-id&gt;&#39;;&#34;</span></span></span></code></pre></div><p>There is no built-in repair command. Back up the database before editing it.</p>
+<h2 id="final-state">Final State</h2>
+<p>Services running when done:</p>
+
+
+
+
+
+<pre tabindex="0"><code>bifrost    :24242  -- Ollama cloud routes
+ollama     :11434  -- cloud relay (gemma4, qwen3.5)
+camoufox   :9377   -- CDP browser endpoint
+hermes     gateway -- Telegram bot (restricted to single user)</code></pre><p>The agent receives messages on Telegram, runs tool calls locally (terminal, browser, file ops, web search), and routes all model traffic through Bifrost.</p>
+<h2 id="whats-left">What&rsquo;s Left</h2>
+<p>The original plan included running a local Qwen3.5-27B model via llama.cpp with Metal acceleration. That is a 13.5GB download and a build-from-source step, so it was deferred to the next session. The cloud routing setup works fine in the meantime.</p>
+<h2 id="references">References</h2>
+<ul>
+<li>Hermes Agent: <a href="https://github.com/NousResearch/hermes-agent">https://github.com/NousResearch/hermes-agent</a></li>
+<li>Hermes docs: <a href="https://hermes-agent.nousresearch.com/docs/">https://hermes-agent.nousresearch.com/docs/</a></li>
+<li>Bifrost: <a href="https://github.com/maximhq/bifrost">https://github.com/maximhq/bifrost</a></li>
+<li>Camoufox: <a href="https://github.com/daijro/camoufox">https://github.com/daijro/camoufox</a></li>
+<li>OpenCode: <a href="https://opencode.ai">https://opencode.ai</a></li>
+</ul>
+
+</content>
+<p>
+  
+</p>
+
+
+  <p>
+    <a href='mailto:shentharkrishnatejaswi@gmail.com?subject=Reply%20to%20"Building%20a%20Local%20AI%20Stack%3a%20Hermes%2c%20Bifrost%2c%20Telegram%2c%20and%20Camoufox"'>
+      Reply to this post by email ↪
+    </a>
+  </p>
+
+
+
+  </main>
+  <footer><small>
+  Krishnatejaswi S | Made with <a href="https://github.com/clente/hugo-bearcub">Bear Cub</a>
+</small></footer>
+
+    
+</body>
+
+</html>

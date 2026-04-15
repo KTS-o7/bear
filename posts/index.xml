@@ -9,8 +9,669 @@
     <managingEditor>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</managingEditor>
     <webMaster>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</webMaster>
     <copyright>Krishnatejaswi S</copyright>
-    <lastBuildDate>Thu, 19 Feb 2026 00:00:00 +0530</lastBuildDate>
+    <lastBuildDate>Wed, 15 Apr 2026 00:00:00 +0530</lastBuildDate>
     <atom:link href="https://KTS-o7.github.io/bear/posts/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Building a Local AI Stack: Hermes, Bifrost, Telegram, and Camoufox</title>
+      <link>https://KTS-o7.github.io/bear/posts/hermes_local_ai_stack/</link>
+      <pubDate>Wed, 15 Apr 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/posts/hermes_local_ai_stack/</guid>
+      <description>&lt;p&gt;I wanted a persistent AI agent that lives on my machine, reaches cloud models through a single gateway, and talks back to me on Telegram. Not a SaaS. Not a wrapper. Something I own end-to-end.&lt;/p&gt;&#xA;&lt;p&gt;This is the story of setting that up in one session, and the parts that went sideways.&lt;/p&gt;&#xA;&lt;h2 id=&#34;the-stack&#34;&gt;The Stack&lt;/h2&gt;&#xA;&lt;p&gt;Four moving parts:&lt;/p&gt;&#xA;&lt;ul&gt;&#xA;&lt;li&gt;&lt;strong&gt;Bifrost&lt;/strong&gt; &amp;ndash; LLM gateway already running on localhost:24242, routing to Ollama cloud models&lt;/li&gt;&#xA;&lt;li&gt;&lt;strong&gt;Hermes Agent&lt;/strong&gt; &amp;ndash; open-source AI agent framework by Nous Research, pointed at Bifrost&lt;/li&gt;&#xA;&lt;li&gt;&lt;strong&gt;Ollama&lt;/strong&gt; &amp;ndash; cloud relay for gemma4 and qwen3.5 cloud models via ollama.com&lt;/li&gt;&#xA;&lt;li&gt;&lt;strong&gt;Camoufox&lt;/strong&gt; &amp;ndash; Firefox fork with TLS fingerprint spoofing for scraping tasks&lt;/li&gt;&#xA;&lt;/ul&gt;&#xA;&lt;p&gt;The goal was to have Hermes run as a Telegram bot so I could assign it tasks from my phone, with all model traffic flowing through Bifrost so routing stays centralized.&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>I wanted a persistent AI agent that lives on my machine, reaches cloud models through a single gateway, and talks back to me on Telegram. Not a SaaS. Not a wrapper. Something I own end-to-end.</p>
+<p>This is the story of setting that up in one session, and the parts that went sideways.</p>
+<h2 id="the-stack">The Stack</h2>
+<p>Four moving parts:</p>
+<ul>
+<li><strong>Bifrost</strong> &ndash; LLM gateway already running on localhost:24242, routing to Ollama cloud models</li>
+<li><strong>Hermes Agent</strong> &ndash; open-source AI agent framework by Nous Research, pointed at Bifrost</li>
+<li><strong>Ollama</strong> &ndash; cloud relay for gemma4 and qwen3.5 cloud models via ollama.com</li>
+<li><strong>Camoufox</strong> &ndash; Firefox fork with TLS fingerprint spoofing for scraping tasks</li>
+</ul>
+<p>The goal was to have Hermes run as a Telegram bot so I could assign it tasks from my phone, with all model traffic flowing through Bifrost so routing stays centralized.</p>
+<h2 id="bifrost-first">Bifrost First</h2>
+<p>Bifrost was already up on port 24242 with Ollama configured. The only addition needed was an <code>ollama-cloud</code> provider pointing at <code>https://ollama.com</code> rather than localhost. This is a non-obvious distinction.</p>
+<p>The trap: Ollama&rsquo;s OpenAI-compatible endpoint (<code>/v1/chat/completions</code>) does not work for cloud models. It hangs. Cloud models only work through Ollama&rsquo;s native <code>/api/chat</code> endpoint. Pointing Bifrost directly at <code>https://ollama.com</code> instead of <code>localhost:11434</code> bypasses the broken compat layer and hits the right path.</p>
+<p>Once the provider was registered and <code>OLLAMA_API_KEY</code> was set in <code>.zshrc</code>, both cloud models confirmed working:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">ollama pull gemma4:31b-cloud
+</span></span><span class="line"><span class="ln">2</span><span class="cl">ollama pull qwen3.5:cloud</span></span></code></pre></div><h2 id="installing-hermes">Installing Hermes</h2>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh <span class="p">|</span> bash</span></span></code></pre></div><p>That puts everything under <code>~/.hermes/</code>. The setup wizard runs next:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">hermes setup</span></span></code></pre></div><p>It walks through provider selection interactively. I pointed it at the Bifrost custom endpoint (<code>http://localhost:24242/v1</code>) and picked <code>ollama-cloud/gemma4:31b-cloud</code> as the default model.</p>
+<p>Key config paths:</p>
+
+
+
+
+
+<pre tabindex="0"><code>~/.hermes/config.yaml    -- main settings
+~/.hermes/.env           -- secrets and API keys
+~/.hermes/skills/        -- reusable agent procedures
+~/.hermes/sessions/      -- full conversation history (searchable)</code></pre><p>After setup, a quick smoke test confirmed the agent was up and routing through Bifrost correctly:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">hermes chat -q <span class="s2">&#34;what model are you using and where does traffic go&#34;</span></span></span></code></pre></div><h2 id="context-window">Context Window</h2>
+<p>The default context length was under 20k tokens. Ollama cloud models support much larger windows. One config set:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">hermes config <span class="nb">set</span> model.context_length <span class="m">200000</span></span></span></code></pre></div><p>Takes effect on the next session restart.</p>
+<h2 id="telegram-bot">Telegram Bot</h2>
+<p>This is where Hermes gets genuinely useful. The gateway turns it into a bot that accepts tasks from any platform you connect.</p>
+<p>Create a bot via BotFather, get the token, then add it to <code>~/.hermes/.env</code>:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl"><span class="nv">TELEGRAM_BOT_TOKEN</span><span class="o">=</span>&lt;your-bot-token&gt;
+</span></span><span class="line"><span class="ln">2</span><span class="cl"><span class="nv">TELEGRAM_ALLOWED_USERS</span><span class="o">=</span>&lt;your-numeric-telegram-id&gt;</span></span></code></pre></div><p><code>TELEGRAM_ALLOWED_USERS</code> takes the numeric user ID, not the username. Lock it down. Anyone who finds the bot URL can send it commands if this is not set.</p>
+<p>Start the gateway:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">hermes gateway run</span></span></code></pre></div><p>For persistent background operation, install it as a service:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">hermes gateway install
+</span></span><span class="line"><span class="ln">2</span><span class="cl">hermes gateway start</span></span></code></pre></div><p>A set of aliases in <code>.zshrc</code> makes it easier to manage day to day:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl"><span class="nb">alias</span> hermes-gateway-start<span class="o">=</span><span class="s2">&#34;hermes gateway start&#34;</span>
+</span></span><span class="line"><span class="ln">2</span><span class="cl"><span class="nb">alias</span> hermes-gateway-stop<span class="o">=</span><span class="s2">&#34;hermes gateway stop&#34;</span>
+</span></span><span class="line"><span class="ln">3</span><span class="cl"><span class="nb">alias</span> hermes-gateway-log<span class="o">=</span><span class="s2">&#34;tail -f ~/.hermes/logs/gateway.log&#34;</span></span></span></code></pre></div><p>First run hit a missing Python dependency and failed silently. The fix was running <code>hermes gateway run</code> in the foreground once to see the real error, installing the missing package, then moving back to the service.</p>
+<h2 id="camoufox">Camoufox</h2>
+<p>Camoufox is a Firefox fork built for scraping. It spoofs TLS fingerprints so sites see a legitimate browser rather than a Playwright or CDP signature. It exposes a CDP endpoint that Hermes&rsquo;s browser tool connects to.</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">git clone https://github.com/daijro/camoufox
+</span></span><span class="line"><span class="ln">2</span><span class="cl"><span class="nb">cd</span> camoufox <span class="o">&amp;&amp;</span> npm install
+</span></span><span class="line"><span class="ln">3</span><span class="cl">python -m camoufox fetch   <span class="c1"># ~300MB download</span></span></span></code></pre></div><p>The <code>camoufox fetch</code> step downloads the actual browser binary and does not run automatically via postinstall. If you skip it, the first start fails silently. Run it manually and wait for the download to finish before starting the server.</p>
+<p>Start it on port 9377:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">python -m camoufox server --port <span class="m">9377</span> <span class="p">&amp;</span></span></span></code></pre></div><p>Smoke test via Hermes:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">hermes chat -q <span class="s2">&#34;use the browser to fetch the title of example.com&#34;</span></span></span></code></pre></div><p>Aliases for day-to-day:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl"><span class="nb">alias</span> camofox-start<span class="o">=</span><span class="s2">&#34;python -m camoufox server --port 9377 &amp;&#34;</span>
+</span></span><span class="line"><span class="ln">2</span><span class="cl"><span class="nb">alias</span> camofox-stop<span class="o">=</span><span class="s2">&#34;pkill -f &#39;camoufox server&#39;&#34;</span></span></span></code></pre></div><h2 id="what-actually-went-wrong">What Actually Went Wrong</h2>
+<p><strong>Ollama native vs compat endpoint.</strong> Already covered above, but it cost a couple of hours. If a cloud model hangs at the provider level, check whether your gateway is talking to the right API path.</p>
+<p><strong>Camoufox silent failure.</strong> The binary fetch is not in postinstall. No error, just no browser. Always run <code>python -m camoufox fetch</code> explicitly before the first start.</p>
+<p><strong>Hermes gateway dependency.</strong> First start printed nothing useful. Run in foreground before daemonizing so you can see the actual error.</p>
+<p><strong>Bifrost and empty API keys.</strong> Ollama initially rejected non-empty dummy keys in the Authorization header. Setting the key to an empty string before switching to the real <code>OLLAMA_API_KEY</code> got things unstuck. The order mattered.</p>
+<p><strong>Session corruption in OpenCode.</strong> An OpenCode session used to orchestrate this setup got a zombie assistant message from an interrupted stream. The message had an empty string for content. Bifrost converted that empty string to null before forwarding, and the upstream provider rejected the entire next request with <code>messages.315.member.content must not be null</code>. Every retry included the same zombie in history, so the error was permanent until manually fixed.</p>
+<p>The fix is to delete the zombie row directly from the OpenCode SQLite database:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">sqlite3 ~/.local/share/opencode/opencode.db <span class="se">\
+</span></span></span><span class="line"><span class="ln">2</span><span class="cl">  <span class="s2">&#34;DELETE FROM message WHERE id = &#39;&lt;zombie-message-id&gt;&#39; AND session_id = &#39;&lt;session-id&gt;&#39;;&#34;</span></span></span></code></pre></div><p>There is no built-in repair command. Back up the database before editing it.</p>
+<h2 id="final-state">Final State</h2>
+<p>Services running when done:</p>
+
+
+
+
+
+<pre tabindex="0"><code>bifrost    :24242  -- Ollama cloud routes
+ollama     :11434  -- cloud relay (gemma4, qwen3.5)
+camoufox   :9377   -- CDP browser endpoint
+hermes     gateway -- Telegram bot (restricted to single user)</code></pre><p>The agent receives messages on Telegram, runs tool calls locally (terminal, browser, file ops, web search), and routes all model traffic through Bifrost.</p>
+<h2 id="whats-left">What&rsquo;s Left</h2>
+<p>The original plan included running a local Qwen3.5-27B model via llama.cpp with Metal acceleration. That is a 13.5GB download and a build-from-source step, so it was deferred to the next session. The cloud routing setup works fine in the meantime.</p>
+<h2 id="references">References</h2>
+<ul>
+<li>Hermes Agent: <a href="https://github.com/NousResearch/hermes-agent">https://github.com/NousResearch/hermes-agent</a></li>
+<li>Hermes docs: <a href="https://hermes-agent.nousresearch.com/docs/">https://hermes-agent.nousresearch.com/docs/</a></li>
+<li>Bifrost: <a href="https://github.com/maximhq/bifrost">https://github.com/maximhq/bifrost</a></li>
+<li>Camoufox: <a href="https://github.com/daijro/camoufox">https://github.com/daijro/camoufox</a></li>
+<li>OpenCode: <a href="https://opencode.ai">https://opencode.ai</a></li>
+</ul>
+]]></content:encoded>
+    </item>
+    <item>
+      <title>Freeseek: Turning DeepSeek&#39;s Web Chat into an OpenAI-Compatible API</title>
+      <link>https://KTS-o7.github.io/bear/posts/freeseek_proxy/</link>
+      <pubDate>Sat, 14 Mar 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/posts/freeseek_proxy/</guid>
+      <description>&lt;p&gt;I wanted to use DeepSeek with tools that only speak OpenAI&amp;rsquo;s API. DeepSeek&amp;rsquo;s official API has rate limits and costs money. Their web chat is free and unrestricted but it isn&amp;rsquo;t an API — it&amp;rsquo;s a browser session with Cloudflare protection, Proof-of-Work challenges, and a proprietary SSE format.&lt;/p&gt;&#xA;&lt;p&gt;So I built &lt;a href=&#34;https://github.com/KTS-o7/freeseek-proxy&#34;&gt;freeseek-proxy&lt;/a&gt;: a local proxy that sits between OpenAI-compatible clients (opencode, Claude Code, any SDK) and DeepSeek&amp;rsquo;s web chat backend. You send standard &lt;code&gt;/v1/chat/completions&lt;/code&gt; requests; it handles sessions, PoW, TLS fingerprinting, and SSE translation behind the scenes.&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>I wanted to use DeepSeek with tools that only speak OpenAI&rsquo;s API. DeepSeek&rsquo;s official API has rate limits and costs money. Their web chat is free and unrestricted but it isn&rsquo;t an API — it&rsquo;s a browser session with Cloudflare protection, Proof-of-Work challenges, and a proprietary SSE format.</p>
+<p>So I built <a href="https://github.com/KTS-o7/freeseek-proxy">freeseek-proxy</a>: a local proxy that sits between OpenAI-compatible clients (opencode, Claude Code, any SDK) and DeepSeek&rsquo;s web chat backend. You send standard <code>/v1/chat/completions</code> requests; it handles sessions, PoW, TLS fingerprinting, and SSE translation behind the scenes.</p>
+<p>This post covers the four hardest problems I had to solve.</p>
+<h2 id="the-architecture-its-two-processes-not-one">The architecture (it&rsquo;s two processes, not one)</h2>
+<p>The proxy is split into two halves that talk over localhost:</p>
+
+
+
+
+
+<pre tabindex="0"><code>                  ┌──────────────────────────┐
+                  │   Client                 │
+                  │   (opencode / curl / SDK)│
+                  └────────────┬─────────────┘
+                               │
+                  POST /v1/chat/completions
+                       (OpenAI format)
+                               │
+                  ┌────────────▼─────────────┐
+                  │   TypeScript Proxy       │
+                  │   Hono on Bun :9123      │
+                  │                          │
+                  │   · Request normalization│
+                  │   · Tool-call compat     │
+                  │   · SSE reformatting     │
+                  │   · Session management   │
+                  └────────────┬─────────────┘
+                               │
+                    HTTP localhost:8081
+                               │
+                  ┌────────────▼─────────────┐
+                  │   Python Backend         │
+                  │   FastAPI + uvicorn      │
+                  │                          │
+                  │   · curl_cffi (TLS spoof)│
+                  │   · WASM PoW solver      │
+                  │   · Cookie management    │
+                  │   · Auth (token / login) │
+                  └────────────┬─────────────┘
+                               │
+                   HTTPS chat.deepseek.com
+                               │
+                  ┌────────────▼─────────────┐
+                  │      DeepSeek API        │
+                  └──────────────────────────┘</code></pre><p>Why two languages? DeepSeek does browser fingerprinting. Their servers check TLS fingerprints, and if yours looks like <code>python-requests</code> or <code>node-fetch</code>, you get blocked. The Python side uses <code>curl_cffi</code> with <code>impersonate=&quot;chrome120&quot;</code> to produce a TLS handshake indistinguishable from Chrome. The TypeScript side handles everything else — request translation, streaming, tool calls — where Bun&rsquo;s performance and type safety matter more.</p>
+<h2 id="problem-1-proof-of-work-with-a-wasm-sha3-solver">Problem 1: Proof-of-Work with a WASM SHA3 solver</h2>
+<p>DeepSeek doesn&rsquo;t just check your auth token. Before every chat completion, you must solve a Proof-of-Work challenge. The flow is:</p>
+<ol>
+<li>Request a challenge from <code>/api/v0/chat/create_pow_challenge</code></li>
+<li>The server returns a challenge string, salt, difficulty, and expiry</li>
+<li>You run a SHA3-based hash computation until you find a valid answer</li>
+<li>Encode the answer as base64 JSON and send it as <code>x-ds-pow-response</code> header</li>
+</ol>
+<p>The catch: DeepSeek&rsquo;s PoW algorithm is implemented in a WebAssembly module. In the browser, this runs natively. Outside the browser, you need a WASM runtime.</p>
+<p>The solver uses <code>wasmtime</code> (a standalone WASM runtime for Python) to load DeepSeek&rsquo;s own <code>sha3_wasm_bg.wasm</code> binary and call its exported <code>wasm_solve</code> function:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="k">class</span> <span class="nc">DeepSeekHash</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl">    <span class="k">def</span> <span class="nf">init</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">wasm_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl">        <span class="n">engine</span> <span class="o">=</span> <span class="n">wasmtime</span><span class="o">.</span><span class="n">Engine</span><span class="p">()</span>
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl">        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">wasm_path</span><span class="p">,</span> <span class="s2">&#34;rb&#34;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl">            <span class="n">wasm_bytes</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">        <span class="n">module</span> <span class="o">=</span> <span class="n">wasmtime</span><span class="o">.</span><span class="n">Module</span><span class="p">(</span><span class="n">engine</span><span class="p">,</span> <span class="n">wasm_bytes</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl">        <span class="bp">self</span><span class="o">.</span><span class="n">store</span> <span class="o">=</span> <span class="n">wasmtime</span><span class="o">.</span><span class="n">Store</span><span class="p">(</span><span class="n">engine</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl">        <span class="n">linker</span> <span class="o">=</span> <span class="n">wasmtime</span><span class="o">.</span><span class="n">Linker</span><span class="p">(</span><span class="n">engine</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">        <span class="n">linker</span><span class="o">.</span><span class="n">define_wasi</span><span class="p">()</span>
+</span></span><span class="line"><span class="ln">10</span><span class="cl">        <span class="bp">self</span><span class="o">.</span><span class="n">instance</span> <span class="o">=</span> <span class="n">linker</span><span class="o">.</span><span class="n">instantiate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">store</span><span class="p">,</span> <span class="n">module</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">11</span><span class="cl">        <span class="bp">self</span><span class="o">.</span><span class="n">memory</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="o">.</span><span class="n">exports</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">store</span><span class="p">)[</span><span class="s2">&#34;memory&#34;</span><span class="p">]</span>
+</span></span><span class="line"><span class="ln">12</span><span class="cl">        <span class="k">return</span> <span class="bp">self</span>
+</span></span><span class="line"><span class="ln">13</span><span class="cl">
+</span></span><span class="line"><span class="ln">14</span><span class="cl">    <span class="k">def</span> <span class="nf">calculate_hash</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">algorithm</span><span class="p">,</span> <span class="n">challenge</span><span class="p">,</span> <span class="n">salt</span><span class="p">,</span> <span class="n">difficulty</span><span class="p">,</span> <span class="n">expire_at</span><span class="p">):</span>
+</span></span><span class="line"><span class="ln">15</span><span class="cl">        <span class="n">prefix</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&#34;</span><span class="si">{</span><span class="n">salt</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">expire_at</span><span class="si">}</span><span class="s2">_&#34;</span>
+</span></span><span class="line"><span class="ln">16</span><span class="cl">        <span class="c1"># Allocate WASM memory, write challenge + prefix</span>
+</span></span><span class="line"><span class="ln">17</span><span class="cl">        <span class="n">challenge_ptr</span><span class="p">,</span> <span class="n">challenge_len</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_write_to_memory</span><span class="p">(</span><span class="n">challenge</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">18</span><span class="cl">        <span class="n">prefix_ptr</span><span class="p">,</span> <span class="n">prefix_len</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_write_to_memory</span><span class="p">(</span><span class="n">prefix</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">19</span><span class="cl">        <span class="c1"># Call the exported solver</span>
+</span></span><span class="line"><span class="ln">20</span><span class="cl">        <span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="o">.</span><span class="n">exports</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">store</span><span class="p">)[</span><span class="s2">&#34;wasm_solve&#34;</span><span class="p">](</span>
+</span></span><span class="line"><span class="ln">21</span><span class="cl">            <span class="bp">self</span><span class="o">.</span><span class="n">store</span><span class="p">,</span> <span class="n">retptr</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln">22</span><span class="cl">            <span class="n">challenge_ptr</span><span class="p">,</span> <span class="n">challenge_len</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln">23</span><span class="cl">            <span class="n">prefix_ptr</span><span class="p">,</span> <span class="n">prefix_len</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln">24</span><span class="cl">            <span class="nb">float</span><span class="p">(</span><span class="n">difficulty</span><span class="p">),</span>
+</span></span><span class="line"><span class="ln">25</span><span class="cl">        <span class="p">)</span>
+</span></span><span class="line"><span class="ln">26</span><span class="cl">        <span class="c1"># Read the answer from WASM memory</span>
+</span></span><span class="line"><span class="ln">27</span><span class="cl">        <span class="n">value_bytes</span> <span class="o">=</span> <span class="nb">bytes</span><span class="p">(</span><span class="n">memory_view</span><span class="p">[</span><span class="n">retptr</span> <span class="o">+</span> <span class="mi">8</span> <span class="p">:</span> <span class="n">retptr</span> <span class="o">+</span> <span class="mi">16</span><span class="p">])</span>
+</span></span><span class="line"><span class="ln">28</span><span class="cl">        <span class="n">value</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">frombuffer</span><span class="p">(</span><span class="n">value_bytes</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+</span></span><span class="line"><span class="ln">29</span><span class="cl">        <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">value</span><span class="p">)</span></span></span></code></pre></div><p>The memory management is manual — you allocate via <code>__wbindgen_export_0</code>, write UTF-8 bytes one at a time, call the solver, then read the result from a return pointer. Stack pointer cleanup happens in a <code>finally</code> block. It&rsquo;s the kind of code where one off-by-one error means silent corruption.</p>
+<p><strong>Why Python 3.11 specifically?</strong> The <code>wasmtime</code> + <code>numpy</code> + <code>curl_cffi</code> stack was verified working on 3.11. Python 3.14 caused silent failures in the WASM path during testing — the process would get <code>killed</code> mid-computation with no error message. This isn&rsquo;t a &ldquo;should work&rdquo; situation; it&rsquo;s a &ldquo;was tested and doesn&rsquo;t&rdquo; situation.</p>
+<h2 id="problem-2-tls-fingerprinting-and-cloudflare">Problem 2: TLS fingerprinting and Cloudflare</h2>
+<p>DeepSeek sits behind Cloudflare. Standard HTTP clients get 403s or &ldquo;Just a moment&hellip;&rdquo; challenge pages because their TLS Client Hello doesn&rsquo;t match what a real browser sends.</p>
+<p>The fix is <code>curl_cffi</code> with browser impersonation:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="ln">1</span><span class="cl"><span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span>
+</span></span><span class="line"><span class="ln">2</span><span class="cl">    <span class="sa">f</span><span class="s2">&#34;</span><span class="si">{</span><span class="n">BASE_URL</span><span class="si">}{</span><span class="n">path</span><span class="si">}</span><span class="s2">&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln">3</span><span class="cl">    <span class="n">headers</span><span class="o">=</span><span class="n">headers</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln">4</span><span class="cl">    <span class="n">json</span><span class="o">=</span><span class="n">body</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln">5</span><span class="cl">    <span class="n">cookies</span><span class="o">=</span><span class="n">cookies</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln">6</span><span class="cl">    <span class="n">impersonate</span><span class="o">=</span><span class="s2">&#34;chrome120&#34;</span><span class="p">,</span>  <span class="c1"># TLS fingerprint matches Chrome 120</span>
+</span></span><span class="line"><span class="ln">7</span><span class="cl">    <span class="n">stream</span><span class="o">=</span><span class="n">stream</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln">8</span><span class="cl"><span class="p">)</span></span></span></code></pre></div><p><code>impersonate=&quot;chrome120&quot;</code> makes the TLS handshake (cipher suites, extensions, ALPN) identical to Chrome 120. This is why the backend is Python, not Node — there&rsquo;s no equivalent library in the JS ecosystem that matches real browser TLS fingerprints this precisely.</p>
+<p>The cookie management layer adds another defense: if a request hits Cloudflare anyway, the proxy can automatically refresh cookies via a configurable shell command:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="ln">1</span><span class="cl"><span class="k">def</span> <span class="nf">refresh_cookies</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
+</span></span><span class="line"><span class="ln">2</span><span class="cl">    <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">refresh_command</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">3</span><span class="cl">        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_cookies</span><span class="p">()</span>
+</span></span><span class="line"><span class="ln">4</span><span class="cl">    <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">refresh_command</span><span class="p">,</span> <span class="n">shell</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">check</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">5</span><span class="cl">    <span class="n">cookies</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_cookies</span><span class="p">()</span>
+</span></span><span class="line"><span class="ln">6</span><span class="cl">    <span class="bp">self</span><span class="o">.</span><span class="n">save_cookies</span><span class="p">(</span><span class="n">cookies</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">7</span><span class="cl">    <span class="k">return</span> <span class="n">cookies</span></span></span></code></pre></div><p>This lets you plug in whatever cookie extraction tool you prefer — a headless browser script, a browser extension export, etc.</p>
+<h2 id="problem-3-translating-sse-formats">Problem 3: Translating SSE formats</h2>
+<p>DeepSeek&rsquo;s streaming format is not OpenAI&rsquo;s streaming format. Both use Server-Sent Events, but the payload structure is completely different.</p>
+<p><strong>OpenAI format</strong> (what clients expect):</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-json" data-lang="json"><span class="line"><span class="ln">1</span><span class="cl"><span class="err">data:</span> <span class="p">{</span><span class="nt">&#34;choices&#34;</span><span class="p">:[{</span><span class="nt">&#34;delta&#34;</span><span class="p">:{</span><span class="nt">&#34;content&#34;</span><span class="p">:</span><span class="s2">&#34;Hello&#34;</span><span class="p">},</span><span class="nt">&#34;index&#34;</span><span class="p">:</span><span class="mi">0</span><span class="p">}],</span><span class="nt">&#34;model&#34;</span><span class="p">:</span><span class="s2">&#34;gpt-4&#34;</span><span class="p">}</span></span></span></code></pre></div><p><strong>DeepSeek format</strong> (what the server sends):</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-json" data-lang="json"><span class="line"><span class="ln">1</span><span class="cl"><span class="err">data:</span> <span class="p">{</span><span class="nt">&#34;v&#34;</span><span class="p">:{</span><span class="nt">&#34;response&#34;</span><span class="p">:{</span><span class="nt">&#34;fragments&#34;</span><span class="p">:[{</span><span class="nt">&#34;type&#34;</span><span class="p">:</span><span class="s2">&#34;text&#34;</span><span class="p">,</span><span class="nt">&#34;content&#34;</span><span class="p">:</span><span class="s2">&#34;Hello&#34;</span><span class="p">}]}},</span><span class="nt">&#34;o&#34;</span><span class="p">:</span><span class="s2">&#34;APPEND&#34;</span><span class="p">}</span></span></span></code></pre></div><p>DeepSeek uses a nested structure where content lives inside <code>response.fragments</code>, operations can be <code>APPEND</code>, <code>SET</code>, or <code>BATCH</code>, and thinking content is separated from regular content by fragment type. There&rsquo;s also metadata like <code>response/status</code> and <code>response/accumulated_token_usage</code> mixed into the stream that clients don&rsquo;t want.</p>
+<p>The proxy handles this translation in <code>parseSSELine</code> and <code>extractDeepSeekContent</code>:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-typescript" data-lang="typescript"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="kd">function</span> <span class="nx">extractDeepSeekContent</span><span class="p">(</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl">  <span class="nx">data</span>: <span class="kt">DeepSeekSSEData</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl">  <span class="nx">includeThinking</span>: <span class="kt">boolean</span>
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl"><span class="p">)</span><span class="o">:</span> <span class="kt">string</span> <span class="p">{</span>
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl">  <span class="c1">// DeepSeek nests content in multiple possible locations
+</span></span></span><span class="line"><span class="ln"> 6</span><span class="cl">  <span class="kr">const</span> <span class="nx">target</span> <span class="o">=</span> <span class="nx">data</span><span class="p">.</span><span class="nx">v</span><span class="o">?</span><span class="p">.</span><span class="nx">response</span> <span class="o">??</span> <span class="nx">data</span><span class="p">.</span><span class="nx">response</span> <span class="o">??</span> <span class="nx">data</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl">  <span class="kr">const</span> <span class="nx">fragments</span> <span class="o">=</span> <span class="nx">target</span><span class="o">?</span><span class="p">.</span><span class="nx">fragments</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl">
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">  <span class="k">if</span> <span class="p">(</span><span class="nb">Array</span><span class="p">.</span><span class="nx">isArray</span><span class="p">(</span><span class="nx">fragments</span><span class="p">))</span> <span class="p">{</span>
+</span></span><span class="line"><span class="ln">10</span><span class="cl">    <span class="k">return</span> <span class="nx">fragments</span>
+</span></span><span class="line"><span class="ln">11</span><span class="cl">      <span class="p">.</span><span class="nx">filter</span><span class="p">(</span><span class="nx">f</span> <span class="o">=&gt;</span> <span class="nx">includeThinking</span> <span class="o">||</span> <span class="nx">f</span><span class="p">.</span><span class="kr">type</span> <span class="o">!==</span> <span class="s2">&#34;thinking&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">12</span><span class="cl">      <span class="p">.</span><span class="nx">map</span><span class="p">(</span><span class="nx">f</span> <span class="o">=&gt;</span> <span class="nx">f</span><span class="p">.</span><span class="nx">content</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">13</span><span class="cl">      <span class="p">.</span><span class="nx">join</span><span class="p">(</span><span class="s2">&#34;&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="ln">14</span><span class="cl">  <span class="p">}</span>
+</span></span><span class="line"><span class="ln">15</span><span class="cl">
+</span></span><span class="line"><span class="ln">16</span><span class="cl">  <span class="c1">// Fallback: direct content field
+</span></span></span><span class="line"><span class="ln">17</span><span class="cl">  <span class="k">if</span> <span class="p">(</span><span class="k">typeof</span> <span class="nx">data</span><span class="p">.</span><span class="nx">v</span> <span class="o">===</span> <span class="s2">&#34;string&#34;</span><span class="p">)</span> <span class="k">return</span> <span class="nx">data</span><span class="p">.</span><span class="nx">v</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln">18</span><span class="cl">  <span class="k">if</span> <span class="p">(</span><span class="k">typeof</span> <span class="nx">data</span><span class="p">.</span><span class="nx">content</span> <span class="o">===</span> <span class="s2">&#34;string&#34;</span><span class="p">)</span> <span class="k">return</span> <span class="nx">data</span><span class="p">.</span><span class="nx">content</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln">19</span><span class="cl">  <span class="k">return</span> <span class="s2">&#34;&#34;</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln">20</span><span class="cl"><span class="p">}</span></span></span></code></pre></div><p>For streaming responses, each DeepSeek SSE chunk gets translated into an OpenAI <code>chat.completion.chunk</code> on the fly. For non-streaming, the proxy accumulates all chunks, then builds a single <code>chat.completion</code> response.</p>
+<h2 id="problem-4-tool-calls-on-a-model-that-doesnt-support-them">Problem 4: Tool calls on a model that doesn&rsquo;t support them</h2>
+<p>This is the most interesting problem. DeepSeek&rsquo;s web chat API doesn&rsquo;t support OpenAI-style tool calls. There&rsquo;s no <code>tools</code> parameter, no <code>tool_choice</code>, no <code>tool_calls</code> in the response. But clients like opencode and Claude Code rely heavily on tool use — without it, the agent can&rsquo;t read files, run commands, or interact with your codebase.</p>
+<p>The solution is a prompt-engineering compatibility layer. When the proxy detects tool-related fields in the request, it:</p>
+<ol>
+<li><strong>Injects a system prompt</strong> describing available tools and the expected JSON format</li>
+<li><strong>Flattens the conversation</strong> into a single prompt (including tool results from previous turns)</li>
+<li><strong>Parses the model&rsquo;s response</strong> for JSON tool call envelopes</li>
+<li><strong>Translates back</strong> into OpenAI&rsquo;s <code>tool_calls</code> format</li>
+</ol>
+<p>The injected system prompt instructs the model to output tool calls as JSON:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-typescript" data-lang="typescript"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="kd">function</span> <span class="nx">buildToolSystemPrompt</span><span class="p">(</span><span class="nx">tools</span><span class="p">,</span> <span class="nx">toolChoice</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl">  <span class="k">return</span> <span class="p">[</span>
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl">    <span class="s2">&#34;You are replying through an OpenAI-compatible proxy that supports tool use.&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl">    <span class="nx">toolChoiceRule</span><span class="p">,</span> <span class="c1">// varies by mode: auto/required/none/function
+</span></span></span><span class="line"><span class="ln"> 5</span><span class="cl">    <span class="sb">`If you decide to call a tool, output only valid JSON with this exact shape:`</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">    <span class="sb">`{&#34;opencode_tool_call&#34;: {&#34;name&#34;: &#34;tool_name&#34;, &#34;arguments&#34;: { ... }}}.`</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl">    <span class="sb">`For multiple calls: {&#34;opencode_tool_calls&#34;: [...]}.`</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl">    <span class="s2">&#34;Do not wrap the JSON in markdown.&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">    <span class="s2">&#34;Available tools:&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln">10</span><span class="cl">    <span class="nx">availableTools</span><span class="p">,</span> <span class="c1">// name, description, JSON schema for each
+</span></span></span><span class="line"><span class="ln">11</span><span class="cl">  <span class="p">].</span><span class="nx">join</span><span class="p">(</span><span class="s2">&#34;\n\n&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="ln">12</span><span class="cl"><span class="p">}</span></span></span></code></pre></div><p>The conversation history gets flattened because DeepSeek&rsquo;s chat API takes a single prompt string, not an array of messages:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-typescript" data-lang="typescript"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="kd">function</span> <span class="nx">formatConversationForDeepSeek</span><span class="p">(</span><span class="nx">messages</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl">  <span class="k">return</span> <span class="nx">messages</span><span class="p">.</span><span class="nx">map</span><span class="p">(</span><span class="nx">message</span> <span class="o">=&gt;</span> <span class="p">{</span>
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="nx">message</span><span class="p">.</span><span class="nx">role</span> <span class="o">===</span> <span class="s2">&#34;system&#34;</span><span class="p">)</span> <span class="k">return</span> <span class="sb">`System: </span><span class="si">${</span><span class="nx">content</span><span class="si">}</span><span class="sb">`</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="nx">message</span><span class="p">.</span><span class="nx">role</span> <span class="o">===</span> <span class="s2">&#34;user&#34;</span><span class="p">)</span> <span class="k">return</span> <span class="sb">`User: </span><span class="si">${</span><span class="nx">content</span><span class="si">}</span><span class="sb">`</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="nx">message</span><span class="p">.</span><span class="nx">role</span> <span class="o">===</span> <span class="s2">&#34;assistant&#34;</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">      <span class="k">if</span> <span class="p">(</span><span class="nx">message</span><span class="p">.</span><span class="nx">tool_calls</span><span class="o">?</span><span class="p">.</span><span class="nx">length</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl">        <span class="k">return</span> <span class="sb">`Assistant tool request: </span><span class="si">${</span><span class="nx">formatted</span> <span class="nx">calls</span><span class="si">}</span><span class="sb">`</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl">      <span class="k">return</span> <span class="sb">`Assistant: </span><span class="si">${</span><span class="nx">content</span><span class="si">}</span><span class="sb">`</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="ln">10</span><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="nx">message</span><span class="p">.</span><span class="nx">role</span> <span class="o">===</span> <span class="s2">&#34;tool&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">11</span><span class="cl">      <span class="k">return</span> <span class="sb">`Tool (</span><span class="si">${</span><span class="nx">message</span><span class="p">.</span><span class="nx">tool_call_id</span><span class="si">}</span><span class="sb">) result: </span><span class="si">${</span><span class="nx">content</span><span class="si">}</span><span class="sb">`</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln">12</span><span class="cl">  <span class="p">}).</span><span class="nx">join</span><span class="p">(</span><span class="s2">&#34;\n\n&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="ln">13</span><span class="cl"><span class="p">}</span></span></span></code></pre></div><p>On the response side, <code>parseToolEnvelope</code> scans the model output for JSON objects containing <code>opencode_tool_call</code> or <code>opencode_tool_calls</code> keys, validates that the function names match known tools, and converts them into proper OpenAI <code>tool_calls</code> with generated IDs:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-typescript" data-lang="typescript"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="kd">function</span> <span class="nx">parseToolEnvelope</span><span class="p">(</span><span class="nx">text</span><span class="p">,</span> <span class="nx">tools</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl">  <span class="k">for</span> <span class="p">(</span><span class="kr">const</span> <span class="nx">candidate</span> <span class="k">of</span> <span class="nx">extractJsonObjectCandidates</span><span class="p">(</span><span class="nx">text</span><span class="p">.</span><span class="nx">trim</span><span class="p">()))</span> <span class="p">{</span>
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl">    <span class="kr">const</span> <span class="nx">payload</span> <span class="o">=</span> <span class="nx">JSON</span><span class="p">.</span><span class="nx">parse</span><span class="p">(</span><span class="nx">candidate</span><span class="p">);</span>
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl">    <span class="kr">const</span> <span class="nx">rawCalls</span> <span class="o">=</span> <span class="nx">payload</span><span class="p">.</span><span class="nx">opencode_tool_calls</span> <span class="o">??</span> <span class="p">[</span><span class="nx">payload</span><span class="p">.</span><span class="nx">opencode_tool_call</span><span class="p">];</span>
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl">    <span class="kr">const</span> <span class="nx">toolCalls</span> <span class="o">=</span> <span class="nx">rawCalls</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">      <span class="p">.</span><span class="nx">filter</span><span class="p">(</span><span class="nx">call</span> <span class="o">=&gt;</span> <span class="nx">tools</span><span class="p">.</span><span class="nx">some</span><span class="p">(</span><span class="nx">t</span> <span class="o">=&gt;</span> <span class="nx">t</span><span class="p">.</span><span class="kd">function</span><span class="p">.</span><span class="nx">name</span> <span class="o">===</span> <span class="nx">call</span><span class="p">.</span><span class="nx">name</span><span class="p">))</span>
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl">      <span class="p">.</span><span class="nx">map</span><span class="p">(</span><span class="nx">call</span> <span class="o">=&gt;</span> <span class="p">({</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl">        <span class="nx">id</span><span class="o">:</span> <span class="sb">`call_</span><span class="si">${</span><span class="nx">uuidv4</span><span class="p">()</span><span class="si">}</span><span class="sb">`</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">        <span class="kr">type</span><span class="o">:</span> <span class="s2">&#34;function&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln">10</span><span class="cl">        <span class="kd">function</span><span class="o">:</span> <span class="p">{</span> <span class="nx">name</span>: <span class="kt">call.name</span><span class="p">,</span> <span class="nx">arguments</span>: <span class="kt">JSON.stringify</span><span class="p">(</span><span class="nx">call</span><span class="p">.</span><span class="nx">arguments</span><span class="p">)</span> <span class="p">},</span>
+</span></span><span class="line"><span class="ln">11</span><span class="cl">      <span class="p">}));</span>
+</span></span><span class="line"><span class="ln">12</span><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="nx">toolCalls</span><span class="p">.</span><span class="nx">length</span><span class="p">)</span> <span class="k">return</span> <span class="p">{</span> <span class="nx">toolCalls</span> <span class="p">};</span>
+</span></span><span class="line"><span class="ln">13</span><span class="cl">  <span class="p">}</span>
+</span></span><span class="line"><span class="ln">14</span><span class="cl">  <span class="k">return</span> <span class="kc">null</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln">15</span><span class="cl"><span class="p">}</span></span></span></code></pre></div><p>The JSON extraction is deliberately robust — it uses a bracket-depth parser to find JSON objects embedded in natural language, handles escaped strings, and tries multiple candidates. This matters because the model sometimes wraps tool calls in explanatory text despite being told not to.</p>
+<p>For streaming with tools, there&rsquo;s an extra step. The proxy can&rsquo;t stream tool calls token-by-token (the client needs the complete tool call object). So when tools are present, the proxy collects the full response first, parses tool calls, then re-streams the result as a synthetic SSE sequence. This adds ~latency but is the only correct approach.</p>
+<h2 id="what-the-client-sees">What the client sees</h2>
+<p>After all this translation, what comes out the other end is a standard OpenAI response:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">curl http://localhost:9123/v1/chat/completions <span class="se">\
+</span></span></span><span class="line"><span class="ln">2</span><span class="cl">  -H <span class="s2">&#34;Content-Type: application/json&#34;</span> <span class="se">\
+</span></span></span><span class="line"><span class="ln">3</span><span class="cl">  -d <span class="s1">&#39;{
+</span></span></span><span class="line"><span class="ln">4</span><span class="cl"><span class="s1">    &#34;model&#34;: &#34;deepseek-chat&#34;,
+</span></span></span><span class="line"><span class="ln">5</span><span class="cl"><span class="s1">    &#34;messages&#34;: [{&#34;role&#34;: &#34;user&#34;, &#34;content&#34;: &#34;Hello&#34;}],
+</span></span></span><span class="line"><span class="ln">6</span><span class="cl"><span class="s1">    &#34;stream&#34;: true
+</span></span></span><span class="line"><span class="ln">7</span><span class="cl"><span class="s1">  }&#39;</span></span></span></code></pre></div>
+
+
+
+
+<pre tabindex="0"><code>data: {&#34;id&#34;:&#34;chatcmpl-abc&#34;,&#34;object&#34;:&#34;chat.completion.chunk&#34;,&#34;choices&#34;:[{&#34;delta&#34;:{&#34;role&#34;:&#34;assistant&#34;},&#34;index&#34;:0}]}
+data: {&#34;id&#34;:&#34;chatcmpl-abc&#34;,&#34;object&#34;:&#34;chat.completion.chunk&#34;,&#34;choices&#34;:[{&#34;delta&#34;:{&#34;content&#34;:&#34;Hello&#34;},&#34;index&#34;:0}]}
+data: {&#34;id&#34;:&#34;chatcmpl-abc&#34;,&#34;object&#34;:&#34;chat.completion.chunk&#34;,&#34;choices&#34;:[{&#34;delta&#34;:{&#34;content&#34;:&#34;!&#34;},&#34;index&#34;:0}]}
+data: [DONE]</code></pre><p>Indistinguishable from OpenAI. Any client that speaks the OpenAI protocol works without modification.</p>
+<h2 id="what-i-learned">What I learned</h2>
+<h3 id="wasm-outside-the-browser-is-viable-but-fragile">WASM outside the browser is viable but fragile</h3>
+<p>The <code>wasmtime</code> runtime works, but debugging WASM memory issues from Python is miserable. There&rsquo;s no stack trace when you read the wrong offset — you just get garbage bytes. The debug flags in <code>pow.py</code> exist because I needed them.</p>
+<h3 id="tls-fingerprinting-is-the-real-gate-not-auth-tokens">TLS fingerprinting is the real gate, not auth tokens</h3>
+<p>I initially thought the hard part would be authentication. It wasn&rsquo;t. The hard part was making HTTP requests that don&rsquo;t get blocked. <code>curl_cffi</code> with browser impersonation is the only reliable solution I found for Python. If you&rsquo;re building any kind of web scraper or API proxy in 2026, TLS fingerprinting is the first problem you&rsquo;ll hit.</p>
+<h3 id="tool-call-compatibility-via-prompting-is-surprisingly-reliable">Tool call compatibility via prompting is surprisingly reliable</h3>
+<p>I expected the prompt-engineering approach to tool calls to be flaky. It&rsquo;s not. DeepSeek&rsquo;s models are good at following structured output instructions, and the JSON extraction parser handles edge cases well. The key is being very explicit about the expected format and validating against the known tool list.</p>
+<h3 id="two-process-architecture-was-the-right-call">Two-process architecture was the right call</h3>
+<p>Splitting into TypeScript + Python felt like overengineering at first. It wasn&rsquo;t. Each language does what it&rsquo;s best at: Python for the &ldquo;pretend to be a browser&rdquo; parts (TLS, WASM), TypeScript for the &ldquo;translate between API formats&rdquo; parts (streaming, types, request handling). Trying to do both in one language would have meant worse tooling for at least half the problem.</p>
+<h2 id="links">Links</h2>
+<ul>
+<li><strong>Repo</strong>: <a href="https://github.com/KTS-o7/freeseek-proxy">freeseek-proxy</a></li>
+<li><strong>curl_cffi</strong>: <a href="https://curl-cffi.readthedocs.io/">docs</a> — Python HTTP client with browser TLS impersonation</li>
+<li><strong>wasmtime-py</strong>: <a href="https://github.com/bytecodealliance/wasmtime-py">GitHub</a> — Python bindings for the Wasmtime WASM runtime</li>
+<li><strong>Hono</strong>: <a href="https://hono.dev/">hono.dev</a> — Lightweight web framework for Bun/Node/Deno</li>
+</ul>
+]]></content:encoded>
+    </item>
+    <item>
+      <title>Fixing Parallel Tool Call Streaming in Bifrost: An OSS Bug Hunt</title>
+      <link>https://KTS-o7.github.io/bear/posts/bifrost_parallel_tool_call_fix/</link>
+      <pubDate>Mon, 02 Mar 2026 00:00:00 +0000</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/posts/bifrost_parallel_tool_call_fix/</guid>
+      <description>&lt;p&gt;An AI agent calls three tools in parallel. The LLM streams back interleaved deltas — a few bytes of &lt;code&gt;search_documents&lt;/code&gt; arguments, then a few bytes of &lt;code&gt;get_user&lt;/code&gt;, then more &lt;code&gt;search_documents&lt;/code&gt;. On the other end, the gateway reassembles these fragments into complete tool calls.&lt;/p&gt;&#xA;&lt;p&gt;Except it doesn&amp;rsquo;t. It concatenates them all into one call: &lt;code&gt;search_documentsget_usersearch_documents&lt;/code&gt;. The agent hallucinates, retries, and loops. I stared at the telemetry for twenty minutes before I realized the bug wasn&amp;rsquo;t in the agent — it was in the gateway&amp;rsquo;s streaming accumulator.&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>An AI agent calls three tools in parallel. The LLM streams back interleaved deltas — a few bytes of <code>search_documents</code> arguments, then a few bytes of <code>get_user</code>, then more <code>search_documents</code>. On the other end, the gateway reassembles these fragments into complete tool calls.</p>
+<p>Except it doesn&rsquo;t. It concatenates them all into one call: <code>search_documentsget_usersearch_documents</code>. The agent hallucinates, retries, and loops. I stared at the telemetry for twenty minutes before I realized the bug wasn&rsquo;t in the agent — it was in the gateway&rsquo;s streaming accumulator.</p>
+<p>This is the story of how I found and fixed a parallel tool call merging bug in <a href="https://github.com/maximhq/bifrost">Bifrost</a>, a 2.6k-star open-source AI gateway.</p>
+<h2 id="what-is-bifrost">What is Bifrost?</h2>
+<p>Bifrost is a high-performance AI gateway written in Go. It sits between your application and LLM providers (OpenAI, Anthropic, Bedrock, Vertex, etc.), providing a unified OpenAI-compatible API with automatic failover, load balancing, semantic caching, and streaming support. Think of it as an intelligent reverse proxy for AI — one API, fifteen providers, ~11µs overhead at 5k RPS.</p>
+<p>The relevant piece here is the <strong>streaming accumulator</strong>. When you make a streaming chat completion request, the LLM sends back a sequence of Server-Sent Events (SSE), each containing a small delta — a few tokens of text, or a fragment of a tool call&rsquo;s arguments. The accumulator&rsquo;s job is to reassemble these deltas into complete messages.</p>
+<h2 id="the-bug-recency-based-routing">The bug: recency-based routing</h2>
+<p>Here&rsquo;s the scenario. You ask Claude or GPT to call two tools in parallel:</p>
+
+
+
+
+
+<pre tabindex="0"><code>User: &#34;Search for compliance circulars about RBI and also get the user&#39;s profile&#34;</code></pre><p>The model decides to call both <code>search_circulars</code> and <code>get_user_profile</code> simultaneously. During streaming, the provider sends interleaved deltas:</p>
+
+
+
+
+
+<pre tabindex="0"><code>Delta 1: tool_call[0] name=&#34;search&#34; (index=0, id=call_abc)
+Delta 2: tool_call[1] name=&#34;get_us&#34; (index=1, id=call_xyz)
+Delta 3: tool_call[0] args=&#39;{&#34;query&#34;: &#34;RBI&#39;   (index=0)
+Delta 4: tool_call[1] args=&#39;{&#34;user_id&#34;: &#34;u&#39;   (index=1)
+Delta 5: tool_call[0] args=&#39; circulars&#34;}&#39;      (index=0)
+Delta 6: tool_call[1] args=&#39;123&#34;}&#39;             (index=1)</code></pre><p>Each delta carries an <code>index</code> (and optionally an <code>id</code>) that identifies which tool call it belongs to. The expected behavior: two distinct tool calls with their own names and arguments.</p>
+<p>The actual behavior in Bifrost&rsquo;s accumulator before the fix:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="ln">1</span><span class="cl"><span class="c1">// Old logic (simplified)</span><span class="w">
+</span></span></span><span class="line"><span class="ln">2</span><span class="cl"><span class="k">if</span><span class="w"> </span><span class="nx">deltaToolCall</span><span class="p">.</span><span class="nx">Function</span><span class="p">.</span><span class="nx">Name</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln">3</span><span class="cl"><span class="w">    </span><span class="c1">// New tool call — create it</span><span class="w">
+</span></span></span><span class="line"><span class="ln">4</span><span class="cl"><span class="w">    </span><span class="nx">existingToolCalls</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nb">append</span><span class="p">(</span><span class="nx">existingToolCalls</span><span class="p">,</span><span class="w"> </span><span class="nx">newToolCall</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="ln">5</span><span class="cl"><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln">6</span><span class="cl"><span class="w">    </span><span class="c1">// Argument delta — append to the LAST tool call</span><span class="w">
+</span></span></span><span class="line"><span class="ln">7</span><span class="cl"><span class="w">    </span><span class="nx">toolCallToModify</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="o">&amp;</span><span class="nx">existingToolCalls</span><span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="nx">existingToolCalls</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="w">
+</span></span></span><span class="line"><span class="ln">8</span><span class="cl"><span class="w">    </span><span class="nx">toolCallToModify</span><span class="p">.</span><span class="nx">Function</span><span class="p">.</span><span class="nx">Arguments</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="nx">deltaToolCall</span><span class="p">.</span><span class="nx">Function</span><span class="p">.</span><span class="nx">Arguments</span><span class="w">
+</span></span></span><span class="line"><span class="ln">9</span><span class="cl"><span class="p">}</span></span></span></code></pre></div><p>The routing logic was based on <strong>recency</strong>: if a delta has a <code>Name</code>, it&rsquo;s a new tool call; otherwise, append arguments to the most recent one. This works perfectly when tool calls arrive sequentially. It breaks completely when they&rsquo;re interleaved.</p>
+<p>With the deltas above:</p>
+<ul>
+<li>Delta 3 (index=0 args) arrives → appended to the <strong>last</strong> tool call, which is <code>get_user_profile</code> (index=1). Wrong target.</li>
+<li>Delta 5 (index=0 args) arrives → again appended to <code>get_user_profile</code>. Now <code>get_user_profile</code> has arguments from two different calls mashed together.</li>
+</ul>
+<p>The result: concatenated tool names, merged arguments, and an agent stuck in a retry loop trying to invoke <code>search_circularsget_user_profile</code> — a tool that doesn&rsquo;t exist.</p>
+<h2 id="finding-the-bug">Finding the bug</h2>
+<p>I hit this in production. Our compliance platform uses an AI agent that calls multiple tools in parallel — searching circulars, fetching regulatory data, looking up user context. The agent kept failing with tool resolution errors, and the telemetry showed impossible tool names:</p>
+
+
+
+
+
+<pre tabindex="0"><code>search_circularsearch_circularsearch_circular</code></pre><p>At first I suspected the agent&rsquo;s tool-calling logic. Then I looked at the raw SSE stream from the provider — the deltas were correct. Each one had the right <code>index</code> and <code>id</code>. The corruption was happening between the provider response and the final accumulated message.</p>
+<p>I traced it to <code>accumulateToolCallsInMessage</code> in <code>framework/streaming/accumulator.go</code>. The function had no concept of tool call identity. It used the presence of a <code>Name</code> field as a heuristic for &ldquo;new vs. continuation,&rdquo; which is fragile and incorrect when deltas arrive out of order.</p>
+<h2 id="the-fix">The fix</h2>
+<p>The fix is conceptually simple: <strong>route deltas by identity, not by recency.</strong></p>
+<p>Each tool call delta carries two potential identifiers:</p>
+<ol>
+<li><code>tool_call.id</code> — a string like <code>call_abc123</code> (set by OpenAI/Anthropic)</li>
+<li><code>tool_call.index</code> — an integer position (0, 1, 2, &hellip;)</li>
+</ol>
+<p>The new logic builds lookup maps on existing tool calls and uses them to route each incoming delta to the correct target:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="ln">1</span><span class="cl"><span class="c1">// Build lookup maps for identity-based routing</span><span class="w">
+</span></span></span><span class="line"><span class="ln">2</span><span class="cl"><span class="nx">idToIndex</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nb">make</span><span class="p">(</span><span class="kd">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="kt">int</span><span class="p">,</span><span class="w"> </span><span class="nb">len</span><span class="p">(</span><span class="nx">existingToolCalls</span><span class="p">))</span><span class="w">
+</span></span></span><span class="line"><span class="ln">3</span><span class="cl"><span class="nx">indexToIndex</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nb">make</span><span class="p">(</span><span class="kd">map</span><span class="p">[</span><span class="kt">uint16</span><span class="p">]</span><span class="kt">int</span><span class="p">,</span><span class="w"> </span><span class="nb">len</span><span class="p">(</span><span class="nx">existingToolCalls</span><span class="p">))</span><span class="w">
+</span></span></span><span class="line"><span class="ln">4</span><span class="cl"><span class="k">for</span><span class="w"> </span><span class="nx">i</span><span class="p">,</span><span class="w"> </span><span class="nx">toolCall</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="k">range</span><span class="w"> </span><span class="nx">existingToolCalls</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln">5</span><span class="cl"><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">toolCall</span><span class="p">.</span><span class="nx">ID</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="o">*</span><span class="nx">toolCall</span><span class="p">.</span><span class="nx">ID</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="s">&#34;&#34;</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln">6</span><span class="cl"><span class="w">        </span><span class="nx">idToIndex</span><span class="p">[</span><span class="o">*</span><span class="nx">toolCall</span><span class="p">.</span><span class="nx">ID</span><span class="p">]</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nx">i</span><span class="w">
+</span></span></span><span class="line"><span class="ln">7</span><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="ln">8</span><span class="cl"><span class="w">    </span><span class="nx">indexToIndex</span><span class="p">[</span><span class="nx">toolCall</span><span class="p">.</span><span class="nx">Index</span><span class="p">]</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nx">i</span><span class="w">
+</span></span></span><span class="line"><span class="ln">9</span><span class="cl"><span class="p">}</span></span></span></code></pre></div><p>For each incoming delta, routing follows a priority chain:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="k">for</span><span class="w"> </span><span class="nx">_</span><span class="p">,</span><span class="w"> </span><span class="nx">deltaToolCall</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="k">range</span><span class="w"> </span><span class="nx">deltaToolCalls</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 2</span><span class="cl"><span class="w">    </span><span class="nx">index</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 3</span><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="ln"> 4</span><span class="cl"><span class="w">    </span><span class="c1">// Priority 1: match by tool_call.id</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 5</span><span class="cl"><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">deltaToolCall</span><span class="p">.</span><span class="nx">ID</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="o">*</span><span class="nx">deltaToolCall</span><span class="p">.</span><span class="nx">ID</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="s">&#34;&#34;</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 6</span><span class="cl"><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="nx">existingIndex</span><span class="p">,</span><span class="w"> </span><span class="nx">ok</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">idToIndex</span><span class="p">[</span><span class="o">*</span><span class="nx">deltaToolCall</span><span class="p">.</span><span class="nx">ID</span><span class="p">];</span><span class="w"> </span><span class="nx">ok</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 7</span><span class="cl"><span class="w">            </span><span class="nx">index</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nx">existingIndex</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 8</span><span class="cl"><span class="w">        </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 9</span><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="ln">10</span><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="ln">11</span><span class="cl"><span class="w">    </span><span class="c1">// Priority 2: match by tool_call.index</span><span class="w">
+</span></span></span><span class="line"><span class="ln">12</span><span class="cl"><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">index</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln">13</span><span class="cl"><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="nx">existingIndex</span><span class="p">,</span><span class="w"> </span><span class="nx">ok</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">indexToIndex</span><span class="p">[</span><span class="nx">deltaToolCall</span><span class="p">.</span><span class="nx">Index</span><span class="p">];</span><span class="w"> </span><span class="nx">ok</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln">14</span><span class="cl"><span class="w">            </span><span class="nx">index</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nx">existingIndex</span><span class="w">
+</span></span></span><span class="line"><span class="ln">15</span><span class="cl"><span class="w">        </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="ln">16</span><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="ln">17</span><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="ln">18</span><span class="cl"><span class="w">    </span><span class="c1">// Priority 3: no match → create new tool call (if name present)</span><span class="w">
+</span></span></span><span class="line"><span class="ln">19</span><span class="cl"><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">index</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln">20</span><span class="cl"><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="nx">deltaToolCall</span><span class="p">.</span><span class="nx">Function</span><span class="p">.</span><span class="nx">Name</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln">21</span><span class="cl"><span class="w">            </span><span class="c1">// Can&#39;t create a tool call without a name</span><span class="w">
+</span></span></span><span class="line"><span class="ln">22</span><span class="cl"><span class="w">            </span><span class="k">continue</span><span class="w">
+</span></span></span><span class="line"><span class="ln">23</span><span class="cl"><span class="w">        </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="ln">24</span><span class="cl"><span class="w">        </span><span class="nx">newToolCall</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">schemas</span><span class="p">.</span><span class="nx">ChatAssistantMessageToolCall</span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln">25</span><span class="cl"><span class="w">            </span><span class="nx">Index</span><span class="p">:</span><span class="w">    </span><span class="nx">deltaToolCall</span><span class="p">.</span><span class="nx">Index</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="ln">26</span><span class="cl"><span class="w">            </span><span class="nx">ID</span><span class="p">:</span><span class="w">       </span><span class="nx">deltaToolCall</span><span class="p">.</span><span class="nx">ID</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="ln">27</span><span class="cl"><span class="w">            </span><span class="nx">Function</span><span class="p">:</span><span class="w"> </span><span class="cm">/* ... */</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="ln">28</span><span class="cl"><span class="w">        </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="ln">29</span><span class="cl"><span class="w">        </span><span class="nx">existingToolCalls</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nb">append</span><span class="p">(</span><span class="nx">existingToolCalls</span><span class="p">,</span><span class="w"> </span><span class="nx">newToolCall</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="ln">30</span><span class="cl"><span class="w">        </span><span class="c1">// Update maps for future deltas</span><span class="w">
+</span></span></span><span class="line"><span class="ln">31</span><span class="cl"><span class="w">        </span><span class="nx">indexToIndex</span><span class="p">[</span><span class="nx">newToolCall</span><span class="p">.</span><span class="nx">Index</span><span class="p">]</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nb">len</span><span class="p">(</span><span class="nx">existingToolCalls</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="w">
+</span></span></span><span class="line"><span class="ln">32</span><span class="cl"><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="nx">newToolCall</span><span class="p">.</span><span class="nx">ID</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln">33</span><span class="cl"><span class="w">            </span><span class="nx">idToIndex</span><span class="p">[</span><span class="o">*</span><span class="nx">newToolCall</span><span class="p">.</span><span class="nx">ID</span><span class="p">]</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nb">len</span><span class="p">(</span><span class="nx">existingToolCalls</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="w">
+</span></span></span><span class="line"><span class="ln">34</span><span class="cl"><span class="w">        </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="ln">35</span><span class="cl"><span class="w">        </span><span class="k">continue</span><span class="w">
+</span></span></span><span class="line"><span class="ln">36</span><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="ln">37</span><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="ln">38</span><span class="cl"><span class="w">    </span><span class="c1">// Append arguments to the correct tool call</span><span class="w">
+</span></span></span><span class="line"><span class="ln">39</span><span class="cl"><span class="w">    </span><span class="nx">existingToolCalls</span><span class="p">[</span><span class="nx">index</span><span class="p">].</span><span class="nx">Function</span><span class="p">.</span><span class="nx">Arguments</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="nx">deltaToolCall</span><span class="p">.</span><span class="nx">Function</span><span class="p">.</span><span class="nx">Arguments</span><span class="w">
+</span></span></span><span class="line"><span class="ln">40</span><span class="cl"><span class="p">}</span></span></span></code></pre></div><p>The key insight is that the maps are updated as new tool calls are created, so subsequent deltas for the same call always find their target — even if they arrive many chunks later.</p>
+<h2 id="the-same-bug-twice">The same bug, twice</h2>
+<p>During code review, a reviewer (<a href="https://github.com/Pratham-Mishra04">Pratham-Mishra04</a>) pointed out that the same recency-based routing existed in a second code path: the <strong>Responses API streaming</strong> handler in <code>responses.go</code>.</p>
+<p>The Responses API is OpenAI&rsquo;s newer streaming format (the <code>/v1/responses</code> endpoint). It uses <code>ItemID</code> instead of <code>tool_call.index</code>, but the accumulation logic had the same flaw — <code>FunctionCallArgumentsDelta</code> events were always appended to the last message:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="ln">1</span><span class="cl"><span class="c1">// Old responses.go logic</span><span class="w">
+</span></span></span><span class="line"><span class="ln">2</span><span class="cl"><span class="k">if</span><span class="w"> </span><span class="nx">resp</span><span class="p">.</span><span class="nx">Delta</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">len</span><span class="p">(</span><span class="nx">messages</span><span class="p">)</span><span class="w"> </span><span class="p">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln">3</span><span class="cl"><span class="w">    </span><span class="c1">// Always targets the last message — wrong for parallel calls</span><span class="w">
+</span></span></span><span class="line"><span class="ln">4</span><span class="cl"><span class="w">    </span><span class="nx">a</span><span class="p">.</span><span class="nf">appendFunctionArgumentsDeltaToResponsesMessage</span><span class="p">(</span><span class="w">
+</span></span></span><span class="line"><span class="ln">5</span><span class="cl"><span class="w">        </span><span class="o">&amp;</span><span class="nx">messages</span><span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="nx">messages</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span><span class="w"> </span><span class="o">*</span><span class="nx">resp</span><span class="p">.</span><span class="nx">Delta</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="ln">6</span><span class="cl"><span class="p">}</span></span></span></code></pre></div><p>The fix follows the same pattern: search for a message matching <code>resp.ItemID</code>, and only fall back to the last message when no <code>ItemID</code> is present. If an <code>ItemID</code> exists but no message matches, create a stub message to hold the delta rather than merging it into the wrong call:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="k">if</span><span class="w"> </span><span class="nx">resp</span><span class="p">.</span><span class="nx">Delta</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">len</span><span class="p">(</span><span class="nx">messages</span><span class="p">)</span><span class="w"> </span><span class="p">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 2</span><span class="cl"><span class="w">    </span><span class="nx">targetIdx</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nb">len</span><span class="p">(</span><span class="nx">messages</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 3</span><span class="cl"><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">resp</span><span class="p">.</span><span class="nx">ItemID</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 4</span><span class="cl"><span class="w">        </span><span class="nx">targetIdx</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 5</span><span class="cl"><span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nb">len</span><span class="p">(</span><span class="nx">messages</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="nx">i</span><span class="o">--</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 6</span><span class="cl"><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="nx">messages</span><span class="p">[</span><span class="nx">i</span><span class="p">].</span><span class="nx">ID</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="o">*</span><span class="nx">messages</span><span class="p">[</span><span class="nx">i</span><span class="p">].</span><span class="nx">ID</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="o">*</span><span class="nx">resp</span><span class="p">.</span><span class="nx">ItemID</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 7</span><span class="cl"><span class="w">                </span><span class="nx">targetIdx</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nx">i</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 8</span><span class="cl"><span class="w">                </span><span class="k">break</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 9</span><span class="cl"><span class="w">            </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="ln">10</span><span class="cl"><span class="w">        </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="ln">11</span><span class="cl"><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="nx">targetIdx</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln">12</span><span class="cl"><span class="w">            </span><span class="c1">// Create stub to avoid merging into wrong message</span><span class="w">
+</span></span></span><span class="line"><span class="ln">13</span><span class="cl"><span class="w">            </span><span class="nx">id</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="o">*</span><span class="nx">resp</span><span class="p">.</span><span class="nx">ItemID</span><span class="w">
+</span></span></span><span class="line"><span class="ln">14</span><span class="cl"><span class="w">            </span><span class="nx">messages</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nb">append</span><span class="p">(</span><span class="nx">messages</span><span class="p">,</span><span class="w"> </span><span class="nx">schemas</span><span class="p">.</span><span class="nx">ResponsesMessage</span><span class="p">{</span><span class="nx">ID</span><span class="p">:</span><span class="w"> </span><span class="o">&amp;</span><span class="nx">id</span><span class="p">})</span><span class="w">
+</span></span></span><span class="line"><span class="ln">15</span><span class="cl"><span class="w">            </span><span class="nx">targetIdx</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nb">len</span><span class="p">(</span><span class="nx">messages</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="w">
+</span></span></span><span class="line"><span class="ln">16</span><span class="cl"><span class="w">        </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="ln">17</span><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="ln">18</span><span class="cl"><span class="w">    </span><span class="nx">a</span><span class="p">.</span><span class="nf">appendFunctionArgumentsDeltaToResponsesMessage</span><span class="p">(</span><span class="w">
+</span></span></span><span class="line"><span class="ln">19</span><span class="cl"><span class="w">        </span><span class="o">&amp;</span><span class="nx">messages</span><span class="p">[</span><span class="nx">targetIdx</span><span class="p">],</span><span class="w"> </span><span class="o">*</span><span class="nx">resp</span><span class="p">.</span><span class="nx">Delta</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="ln">20</span><span class="cl"><span class="p">}</span></span></span></code></pre></div><h2 id="testing-parallel-accumulation">Testing parallel accumulation</h2>
+<p>The regression test simulates the exact interleaving pattern that triggers the bug:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="kd">func</span><span class="w"> </span><span class="nf">TestAccumulateToolCallsInterleavedParallel</span><span class="p">(</span><span class="nx">t</span><span class="w"> </span><span class="o">*</span><span class="nx">testing</span><span class="p">.</span><span class="nx">T</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 2</span><span class="cl"><span class="w">    </span><span class="c1">// ...</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 3</span><span class="cl"><span class="w">    </span><span class="nx">toolCallID0</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="s">&#34;call_0&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 4</span><span class="cl"><span class="w">    </span><span class="nx">toolCallID1</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="s">&#34;call_1&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 5</span><span class="cl"><span class="w">    </span><span class="nx">toolNameAdd</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="s">&#34;add&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 6</span><span class="cl"><span class="w">    </span><span class="nx">toolNameMultiply</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="s">&#34;multiply&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 7</span><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="ln"> 8</span><span class="cl"><span class="w">    </span><span class="c1">// Simulate interleaved deltas</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 9</span><span class="cl"><span class="w">    </span><span class="nf">accumulate</span><span class="p">(</span><span class="nf">makeDelta</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="nx">toolCallID0</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="nx">toolNameAdd</span><span class="p">,</span><span class="w"> </span><span class="s">&#34;&#34;</span><span class="p">))</span><span class="w">       </span><span class="c1">// create call 0</span><span class="w">
+</span></span></span><span class="line"><span class="ln">10</span><span class="cl"><span class="w">    </span><span class="nf">accumulate</span><span class="p">(</span><span class="nf">makeDelta</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="nx">toolCallID1</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="nx">toolNameMultiply</span><span class="p">,</span><span class="w"> </span><span class="s">&#34;&#34;</span><span class="p">))</span><span class="w">  </span><span class="c1">// create call 1</span><span class="w">
+</span></span></span><span class="line"><span class="ln">11</span><span class="cl"><span class="w">    </span><span class="nf">accumulate</span><span class="p">(</span><span class="nf">makeDelta</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="kc">nil</span><span class="p">,</span><span class="w"> </span><span class="kc">nil</span><span class="p">,</span><span class="w"> </span><span class="s">`{&#34;a&#34;: 1`</span><span class="p">))</span><span class="w">                  </span><span class="c1">// args for call 0</span><span class="w">
+</span></span></span><span class="line"><span class="ln">12</span><span class="cl"><span class="w">    </span><span class="nf">accumulate</span><span class="p">(</span><span class="nf">makeDelta</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="kc">nil</span><span class="p">,</span><span class="w"> </span><span class="kc">nil</span><span class="p">,</span><span class="w"> </span><span class="s">`{&#34;a&#34;: 2`</span><span class="p">))</span><span class="w">                  </span><span class="c1">// args for call 1</span><span class="w">
+</span></span></span><span class="line"><span class="ln">13</span><span class="cl"><span class="w">    </span><span class="nf">accumulate</span><span class="p">(</span><span class="nf">makeDelta</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="kc">nil</span><span class="p">,</span><span class="w"> </span><span class="kc">nil</span><span class="p">,</span><span class="w"> </span><span class="s">`, &#34;b&#34;: 3}`</span><span class="p">))</span><span class="w">                </span><span class="c1">// more args for call 0</span><span class="w">
+</span></span></span><span class="line"><span class="ln">14</span><span class="cl"><span class="w">    </span><span class="nf">accumulate</span><span class="p">(</span><span class="nf">makeDelta</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="kc">nil</span><span class="p">,</span><span class="w"> </span><span class="kc">nil</span><span class="p">,</span><span class="w"> </span><span class="s">`, &#34;b&#34;: 4}`</span><span class="p">))</span><span class="w">                </span><span class="c1">// more args for call 1</span><span class="w">
+</span></span></span><span class="line"><span class="ln">15</span><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="ln">16</span><span class="cl"><span class="w">    </span><span class="c1">// Assert: two distinct tool calls with correct arguments</span><span class="w">
+</span></span></span><span class="line"><span class="ln">17</span><span class="cl"><span class="w">    </span><span class="nf">assert</span><span class="p">(</span><span class="nx">addCall</span><span class="p">.</span><span class="nx">Arguments</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s">`{&#34;a&#34;: 1, &#34;b&#34;: 3}`</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="ln">18</span><span class="cl"><span class="w">    </span><span class="nf">assert</span><span class="p">(</span><span class="nx">multiplyCall</span><span class="p">.</span><span class="nx">Arguments</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s">`{&#34;a&#34;: 2, &#34;b&#34;: 4}`</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="ln">19</span><span class="cl"><span class="p">}</span></span></span></code></pre></div><p>Without the fix, <code>add</code> would end up with <code>multiply</code>&rsquo;s arguments concatenated in. With the fix, each call accumulates only its own deltas.</p>
+<p>A second test covers the Responses API path with <code>ItemID</code>-based routing, using the same interleaving pattern but with <code>OutputItemAdded</code> + <code>FunctionCallArgumentsDelta</code> events.</p>
+<h2 id="the-pr-lifecycle">The PR lifecycle</h2>
+<p>I filed <a href="https://github.com/maximhq/bifrost/issues/1829">Issue #1829</a> with reproduction details from production telemetry, then opened <a href="https://github.com/maximhq/bifrost/pull/1830">PR #1830</a> with the fix and tests.</p>
+<p>The review process was smooth:</p>
+<ol>
+<li>First commit: fix the Chat Completions accumulator + regression test</li>
+<li>Reviewer feedback: same bug exists in Responses API — please fix there too + add changelog entries</li>
+<li>Second commit: fix Responses API routing + regression test + changelogs</li>
+<li>Merged by <a href="https://github.com/akshaydeo">akshaydeo</a> (Bifrost maintainer)</li>
+</ol>
+<p>Total: 3 commits, ~280 lines of Go across 5 files. Same-day turnaround from issue to merge.</p>
+<h2 id="what-i-learned">What I learned</h2>
+<h3 id="1-recency-is-not-identity">1. Recency is not identity</h3>
+<p>The original code used position (last element) as a proxy for identity. This is a common pattern in sequential streaming — and it works, until the stream isn&rsquo;t sequential. The fix is to use the actual identity field that the protocol already provides.</p>
+<p>This is a general principle: <strong>if the protocol gives you an ID field, use it.</strong> Don&rsquo;t rely on ordering assumptions that hold today but break when concurrency enters.</p>
+<h3 id="2-the-same-bug-pattern-repeats-across-api-surfaces">2. The same bug pattern repeats across API surfaces</h3>
+<p>Bifrost supports two streaming formats: Chat Completions (the classic <code>tool_calls</code> array) and Responses API (the newer <code>ItemID</code>-based format). Both had the same routing flaw because the accumulation logic was duplicated rather than shared. The reviewer catching this in a different file was the most valuable part of the review.</p>
+<h3 id="3-oss-contributions-are-about-context-not-complexity">3. OSS contributions are about context, not complexity</h3>
+<p>The fix itself is straightforward — build a map, use it for lookup. The hard part was:</p>
+<ul>
+<li><strong>Finding</strong> the bug in a codebase I&rsquo;d never seen before</li>
+<li><strong>Understanding</strong> why the existing approach was wrong</li>
+<li><strong>Testing</strong> with realistic interleaved deltas</li>
+<li><strong>Responding</strong> to review feedback about a parallel code path I hadn&rsquo;t initially noticed</li>
+</ul>
+<p>The code change was ~100 lines. The context-building was hours.</p>
+<h3 id="4-production-telemetry-is-the-best-bug-report">4. Production telemetry is the best bug report</h3>
+<p>The issue report included the exact malformed tool name from production: <code>search_circularsearch_circularsearch_circular</code>. That single string made the bug immediately reproducible and the fix trivially verifiable. If you&rsquo;re filing a bug, include the malformed output — it&rsquo;s worth more than a paragraph of description.</p>
+<h2 id="links">Links</h2>
+<ul>
+<li><strong>PR</strong>: <a href="https://github.com/maximhq/bifrost/pull/1830">fix: preserve parallel tool call deltas — #1830</a></li>
+<li><strong>Issue</strong>: <a href="https://github.com/maximhq/bifrost/issues/1829">Streaming tool call deltas merge in parallel tool calling — #1829</a></li>
+<li><strong>Project</strong>: <a href="https://github.com/maximhq/bifrost">Bifrost AI Gateway</a> — 2.6k ⭐, fastest enterprise AI gateway</li>
+</ul>
+]]></content:encoded>
+    </item>
     <item>
       <title>Many Small Tasks, One Deadline: Running Parallel AI Agents with Git Worktrees</title>
       <link>https://KTS-o7.github.io/bear/posts/codex_worktrees_adventure/</link>
