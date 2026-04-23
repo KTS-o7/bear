@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en-us">
+
+<head>
+  <meta http-equiv="X-Clacks-Overhead" content="GNU Terry Pratchett" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="shortcut icon" href="https://KTS-o7.github.io/bear/images/favicon.png" />
+<title>Building a Second Brain with Obsidian, Zettelkasten, and an AI Agent | </title>
+<meta name="title" content="Building a Second Brain with Obsidian, Zettelkasten, and an AI Agent" />
+<meta name="description" content="I spend most of my time building things. CNCFlow, a side project blog, ML experiments, X threads. The problem is not a lack of output &ndash; it is that none of it compounds. I finish a project, learn something real, and two months later I am re-deriving the same insight from scratch because it never got written down anywhere I would actually look again.
+I have tried Notion. Tried Apple Notes. Tried dumping things in a text file. All of them eventually become a graveyard of notes I never revisit." />
+<meta name="author" content="" />
+<meta name="keywords" content="" />
+
+
+
+
+
+
+  
+  <meta property="og:url" content="https://KTS-o7.github.io/bear/posts/obsidian_second_brain/">
+  <meta property="og:title" content="Building a Second Brain with Obsidian, Zettelkasten, and an AI Agent">
+  <meta property="og:description" content="I spend most of my time building things. CNCFlow, a side project blog, ML experiments, X threads. The problem is not a lack of output – it is that none of it compounds. I finish a project, learn something real, and two months later I am re-deriving the same insight from scratch because it never got written down anywhere I would actually look again.
+I have tried Notion. Tried Apple Notes. Tried dumping things in a text file. All of them eventually become a graveyard of notes I never revisit.">
+  <meta property="og:locale" content="en_us">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="posts">
+    <meta property="article:published_time" content="2026-04-21T00:00:00+05:30">
+    <meta property="article:modified_time" content="2026-04-21T00:00:00+05:30">
+    <meta property="og:image" content="https://KTS-o7.github.io/bear/images/share.webp">
+
+
+  
+  
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://KTS-o7.github.io/bear/images/share.webp">
+  <meta name="twitter:title" content="Building a Second Brain with Obsidian, Zettelkasten, and an AI Agent">
+  <meta name="twitter:description" content="I spend most of my time building things. CNCFlow, a side project blog, ML experiments, X threads. The problem is not a lack of output – it is that none of it compounds. I finish a project, learn something real, and two months later I am re-deriving the same insight from scratch because it never got written down anywhere I would actually look again.
+I have tried Notion. Tried Apple Notes. Tried dumping things in a text file. All of them eventually become a graveyard of notes I never revisit.">
+
+
+  
+  
+  <meta itemprop="name" content="Building a Second Brain with Obsidian, Zettelkasten, and an AI Agent">
+  <meta itemprop="description" content="I spend most of my time building things. CNCFlow, a side project blog, ML experiments, X threads. The problem is not a lack of output – it is that none of it compounds. I finish a project, learn something real, and two months later I am re-deriving the same insight from scratch because it never got written down anywhere I would actually look again.
+I have tried Notion. Tried Apple Notes. Tried dumping things in a text file. All of them eventually become a graveyard of notes I never revisit.">
+  <meta itemprop="datePublished" content="2026-04-21T00:00:00+05:30">
+  <meta itemprop="dateModified" content="2026-04-21T00:00:00+05:30">
+  <meta itemprop="wordCount" content="1415">
+  <meta itemprop="image" content="https://KTS-o7.github.io/bear/images/share.webp">
+
+<meta name="referrer" content="no-referrer-when-downgrade" />
+
+  
+  <link href="/bear/herman.min.css" rel="stylesheet">
+
+  
+    
+    <link href="/bear/syntax.min.css" rel="stylesheet">
+  
+
+  
+
+  
+
+  
+</head>
+
+<body>
+  <header><a class="skip-link" href="#main-content">Skip to main content</a>
+
+<a href="/bear/" class="title"><h1></h1></a>
+<nav>
+  <a href="/bear/">Home</a>
+
+  <a href="/bear/posts/">Posts</a>
+
+  <a href="/bear/about/">About</a>
+
+  <a href="/bear/ml/">ML Stuff</a>
+
+  <a href="/bear/cses.fi/">CSES.fi</a>
+
+<a href='https://KTS-o7.github.io/bear/index.xml'>RSS</a>
+
+
+
+
+
+
+
+</nav>
+</header>
+  <main id="main-content">
+
+<h1>Building a Second Brain with Obsidian, Zettelkasten, and an AI Agent</h1>
+<p class="byline">
+  <time datetime='2026-04-21' pubdate>
+    2026-04-21
+  </time>
+  
+</p>
+
+<content>
+  <p>I spend most of my time building things. CNCFlow, a side project blog, ML experiments, X threads. The problem is not a lack of output &ndash; it is that none of it compounds. I finish a project, learn something real, and two months later I am re-deriving the same insight from scratch because it never got written down anywhere I would actually look again.</p>
+<p>I have tried Notion. Tried Apple Notes. Tried dumping things in a text file. All of them eventually become a graveyard of notes I never revisit.</p>
+<p>So I set up something different. This post is about the system &ndash; what it is, why it works, and the one thing that makes it actually stick.</p>
+<h2 id="the-problem-with-most-note-taking">The problem with most note-taking</h2>
+<p>Most people take notes the wrong way. They copy. They highlight. They summarize what they read. Then they file it somewhere and feel organized.</p>
+<p>None of that is learning. None of it compounds.</p>
+<p>When you copy a sentence from a textbook, you are transcribing, not thinking. The note exists but the understanding does not. Two weeks later the note is as foreign as the textbook was the first time.</p>
+<p>The thing that actually builds knowledge is elaborative encoding &ndash; restating an idea in your own words, connecting it to something you already understand. This is not a productivity tip. It is how memory works. You encode new information by hooking it into existing mental models. No hooks, no retention.</p>
+<p>A second brain should force you to do that. Most setups do not.</p>
+<h2 id="two-systems-one-vault">Two systems, one vault</h2>
+<p>The system I use is a hybrid of PARA and Zettelkasten. They solve different problems.</p>
+<p>PARA (Projects, Areas, Resources, Archive) is for navigation. It answers &ldquo;where do I put this?&rdquo; and &ldquo;where do I find that?&rdquo; It is project-oriented, folder-based, practical. Good for builders.</p>
+<p>Zettelkasten is for thinking. It answers &ldquo;what do I actually know?&rdquo; and &ldquo;how does this connect to that?&rdquo; It is idea-oriented, flat, link-based. Good for writers and researchers.</p>
+<p>The mistake people make is picking one and ignoring the other. PARA without Zettelkasten gives you a well-organized filing cabinet you never think with. Zettelkasten without PARA gives you a beautiful graph of ideas with no place to track actual work.</p>
+<p>The vault structure I landed on:</p>
+
+
+
+
+
+<pre tabindex="0"><code>00-Inbox/          everything lands here first
+Projects/          one subfolder per active project
+Daily/             date-named daily notes
+Notes/             Zettelkasten permanent notes (flat)
+Learning/          STEM subjects, structured
+Templates/         note templates
+Archive/           completed projects, old notes</code></pre><p>Projects and Daily are pure PARA. Notes is pure Zettelkasten. Learning is the interesting hybrid.</p>
+<h2 id="the-three-note-types-that-matter">The three note types that matter</h2>
+<p>Zettelkasten has three kinds of notes, and most explanations of the system spend too much time on the taxonomy and not enough on why the types are different.</p>
+<p><strong>Fleeting notes</strong> are raw captures. They live in 00-Inbox. They are temporary by design &ndash; process them within a week or delete them. Zero friction at capture time. Do not organize, do not format, just dump it.</p>
+<p><strong>Concept notes</strong> live in Learning/. One concept per note, explained in your own words. Fixed structure: what it is in your words, the core intuition, a concrete example you can trace through, where you got confused, and how it connects to things you already know. That last field &ndash; where you got confused &ndash; is the most valuable part most people skip. Your confusions are where your understanding has gaps. Future you needs to know where those are.</p>
+<p><strong>Permanent notes</strong> live in Notes/. These are the ones that compound. One fully-formed idea per note, stated as a claim. Not a topic &ndash; a claim.</p>
+<p>BAD: <code>Eigenvalues</code>
+GOOD: <code>Eigenvalues represent stretch magnitude along a transformation's invariant axes</code></p>
+<p>BAD: <code>CNCFlow GTM</code>
+GOOD: <code>CAD users switch tools only when workflow pain exceeds switching cost</code></p>
+<p>The difference matters. A topic title is a filing label. A claim title is a thought. When you write it as a claim, you have to commit to believing something. That forces the thinking.</p>
+<h2 id="the-rule-that-makes-everything-work">The rule that makes everything work</h2>
+<p>Write in your own words only. No copy-pasting.</p>
+<p>This sounds obvious. It is the hardest part. The temptation when reading a paper or watching a lecture is to quote the good parts, paste them into a note, and feel like you captured something. You did not. You moved text from one place to another.</p>
+<p>A wrong note you wrote yourself is more valuable than a correct note you copied. When you write something wrong, you will notice the contradiction when you link it to something else. The note will tell you where your understanding broke. A copied note just sits there looking authoritative.</p>
+<h2 id="learning-stem-in-the-vault">Learning STEM in the vault</h2>
+<p>STEM is where this system earns its keep more than anywhere else.</p>
+<p>The standard study loop &ndash; read, highlight, review &ndash; fails because it is passive. You are reading the author&rsquo;s thoughts, not building your own. By the third session you are highlighting things you highlighted before because nothing stuck.</p>
+<p>The vault forces a different loop. After reading a section or watching a lecture, I write a Concept Note in Learning/{subject}/. Not a summary &ndash; my understanding. If I cannot explain it in my own words, I do not understand it yet, and that is useful to know.</p>
+<p>Then I ask: does this connect to anything in Notes/? Can I extract a permanent note &ndash; a cross-domain insight?</p>
+<p>Working through linear algebra:</p>
+<ul>
+<li>Concept Note in Learning/Math/Linear-Algebra/: eigenvalues</li>
+<li>Then in Notes/: <code>Eigenvalues are to matrix transformations what CAD constraints are to parametric models -- they identify the invariant structure</code></li>
+</ul>
+<p>That second note is mine. Nobody wrote it in a textbook. It is hooked into my mental model of CAD, which I think about constantly. I will not forget it.</p>
+<p>This is the compounding effect the system is supposed to produce. Your STEM learning starts talking to your project work. The graph of connected notes becomes a map of your actual understanding, not a collection of things you have read.</p>
+<h2 id="wiring-an-ai-agent-into-the-vault">Wiring an AI agent into the vault</h2>
+<p>The last piece is automation. I use Hermes (my local AI agent) to read and write to the vault directly.</p>
+<p>Before any research task, Hermes searches Notes/ and Learning/ for what I already know. This prevents re-deriving things and surfaces relevant context automatically. If I ask it to explain something I have already written a concept note on, it reads the note first and builds on my existing understanding rather than explaining from scratch.</p>
+<p>After a learning session, Hermes writes structured Concept Notes to the right Learning/ subfolder and extracts candidate permanent notes to Notes/. I review and edit them &ndash; the thinking is mine, but the structuring is automated.</p>
+<p>For projects, Hermes appends decisions to the decisions log table in the relevant Project Note. Every non-obvious decision gets a row: what was decided, why. This sounds like overhead. It pays back immediately the first time you pick up a paused project and actually remember why you made the choices you did.</p>
+<h2 id="what-i-skip">What I skip</h2>
+<p>I do not write notes for things I can re-derive in five minutes. I do not write notes for things that are already in the code, the commit history, or the PR description. I do not write notes to feel productive.</p>
+<p>The weekly review is Sunday, twenty minutes. Process Inbox, promote or delete every note, update status tags on Learning notes (seedling &ndash; just captured, growing &ndash; building understanding, evergreen &ndash; solid and stable), write or update one permanent note. If the review takes longer than twenty minutes, the system is too complicated.</p>
+<p>Delete freely. A cluttered vault is a dead vault. If a note has not been touched in six months and is not evergreen, archive it or delete it.</p>
+<h2 id="the-real-test">The real test</h2>
+<p>The system works if, six months from now, I can open the vault and quickly surface what I actually think about a topic &ndash; not what I have read about it, but what I understand and how it connects to everything else I am working on.</p>
+<p>The graph view in Obsidian will show clusters. Notes in the CS cluster linking to notes in the Projects cluster. An insight from linear algebra linking to a CNCFlow architecture decision. A note on organic growth on X linking to a note on network effects from graph theory.</p>
+<p>Those links are the point. Not the notes themselves &ndash; the connections between them. That is the second brain: not a better filing cabinet, but a map of how your own thinking connects.</p>
+
+</content>
+<p>
+  
+</p>
+
+
+  <p>
+    <a href='mailto:shentharkrishnatejaswi@gmail.com?subject=Reply%20to%20"Building%20a%20Second%20Brain%20with%20Obsidian%2c%20Zettelkasten%2c%20and%20an%20AI%20Agent"'>
+      Reply to this post by email ↪
+    </a>
+  </p>
+
+
+
+  </main>
+  <footer><small>
+  Krishnatejaswi S | Made with <a href="https://github.com/clente/hugo-bearcub">Bear Cub</a>
+</small></footer>
+
+    
+</body>
+
+</html>

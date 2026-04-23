@@ -9,8 +9,139 @@
     <managingEditor>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</managingEditor>
     <webMaster>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</webMaster>
     <copyright>Krishnatejaswi S</copyright>
-    <lastBuildDate>Thu, 16 Apr 2026 00:00:00 +0530</lastBuildDate>
+    <lastBuildDate>Wed, 22 Apr 2026 00:00:00 +0000</lastBuildDate>
     <atom:link href="https://KTS-o7.github.io/bear/posts/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>A $22/Year VPS That Actually Does Things</title>
+      <link>https://KTS-o7.github.io/bear/posts/vps_self_hosting_stack/</link>
+      <pubDate>Wed, 22 Apr 2026 00:00:00 +0000</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/posts/vps_self_hosting_stack/</guid>
+      <description>&lt;p&gt;I&amp;rsquo;ve had a domain sitting idle for a while. I finally did something with it. For $22/year I now have a private sync server, a self-hosted chat with video calls, and a personal book library &amp;ndash; all running on a single Ubuntu VM in Dallas.&lt;/p&gt;&#xA;&lt;p&gt;Here&amp;rsquo;s what I built and how it fits together.&lt;/p&gt;&#xA;&lt;h2 id=&#34;the-server&#34;&gt;The server&lt;/h2&gt;&#xA;&lt;p&gt;Provider: budget VPS, $22/year. That&amp;rsquo;s not a typo.&lt;/p&gt;&#xA;&lt;ul&gt;&#xA;&lt;li&gt;1 vCPU, 2.9GB RAM, 30GB disk&lt;/li&gt;&#xA;&lt;li&gt;Ubuntu 24.04 LTS&lt;/li&gt;&#xA;&lt;li&gt;IP: 192.3.228.223&lt;/li&gt;&#xA;&lt;li&gt;Unlimited bandwidth (Dallas datacenter)&lt;/li&gt;&#xA;&lt;/ul&gt;&#xA;&lt;p&gt;First thing I did after SSH&amp;rsquo;ing in: update packages, disable password login, set up SSH key auth only, and add UFW rules to block everything except SSH, HTTP, HTTPS, and TURN ports. Then added a 2GB swap file &amp;ndash; at 2.9GB of RAM you feel every megabyte.&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>I&rsquo;ve had a domain sitting idle for a while. I finally did something with it. For $22/year I now have a private sync server, a self-hosted chat with video calls, and a personal book library &ndash; all running on a single Ubuntu VM in Dallas.</p>
+<p>Here&rsquo;s what I built and how it fits together.</p>
+<h2 id="the-server">The server</h2>
+<p>Provider: budget VPS, $22/year. That&rsquo;s not a typo.</p>
+<ul>
+<li>1 vCPU, 2.9GB RAM, 30GB disk</li>
+<li>Ubuntu 24.04 LTS</li>
+<li>IP: 192.3.228.223</li>
+<li>Unlimited bandwidth (Dallas datacenter)</li>
+</ul>
+<p>First thing I did after SSH&rsquo;ing in: update packages, disable password login, set up SSH key auth only, and add UFW rules to block everything except SSH, HTTP, HTTPS, and TURN ports. Then added a 2GB swap file &ndash; at 2.9GB of RAM you feel every megabyte.</p>
+<p>Credentials go into <code>pass</code> on my Mac, encrypted with a GPG key. No plaintext passwords anywhere.</p>
+<h2 id="three-services-one-box">Three services, one box</h2>
+<h3 id="obsidian-livesync--syncshentharme">Obsidian LiveSync &ndash; sync.shenthar.me</h3>
+<p>CouchDB running as the backend for Obsidian&rsquo;s LiveSync plugin. My vault syncs across Mac, iPhone, and anything else with the app installed. The sync is end-to-end encrypted via a LiveSync passphrase &ndash; CouchDB never sees the plaintext.</p>
+<p>This replaced iCloud sync, which was flaky and opaque. Now I know exactly where my notes live and who can read them (me, and only me).</p>
+<h3 id="private-chat--chatshentharme">Private chat &ndash; chat.shenthar.me</h3>
+<p>Matrix homeserver running Conduit in Docker. Element Web as the UI &ndash; no app install needed, works in any browser. Two accounts: sapphire and yellow.</p>
+<p>For video and audio calls I set up a coturn TURN server. Without TURN, WebRTC calls often fail when both sides are behind NAT. With it, the media traffic relays through the VPS and calls just work.</p>
+<p>Federation is disabled. This is a private instance &ndash; no traffic to matrix.org or anywhere else. Just the two of us.</p>
+<h3 id="personal-library--booksshentharme">Personal library &ndash; books.shenthar.me</h3>
+<p>Calibre-Web in Docker. Handles EPUB, PDF, MOBI. Two accounts, same as above. I added Pride and Prejudice as a test &ndash; it showed up immediately, clean reader UI.</p>
+<p>No more emailing books to a Kindle or dragging files around. Upload once, read anywhere.</p>
+<h2 id="infrastructure-layer">Infrastructure layer</h2>
+<p>Everything sits behind nginx as a reverse proxy. Cloudflare handles DNS, proxying, and SSL in Full mode. Let&rsquo;s Encrypt issues certs on each subdomain and auto-renews them.</p>
+<p>The flow for any request:</p>
+
+
+
+
+
+<pre tabindex="0"><code>Browser -&gt; Cloudflare (proxy + SSL termination) -&gt; nginx (routing) -&gt; service</code></pre><p>Docker isolates Conduit and Calibre-Web. CouchDB runs native (the LiveSync plugin expects standard CouchDB behavior and Docker added complications I didn&rsquo;t need).</p>
+<h2 id="resource-usage">Resource usage</h2>
+<p>After all three services were up:</p>
+<ul>
+<li>RAM used: about 1.2GB</li>
+<li>Disk used: ~6GB</li>
+<li>Remaining: nearly 1.7GB RAM and 24GB disk free</li>
+</ul>
+<p>Plenty of headroom. The box idles comfortably and there&rsquo;s room for a few more experiments &ndash; a small bot, a VPN, whatever comes next.</p>
+<h2 id="what-this-cost">What this cost</h2>
+<p>The domain was already paid for. The VPS is $22/year. Everything else is open source and free. The setup took an evening.</p>
+<p>The usual objections to self-hosting are maintenance burden and reliability. For low-stakes personal services &ndash; note sync, private chat, book library &ndash; a single VPS with good backups is fine. If CouchDB goes down for an hour, my notes don&rsquo;t sync. That&rsquo;s acceptable.</p>
+<p>The upside is ownership. No subscription. No vendor deciding to change pricing or sunset the service. No questions about who holds the encryption keys.</p>
+<h2 id="whats-next">What&rsquo;s next</h2>
+<p>The daily note I wrote after this has a few ideas: running Bifrost on the VPS, a ghost-writing pipeline for blog posts, maybe a VPN since the bandwidth is unlimited. The RAM budget will get tighter, but there&rsquo;s room to work with.</p>
+<p>For now, the three services are running and the box earns its $22.</p>
+<hr>
+<p>Tools used: Ubuntu 24.04, Docker, nginx, Cloudflare, Let&rsquo;s Encrypt, CouchDB, Conduit (Matrix), Element Web, Calibre-Web, coturn, UFW, pass + GPG.</p>
+]]></content:encoded>
+    </item>
+    <item>
+      <title>Building a Second Brain with Obsidian, Zettelkasten, and an AI Agent</title>
+      <link>https://KTS-o7.github.io/bear/posts/obsidian_second_brain/</link>
+      <pubDate>Tue, 21 Apr 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/posts/obsidian_second_brain/</guid>
+      <description>&lt;p&gt;I spend most of my time building things. CNCFlow, a side project blog, ML experiments, X threads. The problem is not a lack of output &amp;ndash; it is that none of it compounds. I finish a project, learn something real, and two months later I am re-deriving the same insight from scratch because it never got written down anywhere I would actually look again.&lt;/p&gt;&#xA;&lt;p&gt;I have tried Notion. Tried Apple Notes. Tried dumping things in a text file. All of them eventually become a graveyard of notes I never revisit.&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>I spend most of my time building things. CNCFlow, a side project blog, ML experiments, X threads. The problem is not a lack of output &ndash; it is that none of it compounds. I finish a project, learn something real, and two months later I am re-deriving the same insight from scratch because it never got written down anywhere I would actually look again.</p>
+<p>I have tried Notion. Tried Apple Notes. Tried dumping things in a text file. All of them eventually become a graveyard of notes I never revisit.</p>
+<p>So I set up something different. This post is about the system &ndash; what it is, why it works, and the one thing that makes it actually stick.</p>
+<h2 id="the-problem-with-most-note-taking">The problem with most note-taking</h2>
+<p>Most people take notes the wrong way. They copy. They highlight. They summarize what they read. Then they file it somewhere and feel organized.</p>
+<p>None of that is learning. None of it compounds.</p>
+<p>When you copy a sentence from a textbook, you are transcribing, not thinking. The note exists but the understanding does not. Two weeks later the note is as foreign as the textbook was the first time.</p>
+<p>The thing that actually builds knowledge is elaborative encoding &ndash; restating an idea in your own words, connecting it to something you already understand. This is not a productivity tip. It is how memory works. You encode new information by hooking it into existing mental models. No hooks, no retention.</p>
+<p>A second brain should force you to do that. Most setups do not.</p>
+<h2 id="two-systems-one-vault">Two systems, one vault</h2>
+<p>The system I use is a hybrid of PARA and Zettelkasten. They solve different problems.</p>
+<p>PARA (Projects, Areas, Resources, Archive) is for navigation. It answers &ldquo;where do I put this?&rdquo; and &ldquo;where do I find that?&rdquo; It is project-oriented, folder-based, practical. Good for builders.</p>
+<p>Zettelkasten is for thinking. It answers &ldquo;what do I actually know?&rdquo; and &ldquo;how does this connect to that?&rdquo; It is idea-oriented, flat, link-based. Good for writers and researchers.</p>
+<p>The mistake people make is picking one and ignoring the other. PARA without Zettelkasten gives you a well-organized filing cabinet you never think with. Zettelkasten without PARA gives you a beautiful graph of ideas with no place to track actual work.</p>
+<p>The vault structure I landed on:</p>
+
+
+
+
+
+<pre tabindex="0"><code>00-Inbox/          everything lands here first
+Projects/          one subfolder per active project
+Daily/             date-named daily notes
+Notes/             Zettelkasten permanent notes (flat)
+Learning/          STEM subjects, structured
+Templates/         note templates
+Archive/           completed projects, old notes</code></pre><p>Projects and Daily are pure PARA. Notes is pure Zettelkasten. Learning is the interesting hybrid.</p>
+<h2 id="the-three-note-types-that-matter">The three note types that matter</h2>
+<p>Zettelkasten has three kinds of notes, and most explanations of the system spend too much time on the taxonomy and not enough on why the types are different.</p>
+<p><strong>Fleeting notes</strong> are raw captures. They live in 00-Inbox. They are temporary by design &ndash; process them within a week or delete them. Zero friction at capture time. Do not organize, do not format, just dump it.</p>
+<p><strong>Concept notes</strong> live in Learning/. One concept per note, explained in your own words. Fixed structure: what it is in your words, the core intuition, a concrete example you can trace through, where you got confused, and how it connects to things you already know. That last field &ndash; where you got confused &ndash; is the most valuable part most people skip. Your confusions are where your understanding has gaps. Future you needs to know where those are.</p>
+<p><strong>Permanent notes</strong> live in Notes/. These are the ones that compound. One fully-formed idea per note, stated as a claim. Not a topic &ndash; a claim.</p>
+<p>BAD: <code>Eigenvalues</code>
+GOOD: <code>Eigenvalues represent stretch magnitude along a transformation's invariant axes</code></p>
+<p>BAD: <code>CNCFlow GTM</code>
+GOOD: <code>CAD users switch tools only when workflow pain exceeds switching cost</code></p>
+<p>The difference matters. A topic title is a filing label. A claim title is a thought. When you write it as a claim, you have to commit to believing something. That forces the thinking.</p>
+<h2 id="the-rule-that-makes-everything-work">The rule that makes everything work</h2>
+<p>Write in your own words only. No copy-pasting.</p>
+<p>This sounds obvious. It is the hardest part. The temptation when reading a paper or watching a lecture is to quote the good parts, paste them into a note, and feel like you captured something. You did not. You moved text from one place to another.</p>
+<p>A wrong note you wrote yourself is more valuable than a correct note you copied. When you write something wrong, you will notice the contradiction when you link it to something else. The note will tell you where your understanding broke. A copied note just sits there looking authoritative.</p>
+<h2 id="learning-stem-in-the-vault">Learning STEM in the vault</h2>
+<p>STEM is where this system earns its keep more than anywhere else.</p>
+<p>The standard study loop &ndash; read, highlight, review &ndash; fails because it is passive. You are reading the author&rsquo;s thoughts, not building your own. By the third session you are highlighting things you highlighted before because nothing stuck.</p>
+<p>The vault forces a different loop. After reading a section or watching a lecture, I write a Concept Note in Learning/{subject}/. Not a summary &ndash; my understanding. If I cannot explain it in my own words, I do not understand it yet, and that is useful to know.</p>
+<p>Then I ask: does this connect to anything in Notes/? Can I extract a permanent note &ndash; a cross-domain insight?</p>
+<p>Working through linear algebra:</p>
+<ul>
+<li>Concept Note in Learning/Math/Linear-Algebra/: eigenvalues</li>
+<li>Then in Notes/: <code>Eigenvalues are to matrix transformations what CAD constraints are to parametric models -- they identify the invariant structure</code></li>
+</ul>
+<p>That second note is mine. Nobody wrote it in a textbook. It is hooked into my mental model of CAD, which I think about constantly. I will not forget it.</p>
+<p>This is the compounding effect the system is supposed to produce. Your STEM learning starts talking to your project work. The graph of connected notes becomes a map of your actual understanding, not a collection of things you have read.</p>
+<h2 id="wiring-an-ai-agent-into-the-vault">Wiring an AI agent into the vault</h2>
+<p>The last piece is automation. I use Hermes (my local AI agent) to read and write to the vault directly.</p>
+<p>Before any research task, Hermes searches Notes/ and Learning/ for what I already know. This prevents re-deriving things and surfaces relevant context automatically. If I ask it to explain something I have already written a concept note on, it reads the note first and builds on my existing understanding rather than explaining from scratch.</p>
+<p>After a learning session, Hermes writes structured Concept Notes to the right Learning/ subfolder and extracts candidate permanent notes to Notes/. I review and edit them &ndash; the thinking is mine, but the structuring is automated.</p>
+<p>For projects, Hermes appends decisions to the decisions log table in the relevant Project Note. Every non-obvious decision gets a row: what was decided, why. This sounds like overhead. It pays back immediately the first time you pick up a paused project and actually remember why you made the choices you did.</p>
+<h2 id="what-i-skip">What I skip</h2>
+<p>I do not write notes for things I can re-derive in five minutes. I do not write notes for things that are already in the code, the commit history, or the PR description. I do not write notes to feel productive.</p>
+<p>The weekly review is Sunday, twenty minutes. Process Inbox, promote or delete every note, update status tags on Learning notes (seedling &ndash; just captured, growing &ndash; building understanding, evergreen &ndash; solid and stable), write or update one permanent note. If the review takes longer than twenty minutes, the system is too complicated.</p>
+<p>Delete freely. A cluttered vault is a dead vault. If a note has not been touched in six months and is not evergreen, archive it or delete it.</p>
+<h2 id="the-real-test">The real test</h2>
+<p>The system works if, six months from now, I can open the vault and quickly surface what I actually think about a topic &ndash; not what I have read about it, but what I understand and how it connects to everything else I am working on.</p>
+<p>The graph view in Obsidian will show clusters. Notes in the CS cluster linking to notes in the Projects cluster. An insight from linear algebra linking to a CNCFlow architecture decision. A note on organic growth on X linking to a note on network effects from graph theory.</p>
+<p>Those links are the point. Not the notes themselves &ndash; the connections between them. That is the second brain: not a better filing cabinet, but a map of how your own thinking connects.</p>
+]]></content:encoded>
+    </item>
     <item>
       <title>Fixing Silent $0 Streaming Costs in AgentBudget: An OSS Contribution</title>
       <link>https://KTS-o7.github.io/bear/posts/agentbudget_ulimit_for_ai_agents/</link>
