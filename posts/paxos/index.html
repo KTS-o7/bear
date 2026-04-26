@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en-us">
+
+<head>
+  <meta http-equiv="X-Clacks-Overhead" content="GNU Terry Pratchett" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="shortcut icon" href="https://KTS-o7.github.io/bear/images/favicon.png" />
+<title>Paxos | </title>
+<meta name="title" content="Paxos" />
+<meta name="description" content="Before Raft, there was Paxos. For about two decades it was the foundational answer to distributed consensus &ndash; and it was notoriously hard to implement correctly. Lamport published the original paper in 1989, but it was so difficult to parse that he rewrote it as &ldquo;Paxos Made Simple&rdquo; in 2001. The simpler version is still genuinely hard.
+Understanding Paxos is worth doing. It&rsquo;s not just historical &ndash; Chubby, ZooKeeper, and Spanner are built on it or close variants, and many distributed systems interviews probe it. More importantly, every simplification Raft makes is a direct response to a specific pain point in Paxos. Understanding what Paxos gets wrong explains why Raft looks the way it does." />
+<meta name="author" content="" />
+<meta name="keywords" content="" />
+
+
+
+
+
+
+  
+  <meta property="og:url" content="https://KTS-o7.github.io/bear/posts/paxos/">
+  <meta property="og:title" content="Paxos">
+  <meta property="og:description" content="Before Raft, there was Paxos. For about two decades it was the foundational answer to distributed consensus – and it was notoriously hard to implement correctly. Lamport published the original paper in 1989, but it was so difficult to parse that he rewrote it as “Paxos Made Simple” in 2001. The simpler version is still genuinely hard.
+Understanding Paxos is worth doing. It’s not just historical – Chubby, ZooKeeper, and Spanner are built on it or close variants, and many distributed systems interviews probe it. More importantly, every simplification Raft makes is a direct response to a specific pain point in Paxos. Understanding what Paxos gets wrong explains why Raft looks the way it does.">
+  <meta property="og:locale" content="en_us">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="posts">
+    <meta property="article:published_time" content="2026-04-26T00:00:00+05:30">
+    <meta property="article:modified_time" content="2026-04-26T00:00:00+05:30">
+    <meta property="og:image" content="https://KTS-o7.github.io/bear/images/share.webp">
+
+
+  
+  
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://KTS-o7.github.io/bear/images/share.webp">
+  <meta name="twitter:title" content="Paxos">
+  <meta name="twitter:description" content="Before Raft, there was Paxos. For about two decades it was the foundational answer to distributed consensus – and it was notoriously hard to implement correctly. Lamport published the original paper in 1989, but it was so difficult to parse that he rewrote it as “Paxos Made Simple” in 2001. The simpler version is still genuinely hard.
+Understanding Paxos is worth doing. It’s not just historical – Chubby, ZooKeeper, and Spanner are built on it or close variants, and many distributed systems interviews probe it. More importantly, every simplification Raft makes is a direct response to a specific pain point in Paxos. Understanding what Paxos gets wrong explains why Raft looks the way it does.">
+
+
+  
+  
+  <meta itemprop="name" content="Paxos">
+  <meta itemprop="description" content="Before Raft, there was Paxos. For about two decades it was the foundational answer to distributed consensus – and it was notoriously hard to implement correctly. Lamport published the original paper in 1989, but it was so difficult to parse that he rewrote it as “Paxos Made Simple” in 2001. The simpler version is still genuinely hard.
+Understanding Paxos is worth doing. It’s not just historical – Chubby, ZooKeeper, and Spanner are built on it or close variants, and many distributed systems interviews probe it. More importantly, every simplification Raft makes is a direct response to a specific pain point in Paxos. Understanding what Paxos gets wrong explains why Raft looks the way it does.">
+  <meta itemprop="datePublished" content="2026-04-26T00:00:00+05:30">
+  <meta itemprop="dateModified" content="2026-04-26T00:00:00+05:30">
+  <meta itemprop="wordCount" content="1171">
+  <meta itemprop="image" content="https://KTS-o7.github.io/bear/images/share.webp">
+
+<meta name="referrer" content="no-referrer-when-downgrade" />
+
+  
+  <link href="/bear/herman.min.css" rel="stylesheet">
+
+  
+    
+    <link href="/bear/syntax.min.css" rel="stylesheet">
+  
+
+  
+
+  
+
+  
+</head>
+
+<body>
+  <header><a class="skip-link" href="#main-content">Skip to main content</a>
+
+<a href="/bear/" class="title"><h1></h1></a>
+<nav>
+  <a href="/bear/">Home</a>
+
+  <a href="/bear/posts/">Posts</a>
+
+  <a href="/bear/about/">About</a>
+
+  <a href="/bear/ml/">ML Stuff</a>
+
+  <a href="/bear/cses.fi/">CSES.fi</a>
+
+<a href='https://KTS-o7.github.io/bear/index.xml'>RSS</a>
+
+
+
+
+
+
+
+</nav>
+</header>
+  <main id="main-content">
+
+<h1>Paxos</h1>
+<p class="byline">
+  <time datetime='2026-04-26' pubdate>
+    2026-04-26
+  </time>
+  
+</p>
+
+<content>
+  <p>Before Raft, there was Paxos. For about two decades it was the foundational answer to distributed consensus &ndash; and it was notoriously hard to implement correctly. Lamport published the original paper in 1989, but it was so difficult to parse that he rewrote it as &ldquo;Paxos Made Simple&rdquo; in 2001. The simpler version is still genuinely hard.</p>
+<p>Understanding Paxos is worth doing. It&rsquo;s not just historical &ndash; Chubby, ZooKeeper, and Spanner are built on it or close variants, and many distributed systems interviews probe it. More importantly, every simplification Raft makes is a direct response to a specific pain point in Paxos. Understanding what Paxos gets wrong explains why Raft looks the way it does.</p>
+<h2 id="the-problem">The Problem</h2>
+<p>Multiple nodes need to agree on a single value. The network is unreliable: messages can be dropped, reordered, or delayed arbitrarily. Nodes can crash at any time. There is no shared clock.</p>
+<p>A minority of nodes can fail; the protocol must still make progress. The protocol must also be safe: once a value is chosen, no future round can choose a different value.</p>
+<p>This is the consensus problem. Two-Phase Commit solves it only when the coordinator doesn&rsquo;t fail. Paxos solves it even when any minority of nodes can fail, including the &ldquo;coordinator.&rdquo;</p>
+<h2 id="roles">Roles</h2>
+<p>Any node can play any role (often all three simultaneously in practice):</p>
+<ul>
+<li><strong>Proposer</strong> &ndash; initiates a round, trying to get a value agreed upon</li>
+<li><strong>Acceptor</strong> &ndash; votes on proposals; the safety machinery lives here</li>
+<li><strong>Learner</strong> &ndash; learns what value was finally chosen, acts on it</li>
+</ul>
+<h2 id="the-protocol--two-phases">The Protocol &ndash; Two Phases</h2>
+<h3 id="phase-1-prepare--promise">Phase 1: Prepare / Promise</h3>
+<ol>
+<li>
+<p>The proposer picks a <strong>proposal number</strong> <code>n</code>. It must be unique across all proposers and higher than any proposal number the proposer has seen before. (Usually implemented with <code>(timestamp, node_id)</code> tuples or a monotonic counter stored durably.)</p>
+</li>
+<li>
+<p>Sends <code>PREPARE(n)</code> to a quorum of acceptors (any majority).</p>
+</li>
+<li>
+<p>Each acceptor that receives <code>PREPARE(n)</code>:</p>
+<ul>
+<li>If <code>n</code> is higher than any PREPARE it has responded to: replies <code>PROMISE(n)</code>, committing to <strong>reject any future PREPARE or ACCEPT with a lower proposal number</strong></li>
+<li>If <code>n</code> is not higher: ignores or rejects the request</li>
+<li>If it has already accepted a value in a prior round, it includes that <code>(accepted_n, accepted_value)</code> in the promise</li>
+</ul>
+</li>
+</ol>
+<h3 id="phase-2-accept--accepted">Phase 2: Accept / Accepted</h3>
+<ol>
+<li>If the proposer receives PROMISE from a quorum:
+<ul>
+<li>If any promise included an <code>(accepted_n, accepted_value)</code>, the proposer <strong>must use the value with the highest <code>accepted_n</code></strong> &ndash; it cannot freely choose its own value</li>
+<li>If no promise included an accepted value, the proposer can propose any value it wants</li>
+</ul>
+</li>
+<li>Sends <code>ACCEPT(n, value)</code> to the quorum</li>
+<li>Each acceptor that receives <code>ACCEPT(n, value)</code>:
+<ul>
+<li>If it hasn&rsquo;t promised to ignore <code>n</code>: writes the value and replies <code>ACCEPTED(n, value)</code></li>
+<li>If it has made a promise with a higher number: ignores or rejects</li>
+</ul>
+</li>
+<li>Once a quorum of acceptors reply <code>ACCEPTED</code> with the same <code>n</code> → the value is <strong>chosen</strong></li>
+</ol>
+
+
+
+
+
+<pre tabindex="0"><code>Proposer          Acceptor A    Acceptor B    Acceptor C
+   |-- PREPARE(5) --&gt;|             |             |
+   |-- PREPARE(5) ---|------------&gt;|             |
+   |&lt;-- PROMISE(5) --|             |             |
+   |&lt;-- PROMISE(5) --|-------------|             |
+   |-- ACCEPT(5,v) -&gt;|             |             |
+   |-- ACCEPT(5,v) --|------------&gt;|             |
+   |&lt;-- ACCEPTED ---|              |             |
+   |&lt;-- ACCEPTED ---|--------------|             |
+      [value v is chosen, Acceptor C was unreachable but quorum achieved]</code></pre><h2 id="why-its-correct">Why It&rsquo;s Correct</h2>
+<p><strong>Safety (no two values can be chosen):</strong> Suppose value <code>v</code> was chosen at proposal <code>n</code> &ndash; meaning a quorum Q1 accepted it. Any later proposer <code>n' &gt; n</code> that runs Phase 1 will receive promises from a quorum Q2. Q1 and Q2 must overlap (both are majorities). The overlapping acceptor already accepted <code>v</code> and includes <code>(n, v)</code> in its promise. The Phase 2 rule forces the new proposer to use <code>v</code> (since it&rsquo;s the highest accepted value). So no different value can ever be chosen.</p>
+<p><strong>Liveness (the protocol makes progress):</strong> As long as a majority of nodes are reachable and a single stable proposer drives the protocol, a value will eventually be chosen. The protocol doesn&rsquo;t guarantee progress if proposers keep competing &ndash; see the livelock problem below.</p>
+<h2 id="the-gotchas">The Gotchas</h2>
+<h3 id="livelock-with-competing-proposers">Livelock with Competing Proposers</h3>
+<p>Two proposers P1 and P2 can keep preempting each other indefinitely:</p>
+
+
+
+
+
+<pre tabindex="0"><code>P1 sends PREPARE(5), gets promises from quorum
+P2 sends PREPARE(6) before P1 can reach ACCEPT -- quorum promises ignore n=5
+P1&#39;s ACCEPT(5, v) is rejected -- quorum promised to ignore anything &lt; 6
+P1 increments to PREPARE(7), gets new promises
+P2&#39;s ACCEPT(6, v) is now rejected
+... loops forever</code></pre><p>The fix is a <strong>distinguished proposer</strong> (leader): only one node proposes at a time. This is what Multi-Paxos formalizes &ndash; elect a stable leader, suppress all other proposers, and the livelock disappears. It&rsquo;s not part of basic Paxos; it&rsquo;s an add-on that every production implementation requires.</p>
+<h3 id="single-value-vs-log-multi-paxos">Single-Value vs. Log: Multi-Paxos</h3>
+<p>Basic Paxos agrees on one value. Real systems need to agree on a sequence of commands &ndash; a log. Multi-Paxos runs Paxos for each log slot, but with an optimization: once a stable leader exists, you can skip Phase 1 for subsequent slots. You pay the two-round-trip cost once per leader election, then only Phase 2 for every log entry.</p>
+<p>The problem: Multi-Paxos is not a formal protocol. It&rsquo;s described as an optimization on basic Paxos, and different implementations fill in the details differently. Log gaps are allowed &ndash; a slot can be accepted out of order. Cluster membership changes are not specified. Leader election is not specified. This leaves a large surface area for subtle bugs.</p>
+<h3 id="its-hard-to-implement-correctly">It&rsquo;s Hard to Implement Correctly</h3>
+<p>&ldquo;Paxos Made Simple&rdquo; describes the algorithm clearly. Getting from there to a correct implementation in a production system requires handling: durability of acceptor state across crashes (promise/accept must be persisted before responding), leader election, log gap handling, log compaction, cluster membership changes, client request routing, and linearizable reads. None of these are in the paper.</p>
+<p>Chubby&rsquo;s authors wrote that their Paxos implementation took years to get right and required multiple rewrites. This is why Raft was created.</p>
+<h2 id="paxos-vs-raft">Paxos vs. Raft</h2>
+<p>The safety properties are equivalent. The differences are implementation surface:</p>
+<table>
+  <thead>
+      <tr>
+          <th></th>
+          <th>Paxos (Multi-Paxos)</th>
+          <th>Raft</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><strong>Log gaps</strong></td>
+          <td>Allowed</td>
+          <td>Not allowed &ndash; sequential only</td>
+      </tr>
+      <tr>
+          <td><strong>Leader</strong></td>
+          <td>Distinguished proposer, informally defined</td>
+          <td>Formal, enforced by protocol</td>
+      </tr>
+      <tr>
+          <td><strong>Config changes</strong></td>
+          <td>Not specified</td>
+          <td>Joint consensus built in</td>
+      </tr>
+      <tr>
+          <td><strong>Understandability</strong></td>
+          <td>Notoriously hard</td>
+          <td>Designed to be teachable</td>
+      </tr>
+      <tr>
+          <td><strong>Implementations</strong></td>
+          <td>Chubby, Zab (ZooKeeper), Spanner</td>
+          <td>etcd, CockroachDB, TiKV, Consul</td>
+      </tr>
+  </tbody>
+</table>
+<p>Same fault tolerance: both tolerate <code>⌊(N-1)/2⌋</code> node failures.</p>
+<h2 id="where-paxos-is-still-used">Where Paxos Is Still Used</h2>
+<ul>
+<li><strong>Google Chubby</strong> &ndash; distributed lock service. Underpins Bigtable and GFS for leader election and metadata coordination.</li>
+<li><strong>Apache ZooKeeper</strong> &ndash; uses Zab (ZooKeeper Atomic Broadcast), which is a Paxos variant with primary-order delivery guarantees added. Powers Kafka, HBase, and Hadoop ecosystem coordination.</li>
+<li><strong>Google Spanner</strong> &ndash; Paxos per shard for cross-replica replication. Combined with TrueTime for external consistency.</li>
+</ul>
+<p>New systems almost universally choose Raft. The guarantees are equivalent and the implementation surface is much smaller. Paxos matters because it&rsquo;s what everything was built on, and because understanding what it leaves unspecified is the clearest way to understand why the distributed systems field spent a decade building on top of it before someone sat down and wrote a protocol that was complete enough to implement from scratch.</p>
+
+</content>
+<p>
+  
+</p>
+
+
+  <p>
+    <a href='mailto:shentharkrishnatejaswi@gmail.com?subject=Reply%20to%20"Paxos"'>
+      Reply to this post by email ↪
+    </a>
+  </p>
+
+
+
+  </main>
+  <footer><small>
+  Krishnatejaswi S | Made with <a href="https://github.com/clente/hugo-bearcub">Bear Cub</a>
+</small></footer>
+
+    
+</body>
+
+</html>

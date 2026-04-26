@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en-us">
+
+<head>
+  <meta http-equiv="X-Clacks-Overhead" content="GNU Terry Pratchett" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="shortcut icon" href="https://KTS-o7.github.io/bear/images/favicon.png" />
+<title>Vector Clocks | </title>
+<meta name="title" content="Vector Clocks" />
+<meta name="description" content="Distributed systems have no shared clock. Two nodes can each observe an event and disagree on which came first &ndash; not because they&rsquo;re wrong, but because the question is genuinely unanswerable without a mechanism to track causality.
+Timestamps don&rsquo;t help. Network latency is unbounded, clocks drift, and even NTP-synchronized clocks have milliseconds of skew. If Node A writes at 10:00:00.100 and Node B writes at 10:00:00.099, you can&rsquo;t conclude B&rsquo;s write happened first &ndash; B&rsquo;s clock might just be slightly behind. Treating wall-clock timestamps as a causal ordering is a data loss bug waiting to happen." />
+<meta name="author" content="" />
+<meta name="keywords" content="" />
+
+
+
+
+
+
+  
+  <meta property="og:url" content="https://KTS-o7.github.io/bear/posts/vector_clocks/">
+  <meta property="og:title" content="Vector Clocks">
+  <meta property="og:description" content="Distributed systems have no shared clock. Two nodes can each observe an event and disagree on which came first – not because they’re wrong, but because the question is genuinely unanswerable without a mechanism to track causality.
+Timestamps don’t help. Network latency is unbounded, clocks drift, and even NTP-synchronized clocks have milliseconds of skew. If Node A writes at 10:00:00.100 and Node B writes at 10:00:00.099, you can’t conclude B’s write happened first – B’s clock might just be slightly behind. Treating wall-clock timestamps as a causal ordering is a data loss bug waiting to happen.">
+  <meta property="og:locale" content="en_us">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="posts">
+    <meta property="article:published_time" content="2026-04-26T00:00:00+05:30">
+    <meta property="article:modified_time" content="2026-04-26T00:00:00+05:30">
+    <meta property="og:image" content="https://KTS-o7.github.io/bear/images/share.webp">
+
+
+  
+  
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://KTS-o7.github.io/bear/images/share.webp">
+  <meta name="twitter:title" content="Vector Clocks">
+  <meta name="twitter:description" content="Distributed systems have no shared clock. Two nodes can each observe an event and disagree on which came first – not because they’re wrong, but because the question is genuinely unanswerable without a mechanism to track causality.
+Timestamps don’t help. Network latency is unbounded, clocks drift, and even NTP-synchronized clocks have milliseconds of skew. If Node A writes at 10:00:00.100 and Node B writes at 10:00:00.099, you can’t conclude B’s write happened first – B’s clock might just be slightly behind. Treating wall-clock timestamps as a causal ordering is a data loss bug waiting to happen.">
+
+
+  
+  
+  <meta itemprop="name" content="Vector Clocks">
+  <meta itemprop="description" content="Distributed systems have no shared clock. Two nodes can each observe an event and disagree on which came first – not because they’re wrong, but because the question is genuinely unanswerable without a mechanism to track causality.
+Timestamps don’t help. Network latency is unbounded, clocks drift, and even NTP-synchronized clocks have milliseconds of skew. If Node A writes at 10:00:00.100 and Node B writes at 10:00:00.099, you can’t conclude B’s write happened first – B’s clock might just be slightly behind. Treating wall-clock timestamps as a causal ordering is a data loss bug waiting to happen.">
+  <meta itemprop="datePublished" content="2026-04-26T00:00:00+05:30">
+  <meta itemprop="dateModified" content="2026-04-26T00:00:00+05:30">
+  <meta itemprop="wordCount" content="1078">
+  <meta itemprop="image" content="https://KTS-o7.github.io/bear/images/share.webp">
+
+<meta name="referrer" content="no-referrer-when-downgrade" />
+
+  
+  <link href="/bear/herman.min.css" rel="stylesheet">
+
+  
+    
+    <link href="/bear/syntax.min.css" rel="stylesheet">
+  
+
+  
+
+  
+
+  
+</head>
+
+<body>
+  <header><a class="skip-link" href="#main-content">Skip to main content</a>
+
+<a href="/bear/" class="title"><h1></h1></a>
+<nav>
+  <a href="/bear/">Home</a>
+
+  <a href="/bear/posts/">Posts</a>
+
+  <a href="/bear/about/">About</a>
+
+  <a href="/bear/ml/">ML Stuff</a>
+
+  <a href="/bear/cses.fi/">CSES.fi</a>
+
+<a href='https://KTS-o7.github.io/bear/index.xml'>RSS</a>
+
+
+
+
+
+
+
+</nav>
+</header>
+  <main id="main-content">
+
+<h1>Vector Clocks</h1>
+<p class="byline">
+  <time datetime='2026-04-26' pubdate>
+    2026-04-26
+  </time>
+  
+</p>
+
+<content>
+  <p>Distributed systems have no shared clock. Two nodes can each observe an event and disagree on which came first &ndash; not because they&rsquo;re wrong, but because the question is genuinely unanswerable without a mechanism to track causality.</p>
+<p>Timestamps don&rsquo;t help. Network latency is unbounded, clocks drift, and even NTP-synchronized clocks have milliseconds of skew. If Node A writes at 10:00:00.100 and Node B writes at 10:00:00.099, you can&rsquo;t conclude B&rsquo;s write happened first &ndash; B&rsquo;s clock might just be slightly behind. Treating wall-clock timestamps as a causal ordering is a data loss bug waiting to happen.</p>
+<p>The only thing you can reliably know is whether one event <em>caused</em> another &ndash; whether one event happened in a way that could have been influenced by, or was a consequence of, another event. Vector clocks make this relationship explicit.</p>
+<h2 id="the-mechanism">The Mechanism</h2>
+<p>Each node maintains a vector of counters &ndash; one slot per node in the system. The rules are three lines:</p>
+<ol>
+<li><strong>Local event</strong>: increment your own slot</li>
+<li><strong>Send a message</strong>: attach your current vector</li>
+<li><strong>Receive a message</strong>: take the element-wise max of your vector and the incoming one, then increment your own slot</li>
+</ol>
+<p>A concrete example with three nodes:</p>
+
+
+
+
+
+<pre tabindex="0"><code>Initial state:   A=[0,0,0]   B=[0,0,0]   C=[0,0,0]
+
+A does work:     A=[1,0,0]
+A sends to B:    B receives [1,0,0], merges, ticks → B=[1,1,0]
+B sends to C:    C receives [1,1,0], merges, ticks → C=[1,1,1]
+A does more work: A=[2,0,0]
+A sends to C:    C receives [2,0,0], merges, ticks → C=[2,1,2]</code></pre><p>At that last step, C&rsquo;s vector <code>[2,1,2]</code> encodes: &ldquo;I&rsquo;ve seen 2 events from A, 1 from B, and this is my 2nd event.&rdquo; Any node that receives C&rsquo;s next message will know the full causal history C had when it acted.</p>
+<h2 id="happened-before-the-only-ordering-that-matters">Happened-Before: The Only Ordering That Matters</h2>
+<p>Given two events with vectors V1 and V2, exactly one of three things is true:</p>
+<table>
+  <thead>
+      <tr>
+          <th>Result</th>
+          <th>Condition</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>V1 happened-before V2</td>
+          <td>V1[i] ≤ V2[i] for all i, and strict &lt; for at least one</td>
+      </tr>
+      <tr>
+          <td>V2 happened-before V1</td>
+          <td>V2[i] ≤ V1[i] for all i, and strict &lt; for at least one</td>
+      </tr>
+      <tr>
+          <td><strong>Concurrent</strong></td>
+          <td>Neither dominates &ndash; some positions where V1 &gt; V2, some where V2 &gt; V1</td>
+      </tr>
+  </tbody>
+</table>
+<p>The &ldquo;happened-before&rdquo; relation (→) was formalized by Lamport in 1978. It captures: A → B if A sent a message that B received, or if there&rsquo;s a chain of such messages connecting them. Events that have no such chain are <em>concurrent</em> &ndash; they happened independently, with no causal link.</p>
+<p>The concurrent case is the key insight. Vector clocks don&rsquo;t force an artificial total order on unrelated events. They say: &ldquo;these two events had no knowledge of each other when they happened, so there is no meaningful ordering between them.&rdquo; That&rsquo;s honest.</p>
+<h2 id="why-concurrency-detection-matters-in-practice">Why Concurrency Detection Matters in Practice</h2>
+<p>The alternative to detecting concurrency is <strong>last-write-wins (LWW)</strong>. If two nodes write to the same key without knowing about each other, you pick the higher timestamp as winner and silently discard the other write. No error, no conflict flag, just data loss.</p>
+<p>LWW is tempting because it&rsquo;s simple and it always produces a single answer. It&rsquo;s also wrong in any system where two concurrent writes are both valid and need to be merged &ndash; which is most real-world conflict scenarios.</p>
+<p>DynamoDB (in some configurations) and Riak use vector clocks to detect concurrent writes and surface the conflict to the application or user for resolution. Riak&rsquo;s model was explicit: if two writes are concurrent, the database returns both values as siblings. The application decides how to merge them. That&rsquo;s honest conflict handling.</p>
+<p>The classic example: two users edit the same shopping cart simultaneously from different devices. LWW silently picks one cart and discards the other. Vector clocks detect that both edits happened concurrently and let you merge them (union the items, in the simplest case).</p>
+<h2 id="lamport-clocks-vs-vector-clocks">Lamport Clocks vs. Vector Clocks</h2>
+<p>Lamport clocks are the scalar predecessor. Each node maintains a single counter; on send, it attaches the counter; on receive, it takes max and increments. Simple.</p>
+<p>The problem: Lamport clocks can only give you a <em>consistent total order</em>. If A → B, then Lamport(A) &lt; Lamport(B) &ndash; that holds. But the converse does not: Lamport(A) &lt; Lamport(B) does <em>not</em> imply A → B. Two concurrent events will have a defined Lamport ordering, but that ordering is artificial &ndash; it doesn&rsquo;t reflect any causal relationship.</p>
+<p>Vector clocks fix this. If V(A) &lt; V(B) (component-wise), then A → B. The implication goes both ways. Concurrency is detectable, not just artificially ordered away.</p>
+<p>When to use which: if you need &ldquo;give me a consistent total order for logging or tie-breaking&rdquo; and you don&rsquo;t care about detecting actual concurrency, Lamport is sufficient and cheap. If you need to know whether two events could have influenced each other &ndash; conflict detection, causal consistency, replica reconciliation &ndash; you need vectors.</p>
+<h2 id="the-space-tradeoff">The Space Tradeoff</h2>
+<p>Vector size grows O(N) with the number of nodes. In a 5-node cluster, every message carries 5 integers &ndash; trivial. In a 500-node cluster, every message carries 500 integers, and every stored value needs 500 integers of metadata. That&rsquo;s not trivial.</p>
+<p><strong>Dotted Version Vectors</strong> address this by pruning entries that are causally dominated &ndash; if a component of the vector is implied by other components, you don&rsquo;t need to store it explicitly. Riak switched to DVVs in 2013. The semantic guarantees are identical; the storage and transmission cost is lower.</p>
+<p><strong>Version vectors</strong> (used in systems like Git) are a related concept: a version vector is per-object rather than per-node, and tracks which version of an object each replica has seen. The causality reasoning is the same.</p>
+<h2 id="what-it-doesnt-solve">What It Doesn&rsquo;t Solve</h2>
+<p>Vector clocks tell you <em>whether</em> events are concurrent. They don&rsquo;t tell you how to merge them. That&rsquo;s the application&rsquo;s problem.</p>
+<p>CRDTs (Conflict-free Replicated Data Types) are one approach: data structures designed so that concurrent updates can always be merged automatically without conflict. A grow-only counter, a set that only allows additions &ndash; these have natural merge semantics. For more complex data, application-level merge logic is necessary.</p>
+<p>The other limitation: vector clocks assume a fixed, known set of nodes. If nodes join and leave dynamically, the vector grows unboundedly or needs garbage collection. This is why some systems use alternative causality tracking schemes &ndash; interval tree clocks, hybrid logical clocks &ndash; that handle dynamic membership more cleanly. The core idea of encoding causal history into a data structure attached to each message is the same across all of them; the differences are in how they handle the bookkeeping as the cluster changes shape.</p>
+
+</content>
+<p>
+  
+</p>
+
+
+  <p>
+    <a href='mailto:shentharkrishnatejaswi@gmail.com?subject=Reply%20to%20"Vector%20Clocks"'>
+      Reply to this post by email ↪
+    </a>
+  </p>
+
+
+
+  </main>
+  <footer><small>
+  Krishnatejaswi S | Made with <a href="https://github.com/clente/hugo-bearcub">Bear Cub</a>
+</small></footer>
+
+    
+</body>
+
+</html>
