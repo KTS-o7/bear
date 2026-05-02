@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en-us">
+
+<head>
+  <meta http-equiv="X-Clacks-Overhead" content="GNU Terry Pratchett" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="shortcut icon" href="https://KTS-o7.github.io/bear/images/favicon.png" />
+<title>Circuit Breakers: The Pattern That Stops Cascading Failures | </title>
+<meta name="title" content="Circuit Breakers: The Pattern That Stops Cascading Failures" />
+<meta name="description" content="The payment service starts timing out. The fraud detection API it depends on is slow. Your retry logic kicks in &ndash; which makes sense, retries are good &ndash; but now every incoming request is spawning 3x the load on a service that was already struggling. The fraud service falls over completely. Now the entire checkout flow is dead.
+This is a cascading failure. One slow dependency turned into a full outage because the upstream service kept hammering it instead of stopping." />
+<meta name="author" content="" />
+<meta name="keywords" content="" />
+
+
+
+
+
+
+  
+  <meta property="og:url" content="https://KTS-o7.github.io/bear/posts/circuit_breakers_distributed_systems/">
+  <meta property="og:title" content="Circuit Breakers: The Pattern That Stops Cascading Failures">
+  <meta property="og:description" content="The payment service starts timing out. The fraud detection API it depends on is slow. Your retry logic kicks in – which makes sense, retries are good – but now every incoming request is spawning 3x the load on a service that was already struggling. The fraud service falls over completely. Now the entire checkout flow is dead.
+This is a cascading failure. One slow dependency turned into a full outage because the upstream service kept hammering it instead of stopping.">
+  <meta property="og:locale" content="en_us">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="posts">
+    <meta property="article:published_time" content="2026-05-02T00:00:00+05:30">
+    <meta property="article:modified_time" content="2026-05-02T00:00:00+05:30">
+    <meta property="og:image" content="https://KTS-o7.github.io/bear/images/share.webp">
+
+
+  
+  
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://KTS-o7.github.io/bear/images/share.webp">
+  <meta name="twitter:title" content="Circuit Breakers: The Pattern That Stops Cascading Failures">
+  <meta name="twitter:description" content="The payment service starts timing out. The fraud detection API it depends on is slow. Your retry logic kicks in – which makes sense, retries are good – but now every incoming request is spawning 3x the load on a service that was already struggling. The fraud service falls over completely. Now the entire checkout flow is dead.
+This is a cascading failure. One slow dependency turned into a full outage because the upstream service kept hammering it instead of stopping.">
+
+
+  
+  
+  <meta itemprop="name" content="Circuit Breakers: The Pattern That Stops Cascading Failures">
+  <meta itemprop="description" content="The payment service starts timing out. The fraud detection API it depends on is slow. Your retry logic kicks in – which makes sense, retries are good – but now every incoming request is spawning 3x the load on a service that was already struggling. The fraud service falls over completely. Now the entire checkout flow is dead.
+This is a cascading failure. One slow dependency turned into a full outage because the upstream service kept hammering it instead of stopping.">
+  <meta itemprop="datePublished" content="2026-05-02T00:00:00+05:30">
+  <meta itemprop="dateModified" content="2026-05-02T00:00:00+05:30">
+  <meta itemprop="wordCount" content="449">
+  <meta itemprop="image" content="https://KTS-o7.github.io/bear/images/share.webp">
+
+<meta name="referrer" content="no-referrer-when-downgrade" />
+
+  
+  <link href="/bear/herman.min.css" rel="stylesheet">
+
+  
+
+  
+
+  
+
+  
+</head>
+
+<body>
+  <header><a class="skip-link" href="#main-content">Skip to main content</a>
+
+<a href="/bear/" class="title"><h1></h1></a>
+<nav>
+  <a href="/bear/">Home</a>
+
+  <a href="/bear/posts/">Posts</a>
+
+  <a href="/bear/about/">About</a>
+
+  <a href="/bear/ml/">ML Stuff</a>
+
+  <a href="/bear/cses.fi/">CSES.fi</a>
+
+<a href='https://KTS-o7.github.io/bear/index.xml'>RSS</a>
+
+
+
+
+
+
+
+</nav>
+</header>
+  <main id="main-content">
+
+<h1>Circuit Breakers: The Pattern That Stops Cascading Failures</h1>
+<p class="byline">
+  <time datetime='2026-05-02' pubdate>
+    2026-05-02
+  </time>
+  
+</p>
+
+<content>
+  <p>The payment service starts timing out. The fraud detection API it depends on is slow. Your retry logic kicks in &ndash; which makes sense, retries are good &ndash; but now every incoming request is spawning 3x the load on a service that was already struggling. The fraud service falls over completely. Now the entire checkout flow is dead.</p>
+<p>This is a cascading failure. One slow dependency turned into a full outage because the upstream service kept hammering it instead of stopping.</p>
+<h2 id="the-pattern">The Pattern</h2>
+<p>Circuit breakers fix this by failing fast. The name comes from electrical circuit breakers: when the current exceeds a threshold, the breaker trips and cuts power before anything burns. Same idea here.</p>
+<p>The circuit has three states:</p>
+<p><strong>Closed</strong> &ndash; normal operation. Requests go through, failures are counted. When failures cross a configured threshold within a time window, the circuit trips.</p>
+<p><strong>Open</strong> &ndash; the circuit has tripped. Requests immediately return an error without calling the downstream service at all. No network round-trips, no timeouts, no extra load on a service that&rsquo;s already struggling. After a cooldown period, the circuit moves to half-open.</p>
+<p><strong>Half-open</strong> &ndash; one test request is allowed through. If it succeeds, the circuit closes and normal operation resumes. If it fails, the circuit trips back to open and the cooldown resets.</p>
+<p>The key insight is that sometimes the most useful thing you can do is stop trying. Retrying a failing service doesn&rsquo;t help it recover. Backing off does.</p>
+<h2 id="where-youll-find-it">Where You&rsquo;ll Find It</h2>
+<p>Netflix Hystrix made this pattern famous, but it&rsquo;s now table stakes in most infrastructure:</p>
+<ul>
+<li>Istio has it built into the service mesh at the sidecar level &ndash; no application code needed</li>
+<li>Resilience4j for Java</li>
+<li>Polly for .NET</li>
+<li>Most Redis clients ship with circuit breaking on connection failures</li>
+</ul>
+<p>The mesh-level implementations are interesting because they work across languages and don&rsquo;t require every service team to implement the pattern themselves. You configure thresholds in the mesh and it handles the state machine.</p>
+<h2 id="the-gotcha-timeout-ordering">The Gotcha: Timeout Ordering</h2>
+<p>There&rsquo;s one configuration mistake that makes circuit breakers useless: setting your request timeout longer than your circuit breaker&rsquo;s failure window.</p>
+<p>If your timeout is 30 seconds but your circuit breaker trips after 5 failures within 10 seconds &ndash; and each failure takes 25 seconds to time out &ndash; you&rsquo;ll accumulate only one or two failures in any 10-second window. The circuit never trips because failures arrive too slowly to hit the threshold, even while the system is drowning in slow requests.</p>
+<p>The rule: timeouts must be shorter than the failure window. If your breaker watches a 10-second window and trips at 5 failures, your per-request timeout needs to be well under 2 seconds. Otherwise the breaker is just decorative.</p>
+
+</content>
+<p>
+  
+</p>
+
+
+  <p>
+    <a href='mailto:shentharkrishnatejaswi@gmail.com?subject=Reply%20to%20"Circuit%20Breakers%3a%20The%20Pattern%20That%20Stops%20Cascading%20Failures"'>
+      Reply to this post by email ↪
+    </a>
+  </p>
+
+
+
+  </main>
+  <footer><small>
+  Krishnatejaswi S | Made with <a href="https://github.com/clente/hugo-bearcub">Bear Cub</a>
+</small></footer>
+
+    
+</body>
+
+</html>

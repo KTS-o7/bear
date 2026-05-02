@@ -6,10 +6,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <link rel="shortcut icon" href="https://KTS-o7.github.io/bear/images/favicon.png" />
-<title>The Saga Pattern | </title>
-<meta name="title" content="The Saga Pattern" />
-<meta name="description" content="Two-Phase Commit gives you distributed atomicity. The cost is a coordinator that can crash and leave every participant locked indefinitely. For short transactions inside a single system, that&rsquo;s acceptable. For a multi-step flow that touches five separate microservices over several seconds, it isn&rsquo;t.
-The Saga pattern is the practical answer: break the distributed transaction into a sequence of local transactions, and define a compensation for each step. If something fails halfway through, run the compensations in reverse. No global lock. No blocking coordinator. Just a cleanup plan." />
+<title>The Saga Pattern: Distributed Transactions Without the Lock | </title>
+<meta name="title" content="The Saga Pattern: Distributed Transactions Without the Lock" />
+<meta name="description" content="Two-phase commit gives you distributed atomicity. It also gives you a coordinator that can stall your entire system if it crashes at the wrong moment, and locks held across multiple services for however long the transaction takes. For short, internal transactions that&rsquo;s manageable. For a trip booking flow that touches a flight service, a hotel service, and a payment service &ndash; each owned by a different team, each potentially slow &ndash; it&rsquo;s not." />
 <meta name="author" content="" />
 <meta name="keywords" content="" />
 
@@ -20,14 +19,13 @@ The Saga pattern is the practical answer: break the distributed transaction into
 
   
   <meta property="og:url" content="https://KTS-o7.github.io/bear/posts/saga_pattern/">
-  <meta property="og:title" content="The Saga Pattern">
-  <meta property="og:description" content="Two-Phase Commit gives you distributed atomicity. The cost is a coordinator that can crash and leave every participant locked indefinitely. For short transactions inside a single system, that’s acceptable. For a multi-step flow that touches five separate microservices over several seconds, it isn’t.
-The Saga pattern is the practical answer: break the distributed transaction into a sequence of local transactions, and define a compensation for each step. If something fails halfway through, run the compensations in reverse. No global lock. No blocking coordinator. Just a cleanup plan.">
+  <meta property="og:title" content="The Saga Pattern: Distributed Transactions Without the Lock">
+  <meta property="og:description" content="Two-phase commit gives you distributed atomicity. It also gives you a coordinator that can stall your entire system if it crashes at the wrong moment, and locks held across multiple services for however long the transaction takes. For short, internal transactions that’s manageable. For a trip booking flow that touches a flight service, a hotel service, and a payment service – each owned by a different team, each potentially slow – it’s not.">
   <meta property="og:locale" content="en_us">
   <meta property="og:type" content="article">
     <meta property="article:section" content="posts">
-    <meta property="article:published_time" content="2026-04-26T00:00:00+05:30">
-    <meta property="article:modified_time" content="2026-04-26T00:00:00+05:30">
+    <meta property="article:published_time" content="2026-05-02T00:00:00+05:30">
+    <meta property="article:modified_time" content="2026-05-02T00:00:00+05:30">
     <meta property="og:image" content="https://KTS-o7.github.io/bear/images/share.webp">
 
 
@@ -35,19 +33,17 @@ The Saga pattern is the practical answer: break the distributed transaction into
   
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:image" content="https://KTS-o7.github.io/bear/images/share.webp">
-  <meta name="twitter:title" content="The Saga Pattern">
-  <meta name="twitter:description" content="Two-Phase Commit gives you distributed atomicity. The cost is a coordinator that can crash and leave every participant locked indefinitely. For short transactions inside a single system, that’s acceptable. For a multi-step flow that touches five separate microservices over several seconds, it isn’t.
-The Saga pattern is the practical answer: break the distributed transaction into a sequence of local transactions, and define a compensation for each step. If something fails halfway through, run the compensations in reverse. No global lock. No blocking coordinator. Just a cleanup plan.">
+  <meta name="twitter:title" content="The Saga Pattern: Distributed Transactions Without the Lock">
+  <meta name="twitter:description" content="Two-phase commit gives you distributed atomicity. It also gives you a coordinator that can stall your entire system if it crashes at the wrong moment, and locks held across multiple services for however long the transaction takes. For short, internal transactions that’s manageable. For a trip booking flow that touches a flight service, a hotel service, and a payment service – each owned by a different team, each potentially slow – it’s not.">
 
 
   
   
-  <meta itemprop="name" content="The Saga Pattern">
-  <meta itemprop="description" content="Two-Phase Commit gives you distributed atomicity. The cost is a coordinator that can crash and leave every participant locked indefinitely. For short transactions inside a single system, that’s acceptable. For a multi-step flow that touches five separate microservices over several seconds, it isn’t.
-The Saga pattern is the practical answer: break the distributed transaction into a sequence of local transactions, and define a compensation for each step. If something fails halfway through, run the compensations in reverse. No global lock. No blocking coordinator. Just a cleanup plan.">
-  <meta itemprop="datePublished" content="2026-04-26T00:00:00+05:30">
-  <meta itemprop="dateModified" content="2026-04-26T00:00:00+05:30">
-  <meta itemprop="wordCount" content="986">
+  <meta itemprop="name" content="The Saga Pattern: Distributed Transactions Without the Lock">
+  <meta itemprop="description" content="Two-phase commit gives you distributed atomicity. It also gives you a coordinator that can stall your entire system if it crashes at the wrong moment, and locks held across multiple services for however long the transaction takes. For short, internal transactions that’s manageable. For a trip booking flow that touches a flight service, a hotel service, and a payment service – each owned by a different team, each potentially slow – it’s not.">
+  <meta itemprop="datePublished" content="2026-05-02T00:00:00+05:30">
+  <meta itemprop="dateModified" content="2026-05-02T00:00:00+05:30">
+  <meta itemprop="wordCount" content="565">
   <meta itemprop="image" content="https://KTS-o7.github.io/bear/images/share.webp">
 
 <meta name="referrer" content="no-referrer-when-downgrade" />
@@ -94,19 +90,20 @@ The Saga pattern is the practical answer: break the distributed transaction into
 </header>
   <main id="main-content">
 
-<h1>The Saga Pattern</h1>
+<h1>The Saga Pattern: Distributed Transactions Without the Lock</h1>
 <p class="byline">
-  <time datetime='2026-04-26' pubdate>
-    2026-04-26
+  <time datetime='2026-05-02' pubdate>
+    2026-05-02
   </time>
   
 </p>
 
 <content>
-  <p>Two-Phase Commit gives you distributed atomicity. The cost is a coordinator that can crash and leave every participant locked indefinitely. For short transactions inside a single system, that&rsquo;s acceptable. For a multi-step flow that touches five separate microservices over several seconds, it isn&rsquo;t.</p>
-<p>The Saga pattern is the practical answer: break the distributed transaction into a sequence of local transactions, and define a compensation for each step. If something fails halfway through, run the compensations in reverse. No global lock. No blocking coordinator. Just a cleanup plan.</p>
-<h2 id="the-basic-mechanics">The Basic Mechanics</h2>
-<p>A saga is a sequence of steps, each executed by a single service as a local transaction:</p>
+  <p>Two-phase commit gives you distributed atomicity. It also gives you a coordinator that can stall your entire system if it crashes at the wrong moment, and locks held across multiple services for however long the transaction takes. For short, internal transactions that&rsquo;s manageable. For a trip booking flow that touches a flight service, a hotel service, and a payment service &ndash; each owned by a different team, each potentially slow &ndash; it&rsquo;s not.</p>
+<p>The Saga pattern is the alternative. You give up true atomicity in exchange for availability, scalability, and no cross-service locks.</p>
+<h2 id="how-it-works">How It Works</h2>
+<p>Break one big distributed transaction into a sequence of local transactions, each owned by a single service. Each step publishes an event or sends a message when it completes. If any step fails, run compensating transactions in reverse to undo the completed steps.</p>
+<p>The classic example is a trip booking:</p>
 
 
 
@@ -114,51 +111,24 @@ The Saga pattern is the practical answer: break the distributed transaction into
 
 <pre tabindex="0"><code>Step 1: Reserve flight    → local tx in Flight Service
 Step 2: Reserve hotel     → local tx in Hotel Service
-Step 3: Charge card       → local tx in Payment Service</code></pre><p>Each step succeeds or fails independently. If Step 3 fails after Steps 1 and 2 have already committed:</p>
+Step 3: Charge card       → local tx in Payment Service</code></pre><p>If step 3 fails:</p>
 
 
 
 
 
-<pre tabindex="0"><code>FORWARD:  [Flight ✓] → [Hotel ✓] → [Payment ✗]
-ROLLBACK:             ← [Cancel Hotel] ← [Cancel Flight]</code></pre><p>The compensation for &ldquo;reserve flight&rdquo; is &ldquo;cancel flight&rdquo;. The compensation for &ldquo;reserve hotel&rdquo; is &ldquo;cancel hotel&rdquo;. Each service is responsible for knowing how to undo itself.</p>
-<p>This is fundamentally different from a database rollback. There&rsquo;s no global transaction log. The compensations are domain-level operations that must be designed and implemented explicitly.</p>
-<h2 id="two-coordination-models">Two Coordination Models</h2>
-<h3 id="choreography">Choreography</h3>
-<p>Each service listens for events on a message bus and decides what to do next based on what it hears. No central coordinator. The saga emerges from the interaction of independent services.</p>
-
-
-
-
-
-<pre tabindex="0"><code>Payment Service emits &#34;payment_failed&#34;
-→ Hotel Service hears it, cancels reservation, emits &#34;hotel_cancelled&#34;
-→ Flight Service hears it, cancels reservation, emits &#34;flight_cancelled&#34;
-→ Done</code></pre><p>Works well at small scale. At large scale the flow becomes hard to trace &ndash; debugging a failure means correlating events across N services, each with its own logs, each with its own notion of what happened.</p>
-<h3 id="orchestration">Orchestration</h3>
-<p>A dedicated saga orchestrator drives the sequence. It tells each service what to do, collects the result, and issues compensating calls on failure.</p>
-
-
-
-
-
-<pre tabindex="0"><code>Orchestrator → &#34;reserve flight&#34; → Flight Service → ✓
-Orchestrator → &#34;reserve hotel&#34;  → Hotel Service  → ✓
-Orchestrator → &#34;charge card&#34;    → Payment Service → ✗
-Orchestrator → &#34;cancel hotel&#34;   → Hotel Service  → ✓
-Orchestrator → &#34;cancel flight&#34;  → Flight Service  → ✓</code></pre><p>The orchestrator has a complete view of the saga&rsquo;s state at every point. Debugging is straightforward &ndash; query the orchestrator. The tradeoff is that the orchestrator becomes a coordination hub. It doesn&rsquo;t become a single point of failure (it can be replicated), but it becomes a complexity center that needs its own testing, monitoring, and failure handling.</p>
-<p>Most teams end up at orchestration. The debugging clarity is worth the overhead.</p>
-<h2 id="the-isolation-problem">The Isolation Problem</h2>
-<p>Sagas trade isolation for availability. This is the most important tradeoff to understand, and the one that bites teams who treat sagas as a drop-in replacement for 2PC.</p>
-<p>While a saga is in flight, intermediate state is visible. After Step 1 and Step 2 succeed but before Step 3, there is a committed hotel reservation and a committed flight reservation with no corresponding payment. Other services can see that state. If another saga is running concurrently, it might observe that hotel room as unavailable.</p>
-<p>This is the &ldquo;lost isolation&rdquo; in ACID. You&rsquo;re operating under eventual consistency &ndash; the system will eventually reach a correct state (either fully committed or fully compensated), but it doesn&rsquo;t happen atomically.</p>
-<p>The implications:</p>
+<pre tabindex="0"><code>FORWARD:   [Flight ✓] → [Hotel ✓] → [Payment ✗]
+ROLLBACK:              ← [Cancel Hotel] ← [Cancel Flight]</code></pre><p>No global rollback. No coordinator holding locks across all three services. Each service knows how to undo its own step.</p>
+<h2 id="two-flavors">Two Flavors</h2>
+<p><strong>Choreography</strong> &ndash; each service listens for events and decides what to do next based on what it hears. No central coordinator. Fully decoupled. Easy to start, and a debugging nightmare once you have more than a handful of services. Tracing a failed saga means reconstructing a sequence of events scattered across multiple event streams.</p>
+<p><strong>Orchestration</strong> &ndash; a central saga orchestrator drives the sequence. It tells each service what to do, collects results, and issues compensating calls on failure. Full visibility into saga state. Easier to reason about and monitor. The orchestrator becomes a coordination hub &ndash; not quite a single point of failure if you make it durable, but a complexity center. Most teams end up here in production.</p>
+<h2 id="the-tradeoff-you-cant-avoid">The Tradeoff You Can&rsquo;t Avoid</h2>
+<p>Sagas trade the &ldquo;I&rdquo; in ACID (isolation) for availability. While a saga is in-flight, intermediate state is visible to other parts of the system. A hotel room might be reserved even though the flight hasn&rsquo;t been confirmed yet. Other services can observe that state.</p>
+<p>You have to design for this explicitly:</p>
 <ul>
-<li><strong>Compensating transactions must be idempotent.</strong> A &ldquo;cancel hotel&rdquo; that gets called twice due to a retry must not double-cancel or throw an error. Design them to be safe to execute multiple times.</li>
-<li><strong>Compensating transactions must be commutative where possible.</strong> The order of compensations shouldn&rsquo;t matter.</li>
-<li><strong>Read-your-writes guarantees go away across service boundaries.</strong> A user might see a confirmed booking briefly, then see it cancelled. Design your UX accordingly.</li>
+<li><strong>Eventual consistency</strong> &ndash; the system converges to a correct final state, but not atomically</li>
+<li><strong>Idempotent compensating transactions</strong> &ndash; if your &ldquo;cancel flight&rdquo; call gets retried twice due to a network hiccup, it must be safe to run twice. Compensation that isn&rsquo;t idempotent will make your failure recovery worse than the original failure.</li>
 </ul>
-<h2 id="compared-to-2pc">Compared to 2PC</h2>
 <table>
   <thead>
       <tr>
@@ -188,27 +158,17 @@ Orchestrator → &#34;cancel flight&#34;  → Flight Service  → ✓</code></pr
           <td>Locks across services</td>
           <td>No cross-service locks</td>
       </tr>
-      <tr>
-          <td>Failure model</td>
-          <td>Coordinator SPOF</td>
-          <td>Each step can fail independently</td>
-      </tr>
   </tbody>
 </table>
-<p>There&rsquo;s no correct choice that applies everywhere. 2PC is right when you need strict atomicity and the transaction is short-lived. Sagas are right when you need availability and the steps are long-lived or span service boundaries.</p>
-<h2 id="what-production-looks-like">What Production Looks Like</h2>
-<p>The saga pattern shows up in basically every large-scale order/booking/fulfillment system:</p>
+<h2 id="where-it-shows-up">Where It Shows Up</h2>
+<p>Basically every large-scale order or booking flow:</p>
 <ul>
-<li><strong>Uber</strong> &ndash; a ride request touches driver matching, pricing, payment authorization, and notification services. Each is a local transaction. Driver matching failures trigger compensation in pricing, and so on.</li>
-<li><strong>Amazon</strong> &ndash; order placement reserves inventory, authorizes payment, and initiates fulfillment. Each step can fail and be compensated independently.</li>
-<li><strong>Netflix</strong> &ndash; subscription management spans billing, entitlement, and content licensing. Saga orchestration drives the transitions.</li>
+<li><strong>Uber</strong> &ndash; ride booking, driver assignment, payment charge, all as separate service transactions</li>
+<li><strong>Amazon</strong> &ndash; order placement, inventory reservation, fulfillment, shipping</li>
+<li><strong>Netflix</strong> &ndash; subscription management, content licensing flows</li>
 </ul>
-<p>The implementation details vary, but the pattern is the same: local transactions, explicit compensations, an orchestrator or event bus to drive the flow.</p>
-<h2 id="the-part-nobody-tells-you">The Part Nobody Tells You</h2>
-<p>Designing the happy path of a saga is easy. Designing the compensation path is where it gets hard.</p>
-<p>Compensation failures are the edge case that most teams underspecify. What happens when the &ldquo;cancel hotel&rdquo; compensation call itself fails? You need a retry strategy, a dead-letter queue, and a manual intervention path for cases that can&rsquo;t self-heal. The saga state machine needs to persist its progress durably &ndash; if the orchestrator crashes mid-saga and restarts, it must be able to resume from where it left off without re-running already-completed steps.</p>
-<p>The outbox pattern is the standard solution for durability: instead of calling the next service directly, the orchestrator writes the next command to a local database table in the same transaction that records the current step&rsquo;s result. A separate process reads the outbox and delivers the command. This guarantees at-least-once delivery without distributed transaction semantics.</p>
-<p>A saga without durable state and idempotent compensations is a saga that will eventually corrupt data in production.</p>
+<p>These systems can&rsquo;t afford to hold cross-service locks for the duration of a user-facing transaction. They accept that intermediate states exist and design their compensating logic carefully.</p>
+<p>The saga pattern doesn&rsquo;t make distributed transactions easy. It makes the tradeoffs explicit and gives you a way to build systems that stay available even when individual steps fail.</p>
 
 </content>
 <p>
@@ -217,7 +177,7 @@ Orchestrator → &#34;cancel flight&#34;  → Flight Service  → ✓</code></pr
 
 
   <p>
-    <a href='mailto:shentharkrishnatejaswi@gmail.com?subject=Reply%20to%20"The%20Saga%20Pattern"'>
+    <a href='mailto:shentharkrishnatejaswi@gmail.com?subject=Reply%20to%20"The%20Saga%20Pattern%3a%20Distributed%20Transactions%20Without%20the%20Lock"'>
       Reply to this post by email ↪
     </a>
   </p>

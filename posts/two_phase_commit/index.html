@@ -6,10 +6,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <link rel="shortcut icon" href="https://KTS-o7.github.io/bear/images/favicon.png" />
-<title>Two-Phase Commit | </title>
-<meta name="title" content="Two-Phase Commit" />
-<meta name="description" content="Suppose you have a transaction that touches three separate databases &ndash; a flight reservation, a hotel booking, and a payment charge. You want either all three to commit or none of them to. One service can&rsquo;t commit and another abort. How do you coordinate that?
-The answer most people reach for is Two-Phase Commit (2PC). It works in the happy path. The failure path has a flaw that&rsquo;s been known since the algorithm was described in 1978, and every distributed systems engineer should understand it before deciding whether to use 2PC." />
+<title>Two-Phase Commit: Distributed Atomicity and Its Fatal Flaw | </title>
+<meta name="title" content="Two-Phase Commit: Distributed Atomicity and Its Fatal Flaw" />
+<meta name="description" content="The problem is simple to state: you have a transaction that touches multiple nodes. You want all of them to commit, or none of them to. No partial states, no one node committing while another aborts.
+Two-phase commit (2PC) solves this. It&rsquo;s been in production databases for decades. It also has a flaw that makes it unusable for anything long-running, which is why most modern large-scale systems don&rsquo;t use it directly." />
 <meta name="author" content="" />
 <meta name="keywords" content="" />
 
@@ -20,14 +20,14 @@ The answer most people reach for is Two-Phase Commit (2PC). It works in the happ
 
   
   <meta property="og:url" content="https://KTS-o7.github.io/bear/posts/two_phase_commit/">
-  <meta property="og:title" content="Two-Phase Commit">
-  <meta property="og:description" content="Suppose you have a transaction that touches three separate databases – a flight reservation, a hotel booking, and a payment charge. You want either all three to commit or none of them to. One service can’t commit and another abort. How do you coordinate that?
-The answer most people reach for is Two-Phase Commit (2PC). It works in the happy path. The failure path has a flaw that’s been known since the algorithm was described in 1978, and every distributed systems engineer should understand it before deciding whether to use 2PC.">
+  <meta property="og:title" content="Two-Phase Commit: Distributed Atomicity and Its Fatal Flaw">
+  <meta property="og:description" content="The problem is simple to state: you have a transaction that touches multiple nodes. You want all of them to commit, or none of them to. No partial states, no one node committing while another aborts.
+Two-phase commit (2PC) solves this. It’s been in production databases for decades. It also has a flaw that makes it unusable for anything long-running, which is why most modern large-scale systems don’t use it directly.">
   <meta property="og:locale" content="en_us">
   <meta property="og:type" content="article">
     <meta property="article:section" content="posts">
-    <meta property="article:published_time" content="2026-04-26T00:00:00+05:30">
-    <meta property="article:modified_time" content="2026-04-26T00:00:00+05:30">
+    <meta property="article:published_time" content="2026-05-02T00:00:00+05:30">
+    <meta property="article:modified_time" content="2026-05-02T00:00:00+05:30">
     <meta property="og:image" content="https://KTS-o7.github.io/bear/images/share.webp">
 
 
@@ -35,19 +35,19 @@ The answer most people reach for is Two-Phase Commit (2PC). It works in the happ
   
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:image" content="https://KTS-o7.github.io/bear/images/share.webp">
-  <meta name="twitter:title" content="Two-Phase Commit">
-  <meta name="twitter:description" content="Suppose you have a transaction that touches three separate databases – a flight reservation, a hotel booking, and a payment charge. You want either all three to commit or none of them to. One service can’t commit and another abort. How do you coordinate that?
-The answer most people reach for is Two-Phase Commit (2PC). It works in the happy path. The failure path has a flaw that’s been known since the algorithm was described in 1978, and every distributed systems engineer should understand it before deciding whether to use 2PC.">
+  <meta name="twitter:title" content="Two-Phase Commit: Distributed Atomicity and Its Fatal Flaw">
+  <meta name="twitter:description" content="The problem is simple to state: you have a transaction that touches multiple nodes. You want all of them to commit, or none of them to. No partial states, no one node committing while another aborts.
+Two-phase commit (2PC) solves this. It’s been in production databases for decades. It also has a flaw that makes it unusable for anything long-running, which is why most modern large-scale systems don’t use it directly.">
 
 
   
   
-  <meta itemprop="name" content="Two-Phase Commit">
-  <meta itemprop="description" content="Suppose you have a transaction that touches three separate databases – a flight reservation, a hotel booking, and a payment charge. You want either all three to commit or none of them to. One service can’t commit and another abort. How do you coordinate that?
-The answer most people reach for is Two-Phase Commit (2PC). It works in the happy path. The failure path has a flaw that’s been known since the algorithm was described in 1978, and every distributed systems engineer should understand it before deciding whether to use 2PC.">
-  <meta itemprop="datePublished" content="2026-04-26T00:00:00+05:30">
-  <meta itemprop="dateModified" content="2026-04-26T00:00:00+05:30">
-  <meta itemprop="wordCount" content="1085">
+  <meta itemprop="name" content="Two-Phase Commit: Distributed Atomicity and Its Fatal Flaw">
+  <meta itemprop="description" content="The problem is simple to state: you have a transaction that touches multiple nodes. You want all of them to commit, or none of them to. No partial states, no one node committing while another aborts.
+Two-phase commit (2PC) solves this. It’s been in production databases for decades. It also has a flaw that makes it unusable for anything long-running, which is why most modern large-scale systems don’t use it directly.">
+  <meta itemprop="datePublished" content="2026-05-02T00:00:00+05:30">
+  <meta itemprop="dateModified" content="2026-05-02T00:00:00+05:30">
+  <meta itemprop="wordCount" content="504">
   <meta itemprop="image" content="https://KTS-o7.github.io/bear/images/share.webp">
 
 <meta name="referrer" content="no-referrer-when-downgrade" />
@@ -94,112 +94,83 @@ The answer most people reach for is Two-Phase Commit (2PC). It works in the happ
 </header>
   <main id="main-content">
 
-<h1>Two-Phase Commit</h1>
+<h1>Two-Phase Commit: Distributed Atomicity and Its Fatal Flaw</h1>
 <p class="byline">
-  <time datetime='2026-04-26' pubdate>
-    2026-04-26
+  <time datetime='2026-05-02' pubdate>
+    2026-05-02
   </time>
   
 </p>
 
 <content>
-  <p>Suppose you have a transaction that touches three separate databases &ndash; a flight reservation, a hotel booking, and a payment charge. You want either all three to commit or none of them to. One service can&rsquo;t commit and another abort. How do you coordinate that?</p>
-<p>The answer most people reach for is Two-Phase Commit (2PC). It works in the happy path. The failure path has a flaw that&rsquo;s been known since the algorithm was described in 1978, and every distributed systems engineer should understand it before deciding whether to use 2PC.</p>
+  <p>The problem is simple to state: you have a transaction that touches multiple nodes. You want all of them to commit, or none of them to. No partial states, no one node committing while another aborts.</p>
+<p>Two-phase commit (2PC) solves this. It&rsquo;s been in production databases for decades. It also has a flaw that makes it unusable for anything long-running, which is why most modern large-scale systems don&rsquo;t use it directly.</p>
 <h2 id="the-protocol">The Protocol</h2>
-<p>A single <strong>coordinator</strong> node drives two rounds of messages to all <strong>participants</strong> (the nodes doing the actual work).</p>
-<p><strong>Phase 1 &ndash; Prepare:</strong>
-The coordinator broadcasts &ldquo;can you commit?&rdquo; to all participants. Each participant:</p>
+<p>There&rsquo;s a coordinator and a set of participants. The coordinator drives the protocol.</p>
+<p><strong>Phase 1 &ndash; Prepare</strong></p>
+<p>The coordinator sends <code>PREPARE</code> to every participant. Each participant:</p>
 <ul>
-<li>Writes the transaction to a durable log (so it can replay after a crash)</li>
-<li>Acquires all necessary locks</li>
-<li>Replies YES or NO</li>
+<li>Writes the transaction to a durable log</li>
+<li>Acquires the necessary locks</li>
+<li>Replies <code>YES</code> (ready to commit) or <code>NO</code> (something failed)</li>
 </ul>
-<p><strong>Phase 2 &ndash; Commit or Abort:</strong></p>
+<p><strong>Phase 2 &ndash; Commit or Abort</strong></p>
 <ul>
-<li>If all participants voted YES → coordinator sends COMMIT to everyone</li>
-<li>If any participant voted NO (or timed out) → coordinator sends ABORT to everyone</li>
-<li>Participants execute the decision and release their locks</li>
+<li>If all participants said YES: coordinator sends <code>COMMIT</code> to everyone</li>
+<li>If anyone said NO: coordinator sends <code>ABORT</code></li>
 </ul>
+<p>Participants execute the decision and release their locks.</p>
 
 
 
 
 
-<pre tabindex="0"><code>Coordinator          Node A        Node B
+<pre tabindex="0"><code>Coordinator         Node A        Node B
     |--- PREPARE -------&gt;|             |
     |--- PREPARE ---------|-----------&gt;|
     |&lt;-- YES ------------|             |
     |&lt;-- YES ------------|-------------|
     |--- COMMIT --------&gt;|             |
-    |--- COMMIT ----------|-----------&gt;|
-    [all nodes commit, locks released]</code></pre><p>The protocol guarantees atomicity: either every participant commits or every participant aborts. From the outside, the transaction appears to happen all at once or not at all.</p>
-<h2 id="the-fatal-flaw--blocking-under-failure">The Fatal Flaw &ndash; Blocking Under Failure</h2>
-<p>The coordinator crashes after receiving all YES votes but before sending Phase 2.</p>
-<p>Now every participant is stuck. They voted YES and locked their resources. They don&rsquo;t know whether the coordinator decided to commit or abort before it crashed. They can&rsquo;t safely do either:</p>
-<ul>
-<li>If they commit, they might contradict an abort decision the coordinator had already sent to other nodes they can&rsquo;t see</li>
-<li>If they abort, they might contradict a commit decision the coordinator had already sent</li>
-</ul>
-<p>So they wait. Resources stay locked. The system can&rsquo;t make progress until the coordinator recovers.</p>
-<p>This is the <strong>blocking problem</strong>. 2PC is a blocking protocol &ndash; a coordinator failure at exactly the wrong moment halts the entire transaction indefinitely. In a high-availability system, &ldquo;wait for coordinator recovery&rdquo; is not an acceptable answer to a failure.</p>
-<p>The window of vulnerability is specific: after all participants have voted YES but before the coordinator has durably recorded and sent Phase 2. This is exactly the moment when locking is at maximum and the decision hasn&rsquo;t propagated yet.</p>
-<h2 id="why-cant-participants-just-decide-among-themselves">Why Can&rsquo;t Participants Just Decide Among Themselves?</h2>
-<p>When the coordinator goes silent, why can&rsquo;t participants just contact each other and figure out what to do?</p>
-<p>If all participants voted YES, they still can&rsquo;t commit safely &ndash; there might be a participant they can&rsquo;t reach that voted NO. If even one participant voted NO, the correct answer is abort, but the participants that voted YES don&rsquo;t know that. Without the coordinator, they don&rsquo;t have enough information to make a safe decision.</p>
-<p>The only safe action is to wait. This is why 2PC is called a <strong>blocking protocol</strong>: a coordinator failure forces participants into an indefinite blocked state.</p>
-<h2 id="3pc-the-theoretical-fix">3PC: The Theoretical Fix</h2>
-<p>Three-Phase Commit adds a <code>PRE-COMMIT</code> phase between Prepare and Commit:</p>
+    |--- COMMIT ----------|-----------&gt;|</code></pre><p>Clean path works fine. Every node ends up in the same state. Locks are held only for the duration of the protocol.</p>
+<h2 id="the-fatal-flaw">The Fatal Flaw</h2>
+<p>Crash the coordinator after phase 1 but before phase 2.</p>
+<p>Participants are now stuck. They voted YES and locked their resources. They don&rsquo;t know whether the coordinator decided to commit or abort. They can&rsquo;t safely proceed in either direction &ndash; committing might be wrong if another participant said NO, aborting might be wrong if the coordinator was about to send COMMIT.</p>
+<p>They wait. The locks stay held. The system is in limbo until the coordinator recovers.</p>
+<p>This is the <strong>blocking problem</strong>. 2PC is a blocking protocol under failure. A single coordinator crash can stall the entire transaction indefinitely.</p>
+<h2 id="the-attempted-fix-3pc">The Attempted Fix: 3PC</h2>
+<p>Three-phase commit inserts a pre-commit phase between prepare and commit:</p>
 <p><code>PREPARE → PRE-COMMIT → COMMIT</code></p>
-<p>The intuition: after all participants acknowledge PRE-COMMIT, every participant knows that every other participant voted YES. If the coordinator fails now, any participant can take over and safely drive the protocol to COMMIT &ndash; they know no one voted NO.</p>
-<p>This eliminates blocking for <strong>crash failures</strong>. It doesn&rsquo;t help under <strong>network partition</strong> &ndash; if the coordinator is unreachable due to a partition, a partitioned participant still can&rsquo;t distinguish &ldquo;coordinator crashed&rdquo; from &ldquo;coordinator is alive but I can&rsquo;t reach it.&rdquo; Attempting to make progress risks committing on one side of the partition and aborting on the other.</p>
-<p>3PC is theoretically cleaner and not used in practice. The partition problem means it doesn&rsquo;t actually deliver on the &ldquo;no blocking&rdquo; promise in real deployments. The extra round-trip cost isn&rsquo;t worth it for partial relief.</p>
-<h2 id="the-cap-angle">The CAP Angle</h2>
-<p>2PC is a CA protocol in CAP terms: it provides consistency and availability in the absence of network partitions, but it doesn&rsquo;t tolerate partitions. When the coordinator becomes unreachable (a partition), participants block &ndash; availability is sacrificed to preserve consistency.</p>
-<p>This is a fundamental constraint, not an implementation bug. Any protocol that guarantees atomicity across multiple nodes must give up availability under some failure scenario. The question is which failure scenarios you&rsquo;re willing to be unavailable for, and how long.</p>
-<h2 id="what-modern-systems-do-instead">What Modern Systems Do Instead</h2>
+<p>Pre-commit lets participants infer the coordinator&rsquo;s intent even if it crashes: if you received a pre-commit, the coordinator had seen all YES votes and was going to commit. You can safely commit yourself if the coordinator disappears after that point.</p>
+<p>3PC eliminates most blocking scenarios. It costs one extra round of messages and still has edge cases under network partitions. It&rsquo;s not widely used in practice &ndash; the complexity tradeoff isn&rsquo;t worth it for most systems.</p>
+<h2 id="what-systems-actually-do">What Systems Actually Do</h2>
 <table>
   <thead>
       <tr>
           <th>Approach</th>
           <th>Mechanism</th>
-          <th>What You Give Up</th>
+          <th>Tradeoff</th>
       </tr>
   </thead>
   <tbody>
       <tr>
-          <td><strong>Saga pattern</strong></td>
+          <td>Saga pattern</td>
           <td>Compensating transactions</td>
-          <td>Isolation &ndash; intermediate state is visible</td>
+          <td>No locks, but no true atomicity</td>
       </tr>
       <tr>
-          <td><strong>Paxos / Raft underneath</strong></td>
-          <td>Coordinator is itself replicated</td>
-          <td>Complexity; still blocking but coordinator failure is rare</td>
+          <td>Paxos / Raft</td>
+          <td>Consensus algorithm</td>
+          <td>Strong guarantees, higher complexity</td>
       </tr>
       <tr>
-          <td><strong>Optimistic concurrency</strong></td>
+          <td>Optimistic concurrency</td>
           <td>Detect conflicts at commit time</td>
-          <td>Retry cost under contention</td>
-      </tr>
-      <tr>
-          <td><strong>Single-node transactions</strong></td>
-          <td>Design away distributed txns</td>
-          <td>Flexibility in data model</td>
+          <td>Works well for low-contention workloads</td>
       </tr>
   </tbody>
 </table>
-<p>The most common outcome for microservices is the Saga pattern &ndash; break the distributed transaction into local steps with explicit compensations. You lose strict atomicity but gain availability and no cross-service locks.</p>
-<p>2PC still shows up inside single databases for coordinating writes across shards. CockroachDB and Spanner both use variants of 2PC internally, but the coordinator is backed by Raft &ndash; a replicated state machine. The coordinator can&rsquo;t go down permanently; it fails over. The blocking window still exists but the recovery time is seconds, not &ldquo;until an engineer restarts the process.&rdquo;</p>
-<h2 id="the-implementation-detail-that-matters-most">The Implementation Detail That Matters Most</h2>
-<p>Good 2PC implementations persist the coordinator&rsquo;s decision to durable storage before sending a single Phase 2 message. The sequence is:</p>
-<ol>
-<li>Collect all YES votes</li>
-<li><strong>Write &ldquo;COMMIT&rdquo; to durable log</strong> (fsync)</li>
-<li>Send COMMIT to all participants</li>
-</ol>
-<p>If the coordinator crashes between steps 2 and 3, recovery reads the log and replays Phase 2. If it crashes before step 2, participants time out and abort &ndash; a safe outcome.</p>
-<p>The dangerous case is a buggy implementation that reverses steps 2 and 3 or doesn&rsquo;t fsync. The coordinator sends some COMMITs, crashes, and restarts without knowing it already sent Phase 2 to some participants. Now you have partial commits with no recovery path.</p>
-<p>The blocking problem is inherent to the protocol. The partial-commit problem is an implementation failure. Both look the same from the outside: a transaction in an unknown state with locked resources. The difference matters for diagnosis and recovery &ndash; and for understanding why so many production systems have quietly moved away from 2PC for anything that matters.</p>
+<p>Most large-scale systems avoid 2PC for anything user-facing. Short, internal database transactions &ndash; a single service committing to one database &ndash; are fine. Cross-service transactions that could run for seconds or involve user interaction are not.</p>
+<p>2PC is worth understanding because it makes the tradeoff concrete: you can have distributed atomicity, but you&rsquo;re paying for it with availability under coordinator failure. Everything else in distributed transactions is a different point on that curve.</p>
 
 </content>
 <p>
@@ -208,7 +179,7 @@ The coordinator broadcasts &ldquo;can you commit?&rdquo; to all participants. Ea
 
 
   <p>
-    <a href='mailto:shentharkrishnatejaswi@gmail.com?subject=Reply%20to%20"Two-Phase%20Commit"'>
+    <a href='mailto:shentharkrishnatejaswi@gmail.com?subject=Reply%20to%20"Two-Phase%20Commit%3a%20Distributed%20Atomicity%20and%20Its%20Fatal%20Flaw"'>
       Reply to this post by email ↪
     </a>
   </p>

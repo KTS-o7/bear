@@ -9,55 +9,949 @@
     <managingEditor>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</managingEditor>
     <webMaster>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</webMaster>
     <copyright>Krishnatejaswi S</copyright>
-    <lastBuildDate>Sun, 26 Apr 2026 00:00:00 +0530</lastBuildDate>
+    <lastBuildDate>Sat, 02 May 2026 00:00:00 +0530</lastBuildDate>
     <atom:link href="https://KTS-o7.github.io/bear/posts/index.xml" rel="self" type="application/rss+xml" />
     <item>
-      <title>Consistent Hashing</title>
+      <title>A $22/Year VPS Running Three Self-Hosted Services</title>
+      <link>https://KTS-o7.github.io/bear/posts/vps_self_hosting/</link>
+      <pubDate>Sat, 02 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/posts/vps_self_hosting/</guid>
+      <description>&lt;p&gt;I wanted three things: a private Obsidian sync server, a Matrix chat instance for personal use, and a self-hosted book library. The obvious path is a cheap VPS, a few Docker containers, and nginx as a reverse proxy in front of everything.&lt;/p&gt;&#xA;&lt;p&gt;The whole stack runs on a budget VPS &amp;ndash; 1 vCPU, 2.9GB RAM, 30GB disk, $22/year. All three services are running with room to spare.&lt;/p&gt;&#xA;&lt;h2 id=&#34;initial-setup&#34;&gt;Initial Setup&lt;/h2&gt;&#xA;&lt;p&gt;&lt;strong&gt;SSH key auth first, password auth off:&lt;/strong&gt;&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>I wanted three things: a private Obsidian sync server, a Matrix chat instance for personal use, and a self-hosted book library. The obvious path is a cheap VPS, a few Docker containers, and nginx as a reverse proxy in front of everything.</p>
+<p>The whole stack runs on a budget VPS &ndash; 1 vCPU, 2.9GB RAM, 30GB disk, $22/year. All three services are running with room to spare.</p>
+<h2 id="initial-setup">Initial Setup</h2>
+<p><strong>SSH key auth first, password auth off:</strong></p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl"><span class="c1"># local: generate key if you don&#39;t have one</span>
+</span></span><span class="line"><span class="ln">2</span><span class="cl">ssh-keygen -t ed25519 -C <span class="s2">&#34;your_email@example.com&#34;</span>
+</span></span><span class="line"><span class="ln">3</span><span class="cl"><span class="c1"># paste ~/.ssh/id_ed25519.pub into your provider&#39;s SSH key field</span>
+</span></span><span class="line"><span class="ln">4</span><span class="cl">
+</span></span><span class="line"><span class="ln">5</span><span class="cl"><span class="c1"># on the server: disable password login</span>
+</span></span><span class="line"><span class="ln">6</span><span class="cl">sed -i <span class="s1">&#39;s/^PasswordAuthentication yes/PasswordAuthentication no/&#39;</span> /etc/ssh/sshd_config
+</span></span><span class="line"><span class="ln">7</span><span class="cl">systemctl restart sshd</span></span></code></pre></div><p>Test key login before disabling password auth. If you lock yourself out, you&rsquo;re recovering via the provider&rsquo;s console.</p>
+<p><strong>Swap &ndash; critical on 3GB RAM:</strong></p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">fallocate -l 2G /swapfile
+</span></span><span class="line"><span class="ln">2</span><span class="cl">chmod <span class="m">600</span> /swapfile
+</span></span><span class="line"><span class="ln">3</span><span class="cl">mkswap /swapfile
+</span></span><span class="line"><span class="ln">4</span><span class="cl">swapon /swapfile
+</span></span><span class="line"><span class="ln">5</span><span class="cl"><span class="nb">echo</span> <span class="s1">&#39;/swapfile none swap sw 0 0&#39;</span> &gt;&gt; /etc/fstab</span></span></code></pre></div><p>Without this, CouchDB and Conduit together will occasionally OOM under load.</p>
+<p><strong>Firewall:</strong></p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">ufw allow ssh
+</span></span><span class="line"><span class="ln">2</span><span class="cl">ufw allow 80/tcp
+</span></span><span class="line"><span class="ln">3</span><span class="cl">ufw allow 443/tcp
+</span></span><span class="line"><span class="ln">4</span><span class="cl">ufw allow <span class="m">3478</span>        <span class="c1"># TURN (UDP+TCP)</span>
+</span></span><span class="line"><span class="ln">5</span><span class="cl">ufw allow <span class="m">5349</span>        <span class="c1"># TURN TLS</span>
+</span></span><span class="line"><span class="ln">6</span><span class="cl">ufw allow 49152:65535/udp  <span class="c1"># TURN relay range</span>
+</span></span><span class="line"><span class="ln">7</span><span class="cl">ufw enable</span></span></code></pre></div><p>The TURN ports are for Matrix voice/video &ndash; skip them if you&rsquo;re not setting up coturn.</p>
+<p><strong>Docker:</strong></p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">curl -fsSL https://get.docker.com <span class="p">|</span> sh</span></span></code></pre></div><h2 id="service-1-obsidian-livesync-couchdb">Service 1: Obsidian LiveSync (CouchDB)</h2>
+<p>LiveSync uses CouchDB as the sync backend. Install it directly on the host rather than in Docker &ndash; it&rsquo;s simpler to configure and easier to troubleshoot.</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">apt install -y couchdb</span></span></code></pre></div><p>The installer prompts for admin credentials. Set them and keep them somewhere safe.</p>
+<p>Configure <code>/opt/couchdb/etc/local.ini</code>:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-ini" data-lang="ini"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="k">[chttpd]</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl"><span class="na">bind_address</span> <span class="o">=</span> <span class="s">127.0.0.1</span>
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl">
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl"><span class="k">[couch_httpd_auth]</span>
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl"><span class="na">require_valid_user</span> <span class="o">=</span> <span class="s">true</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl"><span class="k">[httpd]</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl"><span class="na">enable_cors</span> <span class="o">=</span> <span class="s">true</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">
+</span></span><span class="line"><span class="ln">10</span><span class="cl"><span class="k">[cors]</span>
+</span></span><span class="line"><span class="ln">11</span><span class="cl"><span class="na">origins</span> <span class="o">=</span> <span class="s">app://obsidian.md, capacitor://localhost, http://localhost</span>
+</span></span><span class="line"><span class="ln">12</span><span class="cl"><span class="na">credentials</span> <span class="o">=</span> <span class="s">true</span>
+</span></span><span class="line"><span class="ln">13</span><span class="cl"><span class="na">headers</span> <span class="o">=</span> <span class="s">accept, authorization, content-type, origin, referer</span>
+</span></span><span class="line"><span class="ln">14</span><span class="cl"><span class="na">methods</span> <span class="o">=</span> <span class="s">GET, PUT, POST, HEAD, DELETE</span>
+</span></span><span class="line"><span class="ln">15</span><span class="cl"><span class="na">max_age</span> <span class="o">=</span> <span class="s">3600</span></span></span></code></pre></div>
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">systemctl restart couchdb
+</span></span><span class="line"><span class="ln">2</span><span class="cl">curl -X PUT http://admin:PASSWORD@localhost:5984/obsidian-sync</span></span></code></pre></div><p>nginx config:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-nginx" data-lang="nginx"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="k">server</span> <span class="p">{</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl">    <span class="kn">listen</span> <span class="mi">80</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl">    <span class="kn">server_name</span> <span class="s">sync.your.domain</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl">    <span class="kn">location</span> <span class="s">/</span> <span class="p">{</span>
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl">        <span class="kn">proxy_pass</span> <span class="s">http://127.0.0.1:5984</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">        <span class="kn">proxy_set_header</span> <span class="s">Host</span> <span class="nv">$host</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl">        <span class="kn">proxy_set_header</span> <span class="s">X-Real-IP</span> <span class="nv">$remote_addr</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl">        <span class="kn">proxy_set_header</span> <span class="s">X-Forwarded-For</span> <span class="nv">$proxy_add_x_forwarded_for</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="ln">10</span><span class="cl"><span class="p">}</span></span></span></code></pre></div><p>Get a cert: <code>certbot --nginx -d sync.your.domain</code></p>
+<p>In Obsidian: install the LiveSync community plugin, set the CouchDB URI to your domain, enter credentials, set a database name and an E2E passphrase. Enable sync. The passphrase encrypts vault content before it leaves your device &ndash; CouchDB never sees plaintext.</p>
+<h2 id="service-2-private-matrix-chat-conduit--coturn">Service 2: Private Matrix Chat (Conduit + coturn)</h2>
+<p>Conduit is a Matrix homeserver written in Rust &ndash; much lighter than Synapse, which would be too heavy for 3GB RAM. I run it with federation disabled &ndash; this is a personal instance, not connected to the public Matrix network.</p>
+<p><code>/opt/conduit/docker-compose.yml</code>:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="nt">services</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 2</span><span class="cl"><span class="w">  </span><span class="nt">conduit</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 3</span><span class="cl"><span class="w">    </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l">matrixconduit/matrix-conduit:latest</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 4</span><span class="cl"><span class="w">    </span><span class="nt">restart</span><span class="p">:</span><span class="w"> </span><span class="l">unless-stopped</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 5</span><span class="cl"><span class="w">    </span><span class="nt">volumes</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 6</span><span class="cl"><span class="w">      </span>- <span class="l">conduit_data:/var/lib/matrix-conduit</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 7</span><span class="cl"><span class="w">    </span><span class="nt">environment</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 8</span><span class="cl"><span class="w">      </span><span class="nt">CONDUIT_SERVER_NAME</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;chat.your.domain&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 9</span><span class="cl"><span class="w">      </span><span class="nt">CONDUIT_DATABASE_BACKEND</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;rocksdb&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="ln">10</span><span class="cl"><span class="w">      </span><span class="nt">CONDUIT_ALLOW_REGISTRATION</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;true&#34;</span><span class="w">      </span><span class="c"># flip to false after accounts created</span><span class="w">
+</span></span></span><span class="line"><span class="ln">11</span><span class="cl"><span class="w">      </span><span class="nt">CONDUIT_ALLOW_FEDERATION</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;false&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="ln">12</span><span class="cl"><span class="w">      </span><span class="nt">CONDUIT_MAX_REQUEST_SIZE</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;20000000&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="ln">13</span><span class="cl"><span class="w">      </span><span class="nt">CONDUIT_LOG</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;warn&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="ln">14</span><span class="cl"><span class="w">    </span><span class="nt">ports</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln">15</span><span class="cl"><span class="w">      </span>- <span class="s2">&#34;127.0.0.1:6167:6167&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="ln">16</span><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="ln">17</span><span class="cl"><span class="nt">volumes</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln">18</span><span class="cl"><span class="w">  </span><span class="l">conduit_data:</span></span></span></code></pre></div>
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl"><span class="nb">cd</span> /opt/conduit <span class="o">&amp;&amp;</span> docker compose up -d</span></span></code></pre></div><p>For voice and video calls, Matrix uses WebRTC &ndash; which needs a TURN server to traverse NAT. coturn handles this:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">apt install -y coturn
+</span></span><span class="line"><span class="ln">2</span><span class="cl">openssl rand -hex <span class="m">32</span>   <span class="c1"># generate a static auth secret, keep it</span></span></span></code></pre></div><p><code>/etc/turnserver.conf</code>:</p>
+
+
+
+
+
+<pre tabindex="0"><code>listening-port=3478
+tls-listening-port=5349
+fingerprint
+use-auth-secret
+static-auth-secret=YOUR_SECRET
+realm=chat.your.domain
+cert=/etc/letsencrypt/live/chat.your.domain/fullchain.pem
+pkey=/etc/letsencrypt/live/chat.your.domain/privkey.pem
+min-port=49152
+max-port=65535</code></pre><p>nginx config:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-nginx" data-lang="nginx"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="k">server</span> <span class="p">{</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl">    <span class="kn">listen</span> <span class="mi">80</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl">    <span class="kn">server_name</span> <span class="s">chat.your.domain</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl">    <span class="kn">location</span> <span class="s">/</span> <span class="p">{</span>
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl">        <span class="kn">proxy_pass</span> <span class="s">http://127.0.0.1:6167</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">        <span class="kn">proxy_set_header</span> <span class="s">Host</span> <span class="nv">$host</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl">        <span class="kn">proxy_set_header</span> <span class="s">X-Real-IP</span> <span class="nv">$remote_addr</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl">        <span class="kn">proxy_set_header</span> <span class="s">Upgrade</span> <span class="nv">$http_upgrade</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">        <span class="kn">proxy_set_header</span> <span class="s">Connection</span> <span class="s">&#34;upgrade&#34;</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln">10</span><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="ln">11</span><span class="cl"><span class="p">}</span></span></span></code></pre></div><p>Once Conduit is up: go to Element Web, set homeserver to your domain, register your accounts while <code>ALLOW_REGISTRATION</code> is true, then flip it to false and restart the container. Anyone who finds your homeserver URL can register while it&rsquo;s open.</p>
+<h2 id="service-3-calibre-web">Service 3: Calibre-Web</h2>
+<p>Calibre-Web gives you a browser-based library for EPUB, PDF, and MOBI files. The Docker image is from linuxserver.io.</p>
+<p><strong>Critical step before starting the container:</strong> Calibre-Web needs a properly initialized <code>metadata.db</code>. Not an empty file, not a directory &ndash; a valid Calibre library database. It must be created by <code>calibredb</code>.</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">apt install -y calibre   <span class="c1"># ~300MB, takes a few minutes</span>
+</span></span><span class="line"><span class="ln">2</span><span class="cl">mkdir -p /opt/calibre/books
+</span></span><span class="line"><span class="ln">3</span><span class="cl">calibredb --with-library /opt/calibre/books list   <span class="c1"># initializes metadata.db</span>
+</span></span><span class="line"><span class="ln">4</span><span class="cl">chown -R 1000:1000 /opt/calibre/books              <span class="c1"># container runs as uid 1000</span>
+</span></span><span class="line"><span class="ln">5</span><span class="cl">chmod -R <span class="m">755</span> /opt/calibre/books</span></span></code></pre></div><p>Do this before starting the container. If you start it first and hit &ldquo;invalid path&rdquo; or &ldquo;DB not writable&rdquo;, this is why.</p>
+<p><code>/opt/calibre/docker-compose.yml</code>:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="nt">services</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 2</span><span class="cl"><span class="w">  </span><span class="nt">calibre-web</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 3</span><span class="cl"><span class="w">    </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l">lscr.io/linuxserver/calibre-web:latest</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 4</span><span class="cl"><span class="w">    </span><span class="nt">restart</span><span class="p">:</span><span class="w"> </span><span class="l">unless-stopped</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 5</span><span class="cl"><span class="w">    </span><span class="nt">environment</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 6</span><span class="cl"><span class="w">      </span>- <span class="l">PUID=1000</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 7</span><span class="cl"><span class="w">      </span>- <span class="l">PGID=1000</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 8</span><span class="cl"><span class="w">      </span>- <span class="l">TZ=Asia/Kolkata</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 9</span><span class="cl"><span class="w">    </span><span class="nt">volumes</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln">10</span><span class="cl"><span class="w">      </span>- <span class="l">calibre_config:/config</span><span class="w">
+</span></span></span><span class="line"><span class="ln">11</span><span class="cl"><span class="w">      </span>- <span class="l">/opt/calibre/books:/books</span><span class="w">
+</span></span></span><span class="line"><span class="ln">12</span><span class="cl"><span class="w">    </span><span class="nt">ports</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln">13</span><span class="cl"><span class="w">      </span>- <span class="s2">&#34;127.0.0.1:8083:8083&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="ln">14</span><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="ln">15</span><span class="cl"><span class="nt">volumes</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln">16</span><span class="cl"><span class="w">  </span><span class="l">calibre_config:</span></span></span></code></pre></div><p>nginx config:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-nginx" data-lang="nginx"><span class="line"><span class="ln">1</span><span class="cl"><span class="k">server</span> <span class="p">{</span>
+</span></span><span class="line"><span class="ln">2</span><span class="cl">    <span class="kn">listen</span> <span class="mi">80</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln">3</span><span class="cl">    <span class="kn">server_name</span> <span class="s">books.your.domain</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln">4</span><span class="cl">    <span class="kn">location</span> <span class="s">/</span> <span class="p">{</span>
+</span></span><span class="line"><span class="ln">5</span><span class="cl">        <span class="kn">proxy_pass</span> <span class="s">http://127.0.0.1:8083</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln">6</span><span class="cl">        <span class="kn">proxy_set_header</span> <span class="s">Host</span> <span class="nv">$host</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln">7</span><span class="cl">        <span class="kn">proxy_set_header</span> <span class="s">X-Real-IP</span> <span class="nv">$remote_addr</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln">8</span><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="ln">9</span><span class="cl"><span class="p">}</span></span></span></code></pre></div><p>Default login is <code>admin</code> / <code>admin123</code>. Change it immediately. Set library path to <code>/books</code>.</p>
+<h2 id="cloudflare-in-front">Cloudflare in Front</h2>
+<p>All three subdomains go through Cloudflare. DNS A records point to the VPS IP, proxy status set to orange cloud (proxied) for all three. SSL mode set to Full &ndash; not Full Strict, since the Let&rsquo;s Encrypt cert on origin is valid enough and Full Strict adds complexity for no real benefit here.</p>
+<p>certbot handles the Let&rsquo;s Encrypt certs on the origin:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">certbot --nginx -d sync.your.domain
+</span></span><span class="line"><span class="ln">2</span><span class="cl">certbot --nginx -d chat.your.domain
+</span></span><span class="line"><span class="ln">3</span><span class="cl">certbot --nginx -d books.your.domain</span></span></code></pre></div><h2 id="resource-usage">Resource Usage</h2>
+<p>All three services running simultaneously:</p>
+<table>
+  <thead>
+      <tr>
+          <th>Service</th>
+          <th>RAM</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>Calibre-Web</td>
+          <td>~159MB</td>
+      </tr>
+      <tr>
+          <td>Conduit</td>
+          <td>~62MB</td>
+      </tr>
+      <tr>
+          <td>CouchDB</td>
+          <td>~80MB</td>
+      </tr>
+      <tr>
+          <td>nginx + OS</td>
+          <td>~453MB</td>
+      </tr>
+      <tr>
+          <td><strong>Total</strong></td>
+          <td><strong>~754MB / 2.9GB (26%)</strong></td>
+      </tr>
+  </tbody>
+</table>
+<p>Swap barely touched. Disk at ~6GB of 30GB. Plenty of headroom for adding services.</p>
+<h2 id="pitfalls">Pitfalls</h2>
+<table>
+  <thead>
+      <tr>
+          <th>Problem</th>
+          <th>Cause</th>
+          <th>Fix</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>SSH asks for password after key setup</td>
+          <td>Public key not on server</td>
+          <td><code>ssh-copy-id</code> or paste key in provider panel</td>
+      </tr>
+      <tr>
+          <td>Calibre-Web says &ldquo;invalid path&rdquo;</td>
+          <td>metadata.db missing or wrong schema</td>
+          <td>Install calibre on host, run <code>calibredb list</code> to init</td>
+      </tr>
+      <tr>
+          <td>Calibre-Web says &ldquo;DB not writable&rdquo;</td>
+          <td>Files owned by root, container runs as uid 1000</td>
+          <td><code>chown -R 1000:1000 /opt/calibre/books</code></td>
+      </tr>
+      <tr>
+          <td>Voice/video calls fail in Matrix</td>
+          <td>WebRTC can&rsquo;t traverse NAT</td>
+          <td>Install coturn, configure static-auth-secret</td>
+      </tr>
+      <tr>
+          <td>CouchDB sync drops randomly</td>
+          <td>Missing CORS headers</td>
+          <td>Double-check the <code>[cors]</code> section in local.ini</td>
+      </tr>
+  </tbody>
+</table>
+<p>The whole thing took an afternoon to set up. $22/year for services I fully control and can inspect end to end.</p>
+]]></content:encoded>
+    </item>
+    <item>
+      <title>Circuit Breakers: The Pattern That Stops Cascading Failures</title>
+      <link>https://KTS-o7.github.io/bear/posts/circuit_breakers_distributed_systems/</link>
+      <pubDate>Sat, 02 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/posts/circuit_breakers_distributed_systems/</guid>
+      <description>&lt;p&gt;The payment service starts timing out. The fraud detection API it depends on is slow. Your retry logic kicks in &amp;ndash; which makes sense, retries are good &amp;ndash; but now every incoming request is spawning 3x the load on a service that was already struggling. The fraud service falls over completely. Now the entire checkout flow is dead.&lt;/p&gt;&#xA;&lt;p&gt;This is a cascading failure. One slow dependency turned into a full outage because the upstream service kept hammering it instead of stopping.&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>The payment service starts timing out. The fraud detection API it depends on is slow. Your retry logic kicks in &ndash; which makes sense, retries are good &ndash; but now every incoming request is spawning 3x the load on a service that was already struggling. The fraud service falls over completely. Now the entire checkout flow is dead.</p>
+<p>This is a cascading failure. One slow dependency turned into a full outage because the upstream service kept hammering it instead of stopping.</p>
+<h2 id="the-pattern">The Pattern</h2>
+<p>Circuit breakers fix this by failing fast. The name comes from electrical circuit breakers: when the current exceeds a threshold, the breaker trips and cuts power before anything burns. Same idea here.</p>
+<p>The circuit has three states:</p>
+<p><strong>Closed</strong> &ndash; normal operation. Requests go through, failures are counted. When failures cross a configured threshold within a time window, the circuit trips.</p>
+<p><strong>Open</strong> &ndash; the circuit has tripped. Requests immediately return an error without calling the downstream service at all. No network round-trips, no timeouts, no extra load on a service that&rsquo;s already struggling. After a cooldown period, the circuit moves to half-open.</p>
+<p><strong>Half-open</strong> &ndash; one test request is allowed through. If it succeeds, the circuit closes and normal operation resumes. If it fails, the circuit trips back to open and the cooldown resets.</p>
+<p>The key insight is that sometimes the most useful thing you can do is stop trying. Retrying a failing service doesn&rsquo;t help it recover. Backing off does.</p>
+<h2 id="where-youll-find-it">Where You&rsquo;ll Find It</h2>
+<p>Netflix Hystrix made this pattern famous, but it&rsquo;s now table stakes in most infrastructure:</p>
+<ul>
+<li>Istio has it built into the service mesh at the sidecar level &ndash; no application code needed</li>
+<li>Resilience4j for Java</li>
+<li>Polly for .NET</li>
+<li>Most Redis clients ship with circuit breaking on connection failures</li>
+</ul>
+<p>The mesh-level implementations are interesting because they work across languages and don&rsquo;t require every service team to implement the pattern themselves. You configure thresholds in the mesh and it handles the state machine.</p>
+<h2 id="the-gotcha-timeout-ordering">The Gotcha: Timeout Ordering</h2>
+<p>There&rsquo;s one configuration mistake that makes circuit breakers useless: setting your request timeout longer than your circuit breaker&rsquo;s failure window.</p>
+<p>If your timeout is 30 seconds but your circuit breaker trips after 5 failures within 10 seconds &ndash; and each failure takes 25 seconds to time out &ndash; you&rsquo;ll accumulate only one or two failures in any 10-second window. The circuit never trips because failures arrive too slowly to hit the threshold, even while the system is drowning in slow requests.</p>
+<p>The rule: timeouts must be shorter than the failure window. If your breaker watches a 10-second window and trips at 5 failures, your per-request timeout needs to be well under 2 seconds. Otherwise the breaker is just decorative.</p>
+]]></content:encoded>
+    </item>
+    <item>
+      <title>Consistent Hashing: Scaling a Cluster Without Reshuffling the World</title>
       <link>https://KTS-o7.github.io/bear/posts/consistent_hashing/</link>
-      <pubDate>Sun, 26 Apr 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <pubDate>Sat, 02 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
       <guid>https://KTS-o7.github.io/bear/posts/consistent_hashing/</guid>
-      <description>&lt;p&gt;The simplest way to distribute keys across N cache nodes is &lt;code&gt;hash(key) % N&lt;/code&gt;. It works until you add or remove a node.&lt;/p&gt;&#xA;&lt;p&gt;The moment N changes to N+1 or N-1, almost every key remaps to a different node. You get a thundering herd of cache misses across the entire dataset. The naive approach is fine for static clusters. Real clusters aren&amp;rsquo;t static &amp;ndash; nodes fail, capacity scales up and down, and a single rehash event can saturate every upstream database behind the cache simultaneously.&lt;/p&gt;</description>
-      <content:encoded><![CDATA[<p>The simplest way to distribute keys across N cache nodes is <code>hash(key) % N</code>. It works until you add or remove a node.</p>
-<p>The moment N changes to N+1 or N-1, almost every key remaps to a different node. You get a thundering herd of cache misses across the entire dataset. The naive approach is fine for static clusters. Real clusters aren&rsquo;t static &ndash; nodes fail, capacity scales up and down, and a single rehash event can saturate every upstream database behind the cache simultaneously.</p>
+      <description>&lt;p&gt;The naive approach to distributing keys across N cache nodes is &lt;code&gt;hash(key) % N&lt;/code&gt;. It works fine until you add or remove a node.&lt;/p&gt;&#xA;&lt;p&gt;When N changes to N+1 or N-1, nearly every key remaps to a different node. You go from a warm cache to a cold one in an instant &amp;ndash; a thundering herd of cache misses hitting your database all at once. For a large cluster, that&amp;rsquo;s enough to take down a service.&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>The naive approach to distributing keys across N cache nodes is <code>hash(key) % N</code>. It works fine until you add or remove a node.</p>
+<p>When N changes to N+1 or N-1, nearly every key remaps to a different node. You go from a warm cache to a cold one in an instant &ndash; a thundering herd of cache misses hitting your database all at once. For a large cluster, that&rsquo;s enough to take down a service.</p>
+<p>Consistent hashing fixes this. Add or remove a node, and only the keys that were assigned to that node need to move. Everything else stays put.</p>
 <h2 id="the-hash-ring">The Hash Ring</h2>
-<p>Consistent hashing fixes this by changing the assignment model entirely.</p>
-<p>Instead of modding by N, you arrange all possible hash values on a ring &ndash; 0 to 2^32, wrapping around. Each node gets a position on the ring by hashing its own name or ID. To find which node owns a key: hash the key, then walk clockwise until you hit a node.</p>
+<p>Instead of <code>hash(key) % N</code>, arrange all possible hash values on a ring from 0 to 2^32. Each node gets a position on the ring by hashing its name or ID. To find which node owns a key: hash the key, then walk clockwise around the ring until you hit a node.</p>
 
 
 
 
 
-<pre tabindex="0"><code>ring: [0 -------- Node A -------- Node B -------- Node C -------- 2^32]
-
-key hashes to X:   →→→→→→→→→→→ lands on Node B</code></pre><p>Now add Node D between A and B. Only the keys that land between A and D move &ndash; from B to D. Everything else stays put. You go from ~100% rehash to ~1/N keys moving. Same math applies to removal: only the keys owned by the removed node need to be reassigned to its clockwise successor.</p>
-<p>The assignment is stable by construction. You don&rsquo;t need a global coordinator to tell every client about the new mapping &ndash; any client with the same hash function and the same node list will independently arrive at the same answer.</p>
+<pre tabindex="0"><code>          0
+         / \
+    Node C   Node A
+       |         |
+    Node B --- Node D</code></pre><p>Key K hashes to a point on the ring. The first node clockwise from that point owns K.</p>
+<p>Now add a new node between B and C. Only the keys that were between B and the new node&rsquo;s position need to move &ndash; from C to the new node. Everything else is unaffected. In an N-node cluster, adding one node moves roughly 1/N of the keys instead of nearly all of them.</p>
 <h2 id="virtual-nodes">Virtual Nodes</h2>
-<p>There&rsquo;s a problem with the basic ring: node positions are determined by hashing node IDs, which produces an uneven distribution. One node might cover a large arc of the ring; another might cover a tiny one. That means uneven load &ndash; and when a lightly-covered node fails, its small slice of keys moves to a neighbor that&rsquo;s already under load.</p>
-<p>The fix is virtual nodes. Each physical node gets multiple positions on the ring by hashing it multiple times &ndash; <code>node1-0</code>, <code>node1-1</code>, <code>node1-2</code>, etc. The load spreads more evenly. When a node fails, its load distributes across many different successors rather than piling onto one.</p>
-<p>The tradeoff is more ring entries to maintain. In practice this is cheap. Most production systems use 100-200 virtual nodes per physical node. Cassandra lets you tune <code>num_tokens</code> (their term for virtual nodes) at the cluster level; the default is 256 per node since Cassandra 4.0.</p>
-<h2 id="what-happens-during-a-rebalance">What Happens During a Rebalance</h2>
-<p>Consistent hashing solves <em>where</em> a key belongs. It doesn&rsquo;t solve <em>what happens during the transition</em>.</p>
-<p>When you add a node and ~1/N keys need to move, there&rsquo;s a window where:</p>
+<p>Raw consistent hashing has a load distribution problem. With a small number of physical nodes, the gaps between them on the ring are uneven &ndash; one node might own 30% of the keyspace, another 10%. Remove a node and all its load lands on a single neighbor.</p>
+<p>Virtual nodes fix this: each physical node gets multiple positions on the ring, typically by hashing it with different suffixes (<code>node1-0</code>, <code>node1-1</code>, <code>node1-2</code>, &hellip;). With enough virtual nodes per physical node, the load distributes evenly across the ring. Removing one node scatters its keys across many neighbors rather than dumping them all on one.</p>
+<p>This is the production configuration in every serious deployment.</p>
+<h2 id="where-its-used">Where It&rsquo;s Used</h2>
 <ul>
-<li>The new node is assigned those keys on the ring</li>
-<li>The data hasn&rsquo;t actually been copied yet</li>
-<li>Reads to the new node miss and fall through to the old owner</li>
+<li><strong>Amazon DynamoDB</strong> &ndash; consistent hashing across storage nodes, virtual nodes for even distribution</li>
+<li><strong>Apache Cassandra</strong> &ndash; the token ring is consistent hashing; each node owns a range of tokens</li>
+<li><strong>Memcached</strong> &ndash; the ketama client implements consistent hashing for cache node assignment</li>
+<li>Basically every distributed cache or storage system that needs to scale nodes without full reshuffling</li>
 </ul>
-<p>Systems handle this differently. Cassandra uses streaming &ndash; new node contacts existing nodes and pulls data for its token ranges before announcing itself ready. DynamoDB uses background rebalancing with handoff acknowledgement. Memcached clients (using ketama) just accept stale misses during the migration window and let the cache warm back up naturally.</p>
-<p>The point is that the ring tells you the target state. Getting there without a traffic spike is an operational concern separate from the algorithm.</p>
-<h2 id="load-hotspots">Load Hotspots</h2>
-<p>Consistent hashing assumes uniform key distribution. If your keys aren&rsquo;t uniform &ndash; or if you have genuinely hot keys that receive far more traffic than the average &ndash; the ring doesn&rsquo;t help.</p>
-<p>Virtual nodes reduce variance across the normal range of keys. They don&rsquo;t help when 10% of your traffic goes to 0.1% of your keys. That&rsquo;s a different problem: explicit shard splitting, caching at a higher layer, or application-level fan-out.</p>
-<p>DynamoDB has adaptive capacity that detects hot partitions and splits them. Cassandra has had issues with hot token ranges for years and the solution is usually application-level key design &ndash; composite keys, write sharding &ndash; rather than a fix at the ring layer.</p>
+<p>The pattern generalizes beyond caching. Any system that needs to assign work or data to nodes &ndash; and occasionally add or remove nodes &ndash; runs into the same problem. Consistent hashing is the standard solution.</p>
+]]></content:encoded>
+    </item>
+    <item>
+      <title>LLM Inference Optimization: Stop Paying for Idle Silicon</title>
+      <link>https://KTS-o7.github.io/bear/posts/llm_inference_optimization/</link>
+      <pubDate>Sat, 02 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/posts/llm_inference_optimization/</guid>
+      <description>&lt;p&gt;GPU bills were doubling every quarter. Throughput wasn&amp;rsquo;t moving. I kept assuming the answer was a bigger GPU. It wasn&amp;rsquo;t.&lt;/p&gt;&#xA;&lt;p&gt;The problem was naive serving. Standard HuggingFace &lt;code&gt;pipeline()&lt;/code&gt; processes one request at a time, sequentially. The GPU sits idle between requests, waiting. You&amp;rsquo;re paying for hardware that&amp;rsquo;s doing nothing most of the time.&lt;/p&gt;&#xA;&lt;p&gt;The fix is a set of four techniques, each with a different ROI profile. Here&amp;rsquo;s what they are, how they work, and when to use each one.&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>GPU bills were doubling every quarter. Throughput wasn&rsquo;t moving. I kept assuming the answer was a bigger GPU. It wasn&rsquo;t.</p>
+<p>The problem was naive serving. Standard HuggingFace <code>pipeline()</code> processes one request at a time, sequentially. The GPU sits idle between requests, waiting. You&rsquo;re paying for hardware that&rsquo;s doing nothing most of the time.</p>
+<p>The fix is a set of four techniques, each with a different ROI profile. Here&rsquo;s what they are, how they work, and when to use each one.</p>
+<h2 id="quantization">Quantization</h2>
+<p>This is the first thing to do because it&rsquo;s a one-time change with immediate impact. AWQ 4-bit quantization cuts VRAM usage by roughly 75%. FP8 cuts it by 50% but requires H100s.</p>
+<p>That 75% reduction matters because it changes which GPU class you need. A model that required an A100 might now fit on an A6000. That&rsquo;s not a minor cost reduction &ndash; it&rsquo;s a different tier of hardware entirely.</p>
+<p>The tooling is straightforward. Use <a href="https://github.com/casper-hansen/AutoAWQ">AutoAWQ</a> to quantize yourself, or just pull a pre-quantized checkpoint from HuggingFace. Most popular models have AWQ variants already uploaded.</p>
+<h2 id="serving-engine">Serving Engine</h2>
+<p>Once you&rsquo;re quantized, the next question is which serving engine to use. The two serious options are vLLM and SGLang, and they&rsquo;re not interchangeable.</p>
+<p><strong>vLLM</strong> is the right choice for chat and general inference. Two mechanisms make the difference:</p>
+<p>Continuous batching inserts new requests into the batch as slots open up rather than waiting for a full batch to complete. Naive serving sits at around 20% GPU utilization. vLLM pushes that to 60-85%.</p>
+<p>PagedAttention treats VRAM like virtual memory for the KV cache. Instead of pre-allocating contiguous blocks, it pages memory on demand. More sequences can coexist in memory simultaneously, which means more throughput per dollar.</p>
+<p>The key vLLM flags worth knowing in production:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">--max-num-seqs <span class="m">64</span>        <span class="c1"># tune for your context length + available VRAM</span>
+</span></span><span class="line"><span class="ln">2</span><span class="cl">--disable-log-stats      <span class="c1"># remove logging overhead</span></span></span></code></pre></div><p><strong>SGLang</strong> is the right choice for agentic workflows and structured output. Its main advantage is RadixAttention &ndash; it automatically detects shared prompt prefixes and reuses their KV cache. If every request in your system starts with the same 1000-token system prompt and tool definitions, SGLang computes that prefix once and caches it. LMSYS benchmarks show higher throughput than vLLM on structured generation workloads.</p>
+<p>The rule of thumb: SGLang for agents and JSON, vLLM for chat.</p>
+<h2 id="speculative-decoding">Speculative Decoding</h2>
+<p>This one is less obvious but gets you 2-3x speedup on long-form generation. The mechanism is a draft-then-verify loop:</p>
+<ol>
+<li>A small draft model (1-7B parameters) generates 3-12 candidate tokens per step</li>
+<li>The large target model verifies all candidates in a single parallel forward pass</li>
+<li>When the draft guesses correctly &ndash; which happens 70-90% of the time &ndash; you get multiple tokens for the cost of one forward pass</li>
+</ol>
+<p>The canonical pairing is Llama-3-8B-Instruct-AWQ as the draft model against Llama-3-70B-Instruct-AWQ as the target.</p>
+<p>A full deployment looks like this:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="kn">import</span> <span class="nn">runpod</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl"><span class="n">runpod</span><span class="o">.</span><span class="n">api_key</span> <span class="o">=</span> <span class="s2">&#34;your_api_key&#34;</span>
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl"><span class="n">pod</span> <span class="o">=</span> <span class="n">runpod</span><span class="o">.</span><span class="n">create_pod</span><span class="p">(</span>
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl">    <span class="n">name</span><span class="o">=</span><span class="s2">&#34;llama3-70b-speculative&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl">    <span class="n">image_name</span><span class="o">=</span><span class="s2">&#34;vllm/vllm-openai:latest&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">    <span class="n">gpu_type_id</span><span class="o">=</span><span class="s2">&#34;NVIDIA RTX A6000&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl">    <span class="n">gpu_count</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl">    <span class="n">docker_args</span><span class="o">=</span><span class="p">(</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">        <span class="s2">&#34;--model TechxGenus/Meta-Llama-3-70B-Instruct-AWQ &#34;</span>
+</span></span><span class="line"><span class="ln">10</span><span class="cl">        <span class="s2">&#34;--quantization awq &#34;</span>
+</span></span><span class="line"><span class="ln">11</span><span class="cl">        <span class="s2">&#34;--tensor-parallel-size 2 &#34;</span>
+</span></span><span class="line"><span class="ln">12</span><span class="cl">        <span class="s2">&#34;--speculative-model TechxGenus/Meta-Llama-3-8B-Instruct-AWQ &#34;</span>
+</span></span><span class="line"><span class="ln">13</span><span class="cl">        <span class="s2">&#34;--num-speculative-tokens 5 &#34;</span>
+</span></span><span class="line"><span class="ln">14</span><span class="cl">        <span class="s2">&#34;--max-model-len 8192&#34;</span>
+</span></span><span class="line"><span class="ln">15</span><span class="cl">    <span class="p">)</span>
+</span></span><span class="line"><span class="ln">16</span><span class="cl"><span class="p">)</span></span></span></code></pre></div><p>The critical thing to watch: draft model acceptance rate. Monitor it via Prometheus:</p>
+
+
+
+
+
+<pre tabindex="0"><code>vllm:spec_decode_draft_acceptance_length</code></pre><p>If acceptance drops below 0.5 tokens per step, you have the wrong draft model. It adds overhead rather than saving it. The draft model must match the target architecture &ndash; vLLM won&rsquo;t warn you about this at startup.</p>
+<h2 id="deployment-mode">Deployment Mode</h2>
+<p>The last decision is serverless vs. pods, and it&rsquo;s purely a traffic pattern question.</p>
+<p>Spiky or unpredictable traffic belongs on serverless &ndash; you pay only for actual inference time. Sustained, predictable load is cheaper on pods because you&rsquo;re not paying the serverless premium on every call.</p>
+<p>Neither is universally better. The mistake is running pods for workloads that get 10 requests an hour or paying for serverless when you have a steady 200 RPS.</p>
+<h2 id="why-decode-is-the-bottleneck">Why Decode is the Bottleneck</h2>
+<p>LLM generation has two phases and they&rsquo;re bound by different things.</p>
+<p>Prefill is compute-bound &ndash; processing all the input tokens in one parallel forward pass. Decode is memory-bound &ndash; generating one token at a time, loading the entire model&rsquo;s KV cache from VRAM on every single step.</p>
+<p>This means VRAM bandwidth determines inter-token latency, not FLOPs. Two GPUs with similar compute specs can have very different inference latency:</p>
+<table>
+  <thead>
+      <tr>
+          <th>GPU</th>
+          <th>Memory Bandwidth</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>H100 SXM5</td>
+          <td>3.35 TB/s</td>
+      </tr>
+      <tr>
+          <td>A6000</td>
+          <td>768 GB/s</td>
+      </tr>
+  </tbody>
+</table>
+<p>That&rsquo;s a ~4x difference on long-form generation. If you&rsquo;re choosing hardware for an inference workload and only looking at FLOPs, you&rsquo;re optimizing the wrong thing.</p>
+<p>The practical checklist once you understand this:</p>
+<ul>
+<li>Quantize with AWQ first (or FP8 on H100s)</li>
+<li>Pick SGLang for agents and JSON, vLLM for chat</li>
+<li>Enable speculative decoding for long-form endpoints, monitor acceptance rate</li>
+<li>Wire Prometheus to <code>vllm:gpu_cache_usage_perc</code> to know when you&rsquo;re VRAM-constrained</li>
+<li>Match deployment mode to your actual traffic shape</li>
+</ul>
+<p>The hardware question comes last, not first.</p>
+]]></content:encoded>
+    </item>
+    <item>
+      <title>Paxos: How Distributed Systems Agree on Anything</title>
+      <link>https://KTS-o7.github.io/bear/posts/paxos_consensus/</link>
+      <pubDate>Sat, 02 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/posts/paxos_consensus/</guid>
+      <description>&lt;p&gt;Every replicated database, every distributed lock, every leader election comes down to the same underlying problem: how do multiple nodes in an unreliable network agree on a single value, even when some of them crash or messages get delayed?&lt;/p&gt;&#xA;&lt;p&gt;This is the consensus problem. Paxos is the foundational answer. It&amp;rsquo;s also notoriously difficult to implement correctly &amp;ndash; which is exactly why Raft exists. But you can&amp;rsquo;t really understand Raft without understanding what Paxos is doing and why.&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>Every replicated database, every distributed lock, every leader election comes down to the same underlying problem: how do multiple nodes in an unreliable network agree on a single value, even when some of them crash or messages get delayed?</p>
+<p>This is the consensus problem. Paxos is the foundational answer. It&rsquo;s also notoriously difficult to implement correctly &ndash; which is exactly why Raft exists. But you can&rsquo;t really understand Raft without understanding what Paxos is doing and why.</p>
+<h2 id="the-constraint">The Constraint</h2>
+<p>Two-phase commit solves distributed atomicity but requires the coordinator to stay up. If the coordinator crashes after phase 1, participants are stuck holding locks, unable to proceed. That&rsquo;s not consensus &ndash; that&rsquo;s a single point of failure with extra steps.</p>
+<p>Paxos removes that constraint. It guarantees agreement as long as a majority of nodes are up, regardless of which specific nodes fail. Any node can propose a value. No permanent coordinator required.</p>
+<h2 id="roles">Roles</h2>
+<p>In Paxos, nodes play three roles &ndash; and in practice, any node can play any of them:</p>
+<ul>
+<li><strong>Proposer</strong> &ndash; initiates a round, tries to get a value accepted</li>
+<li><strong>Acceptor</strong> &ndash; votes on proposals, must follow the protocol strictly</li>
+<li><strong>Learner</strong> &ndash; learns the final chosen value once consensus is reached</li>
+</ul>
+<h2 id="the-protocol">The Protocol</h2>
+<p>Paxos runs in two phases.</p>
+<h3 id="phase-1--prepare--promise">Phase 1 &ndash; Prepare / Promise</h3>
+<p>The proposer picks a proposal number <code>n</code> &ndash; unique, higher than any it has seen before &ndash; and sends <code>PREPARE(n)</code> to a quorum of acceptors (any majority).</p>
+<p>Each acceptor that receives this:</p>
+<ul>
+<li>Promises to ignore any future <code>PREPARE</code> with a lower number</li>
+<li>If it has already accepted a value in a prior round, includes that <code>(old_n, old_value)</code> in its reply</li>
+</ul>
+<h3 id="phase-2--accept--accepted">Phase 2 &ndash; Accept / Accepted</h3>
+<p>If the proposer receives promises from a quorum:</p>
+<ul>
+<li>If any promise included a prior accepted value, the proposer <strong>must use the highest one</strong> &ndash; it cannot choose freely</li>
+<li>Otherwise it can propose any value it wants</li>
+</ul>
+<p>It sends <code>ACCEPT(n, value)</code> to the quorum. Acceptors that haven&rsquo;t made a conflicting promise write the value and reply <code>ACCEPTED</code>. Once a quorum accepts, the value is chosen.</p>
+
+
+
+
+
+<pre tabindex="0"><code>Proposer       Acceptor A    Acceptor B    Acceptor C
+   |-- PREPARE(5) --&gt;|             |             |
+   |-- PREPARE(5) ---|------------&gt;|             |
+   |&lt;-- PROMISE(5) --|             |             |
+   |&lt;-- PROMISE(5) --|-------------|             |
+   |-- ACCEPT(5,v) -&gt;|             |             |
+   |-- ACCEPT(5,v) --|------------&gt;|             |
+   |&lt;-- ACCEPTED ----|             |             |
+   |&lt;-- ACCEPTED ----|-------------|             |
+      [value v is now chosen]</code></pre><h2 id="why-its-correct">Why It&rsquo;s Correct</h2>
+<p>The safety guarantee &ndash; that no two values are ever chosen &ndash; comes from the quorum overlap. Any two majorities in an N-node cluster share at least one node. That shared node is the bridge: if a value was accepted in round <code>n</code>, a new proposer in round <code>n+1</code> will hear about it from the shared node and be forced to continue it rather than propose something different.</p>
+<p>The constraint that proposers must adopt the highest prior accepted value is what makes this work. A new round can never silently override an old one.</p>
+<h2 id="the-gotchas">The Gotchas</h2>
+<p><strong>Livelock.</strong> Two competing proposers can keep preempting each other with higher proposal numbers indefinitely &ndash; neither ever reaching phase 2. The fix is to elect a single distinguished proposer (a leader) and have everyone else defer to it. This is what Multi-Paxos does.</p>
+<p><strong>Single-value vs. Multi-Paxos.</strong> Basic Paxos agrees on one value. Real systems need a log of values &ndash; a sequence of commands. Multi-Paxos runs Paxos repeatedly for each log slot with a stable leader, amortizing the phase 1 cost across many entries. Once a leader is established, phase 1 only needs to run once per leader lifetime.</p>
+<p><strong>Implementation gap.</strong> The original paper was intentionally abstract. &ldquo;Paxos Made Simple&rdquo; is cleaner but still leaves enormous implementation latitude &ndash; enough that teams have shipped subtly broken versions. The gap between the protocol description and a correct, production-safe implementation is one of the main reasons Raft was designed as an explicit replacement.</p>
+<h2 id="where-it-runs">Where It Runs</h2>
+<ul>
+<li><strong>Google Chubby</strong> &ndash; distributed lock service, underpins Bigtable and GFS coordination</li>
+<li><strong>Apache ZooKeeper</strong> &ndash; uses Zab (ZooKeeper Atomic Broadcast), a Paxos variant</li>
+<li><strong>Google Spanner</strong> &ndash; Paxos per shard for replication across datacenters</li>
+</ul>
+<p>Paxos is the theory. If you&rsquo;re building something new, you&rsquo;ll probably implement Raft instead &ndash; same guarantees, actually debuggable. But the mental model of quorum-based two-phase consensus is worth having regardless of which one you reach for.</p>
+]]></content:encoded>
+    </item>
+    <item>
+      <title>Raft: Consensus for the Rest of Us</title>
+      <link>https://KTS-o7.github.io/bear/posts/raft_consensus/</link>
+      <pubDate>Sat, 02 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/posts/raft_consensus/</guid>
+      <description>&lt;p&gt;Paxos is the algorithm everyone cites and almost nobody implements correctly. The gap between the paper and a working, production-safe implementation is wide enough that teams have shipped subtly broken versions without knowing it for months.&lt;/p&gt;&#xA;&lt;p&gt;Raft was built as a direct response to that. Same safety guarantees, designed from scratch for understandability &amp;ndash; the explicit goal was that a student should be able to implement it correctly from the paper alone.&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>Paxos is the algorithm everyone cites and almost nobody implements correctly. The gap between the paper and a working, production-safe implementation is wide enough that teams have shipped subtly broken versions without knowing it for months.</p>
+<p>Raft was built as a direct response to that. Same safety guarantees, designed from scratch for understandability &ndash; the explicit goal was that a student should be able to implement it correctly from the paper alone.</p>
+<p>It works. etcd runs on it. Kubernetes&rsquo; entire cluster state lives in etcd. CockroachDB uses a Raft group per range. TiKV, Consul &ndash; Raft is everywhere Paxos was supposed to be.</p>
+<h2 id="the-decomposition">The Decomposition</h2>
+<p>Raft&rsquo;s core move is breaking consensus into three subproblems that can be understood and implemented independently:</p>
+<ol>
+<li>Leader election &ndash; pick one node as leader at any time</li>
+<li>Log replication &ndash; leader accepts entries, replicates to followers</li>
+<li>Safety &ndash; no two nodes ever commit conflicting entries</li>
+</ol>
+<p>Everything flows through a single leader. There&rsquo;s no &ldquo;any node can propose&rdquo; ambiguity like in basic Paxos. The leader is the sole source of truth for what enters the log. That constraint makes the rest of the protocol tractable.</p>
+<h2 id="terms-and-roles">Terms and Roles</h2>
+<p>Raft uses a logical clock called a <strong>term</strong> &ndash; a monotonically increasing integer. Each election starts a new term. If a node sees a message from a higher term than its own, it immediately updates and steps down if it was leader. Terms are how stale leaders get detected and evicted.</p>
+<p>Every node is one of three things at any moment:</p>
+<ul>
+<li><strong>Leader</strong> &ndash; accepts client requests, replicates entries, sends heartbeats to prevent new elections</li>
+<li><strong>Follower</strong> &ndash; passive, responds to RPCs from leaders and candidates</li>
+<li><strong>Candidate</strong> &ndash; transitional state during an election</li>
+</ul>
+<p>Every node starts as a follower.</p>
+<h2 id="leader-election">Leader Election</h2>
+<p>Followers expect periodic heartbeats from the leader via AppendEntries RPCs (sent even when there are no entries to replicate). If an election timeout fires without a heartbeat, the follower converts to a candidate:</p>
+<ol>
+<li>Increment current term, vote for self</li>
+<li>Send RequestVote to all peers</li>
+<li>A peer grants its vote if it hasn&rsquo;t voted this term and the candidate&rsquo;s log is at least as up-to-date as its own</li>
+<li>First candidate to collect a majority wins, becomes leader, starts sending heartbeats immediately</li>
+</ol>
+<p>Split votes happen when two candidates start elections simultaneously and each gets half the cluster. Neither reaches majority. Both time out and retry with a new term. Raft handles this with randomized election timeouts (typically 150&ndash;300ms) &ndash; making simultaneous timeouts unlikely without coordination overhead.</p>
+<h2 id="log-replication">Log Replication</h2>
+<p>Once a leader is elected:</p>
+<ol>
+<li>Client sends a command to the leader</li>
+<li>Leader appends the entry to its local log (not yet committed)</li>
+<li>Leader sends AppendEntries to all followers in parallel</li>
+<li>Once a majority have written the entry, the leader marks it committed</li>
+<li>Leader applies the entry to its state machine, replies to client</li>
+<li>On the next heartbeat, followers learn the commit index and apply the entry too</li>
+</ol>
+
+
+
+
+
+<pre tabindex="0"><code>Client → [write x=5] → Leader
+Leader  → AppendEntries(x=5) → Follower A  ✓
+Leader  → AppendEntries(x=5) → Follower B  ✓
+Leader  → AppendEntries(x=5) → Follower C  (unreachable)
+[Majority = Leader + A + B → COMMIT] → apply x=5</code></pre><p>Follower C is behind but not a problem. When it reconnects, the leader sends it the missing entries.</p>
+<h2 id="safety-log-matching">Safety: Log Matching</h2>
+<p>Raft&rsquo;s key safety property: if two logs contain an entry with the same index and term, all preceding entries are identical.</p>
+<p>This is enforced by the AppendEntries consistency check. When the leader sends an entry, it includes the index and term of the entry immediately before it. A follower rejects the append if that preceding entry doesn&rsquo;t match its own log. The leader then backs up and resends from an earlier point until it finds a common prefix, then overwrites the diverged entries.</p>
+<p>The vote restriction reinforces this: a node won&rsquo;t vote for a candidate whose log is less up-to-date than its own. This guarantees the new leader always has all committed entries &ndash; it never needs to fetch missing entries from other nodes after winning an election.</p>
+<h2 id="leader-failure">Leader Failure</h2>
+<p>If the leader crashes, the election timeout fires on one of the followers and a new election starts. The vote restriction ensures the winner has the most complete log among the majority. No repair phase, no querying all nodes &ndash; safety comes from the constraint, not from post-election cleanup.</p>
+<h2 id="raft-vs-paxos">Raft vs. Paxos</h2>
+<table>
+  <thead>
+      <tr>
+          <th></th>
+          <th>Multi-Paxos</th>
+          <th>Raft</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>Design goal</td>
+          <td>Correctness</td>
+          <td>Correctness + understandability</td>
+      </tr>
+      <tr>
+          <td>Leader</td>
+          <td>Distinguished proposer (informal)</td>
+          <td>Explicit, enforced by protocol</td>
+      </tr>
+      <tr>
+          <td>Log holes</td>
+          <td>Can have gaps, complex to fill</td>
+          <td>No gaps, entries apply in order</td>
+      </tr>
+      <tr>
+          <td>Config changes</td>
+          <td>Ad hoc</td>
+          <td>Joint consensus built in</td>
+      </tr>
+      <tr>
+          <td>Implementations</td>
+          <td>Chubby, Zab (variants)</td>
+          <td>etcd, CockroachDB, TiKV, Consul</td>
+      </tr>
+  </tbody>
+</table>
+<p>Both tolerate up to (N-1)/2 failures in an N-node cluster. The fault tolerance is identical. The difference is that Raft implementations are actually correct in practice because the protocol is debuggable.</p>
+<h2 id="where-it-runs">Where It Runs</h2>
+<ul>
+<li><strong>etcd</strong> &ndash; Kubernetes&rsquo; backing store; the entire cluster state (pods, services, configs) is a Raft log</li>
+<li><strong>CockroachDB</strong> &ndash; Raft per range; each 512MB range is an independent 3&ndash;5 node Raft group</li>
+<li><strong>TiKV</strong> &ndash; Raft groups per region, underpins TiDB</li>
+<li><strong>Consul</strong> &ndash; service discovery and distributed KV</li>
+</ul>
+<p>If you&rsquo;re building anything that needs replicated state and strong consistency, Raft is the default answer. The paper is readable in an afternoon. The TLA+ spec exists if you want to verify your implementation. Start there.</p>
+]]></content:encoded>
+    </item>
+    <item>
+      <title>Teaching Myself CS: The Plan</title>
+      <link>https://KTS-o7.github.io/bear/posts/teaching_myself_cs/</link>
+      <pubDate>Sat, 02 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/posts/teaching_myself_cs/</guid>
+      <description>&lt;p&gt;I&amp;rsquo;ve been building things with code for a while now, but there are gaps. Not the kind that show up in day-to-day work &amp;ndash; the kind that show up when you&amp;rsquo;re reading a paper and hit a concept you sort of understand but can&amp;rsquo;t really explain, or when you&amp;rsquo;re debugging something deep in a system and realize you&amp;rsquo;re guessing at the underlying mechanics.&lt;/p&gt;&#xA;&lt;p&gt;The fix is obvious in theory: go back and learn the fundamentals properly. The hard part is doing it without spending two years on a degree or burning out on a curriculum that assumes you have nothing else going on.&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>I&rsquo;ve been building things with code for a while now, but there are gaps. Not the kind that show up in day-to-day work &ndash; the kind that show up when you&rsquo;re reading a paper and hit a concept you sort of understand but can&rsquo;t really explain, or when you&rsquo;re debugging something deep in a system and realize you&rsquo;re guessing at the underlying mechanics.</p>
+<p>The fix is obvious in theory: go back and learn the fundamentals properly. The hard part is doing it without spending two years on a degree or burning out on a curriculum that assumes you have nothing else going on.</p>
+<p>I&rsquo;ve been working through <a href="https://teachyourselfcs.com/">teachyourselfcs.com</a> as my backbone. Here&rsquo;s the plan I&rsquo;ve laid out for myself and why I structured it this way.</p>
+<h2 id="the-curriculum">The Curriculum</h2>
+<p>TYCS breaks CS into 9 subjects and gives you a primary book and video course for each. The order is a suggestion, not a law:</p>
+<table>
+  <thead>
+      <tr>
+          <th>Subject</th>
+          <th>Book</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>Programming</td>
+          <td>SICP</td>
+      </tr>
+      <tr>
+          <td>Computer Architecture</td>
+          <td>CS:APP / Nand2Tetris</td>
+      </tr>
+      <tr>
+          <td>Algorithms &amp; Data Structures</td>
+          <td>The Algorithm Design Manual (Skiena)</td>
+      </tr>
+      <tr>
+          <td>Math for CS</td>
+          <td>MIT 6.042J notes</td>
+      </tr>
+      <tr>
+          <td>Operating Systems</td>
+          <td>OSTEP</td>
+      </tr>
+      <tr>
+          <td>Computer Networking</td>
+          <td>Top-Down Approach</td>
+      </tr>
+      <tr>
+          <td>Databases</td>
+          <td>Readings in Database Systems</td>
+      </tr>
+      <tr>
+          <td>Languages &amp; Compilers</td>
+          <td>Crafting Interpreters</td>
+      </tr>
+      <tr>
+          <td>Distributed Systems</td>
+          <td>DDIA + MIT 6.824</td>
+      </tr>
+  </tbody>
+</table>
+<p>The book choices are deliberate. SICP isn&rsquo;t just a programming book &ndash; it&rsquo;s a book about how to think computationally. OSTEP is genuinely readable in a way most OS textbooks aren&rsquo;t. DDIA is probably the most practically useful book on the list if you&rsquo;re building anything that handles data at scale.</p>
+<p>The target is 100-200 hours per subject. That&rsquo;s not a sprint, it&rsquo;s a multi-year project. The goal isn&rsquo;t to finish &ndash; it&rsquo;s to build genuine depth in each area, then keep revisiting.</p>
+<h2 id="the-problem-i-had-to-solve-first">The Problem I Had to Solve First</h2>
+<p>Standard study advice &ndash; &ldquo;30 minutes every day&rdquo; &ndash; doesn&rsquo;t work for me. I have high activation energy to start anything. Once I&rsquo;m in, momentum takes over and I&rsquo;ll go for hours. But that first 15 minutes of friction is real and it kills sessions before they begin.</p>
+<p>So the plan is ignition-focused rather than sustainment-focused:</p>
+<ul>
+<li>Sessions start with a 15-minute minimum, not a 2-hour block. The bar to start is low. Once started, I usually continue past it.</li>
+<li>Entry point is whatever subject feels most alive right now, not necessarily the next one in sequence. The order matters less than actually engaging.</li>
+<li>Each subject has a concrete project attached &ndash; something you build, not just something you read. The project gives momentum a direction.</li>
+</ul>
+<p>The Newton iteration thing from the TYCS intro stuck with me: when you hit something you don&rsquo;t understand, go back to the start of the section and re-read. Each pass gets you further. Don&rsquo;t skip over confusion &ndash; re-enter it.</p>
+<h2 id="how-im-ordering-it">How I&rsquo;m Ordering It</h2>
+<p>I&rsquo;m starting with three subjects in parallel across the first phase rather than going strictly sequential:</p>
+<p><strong>Programming (SICP)</strong> &ndash; Chapters 1-3, doing every exercise. The exercises are the learning. Reading without doing is just moving your eyes across text. I&rsquo;m supplementing with Exercism problems when I want something more applied.</p>
+<p><strong>Computer Architecture (CS:APP / Nand2Tetris)</strong> &ndash; Starting with Nand2Tetris projects 1-5 because they&rsquo;re hands-on in a way that makes the abstractions stick. Build an ALU, then a CPU, then an assembler. By the time you reach CS:APP, you&rsquo;ve already built the thing the book describes.</p>
+<p><strong>Distributed Systems (DDIA)</strong> &ndash; Running this in parallel because I&rsquo;m already working in this space and the reading compounds immediately with real work. DDIA cover-to-cover, then 2-3 papers per week from the MIT DSG reading list. The project target is implementing a Raft consensus module.</p>
+<p>Algorithms and Math for CS come after the first wave. The ML path runs alongside: Andrew Ng&rsquo;s ML course after Algorithms, fast.ai after OS and Networking.</p>
+<h2 id="what-im-not-doing">What I&rsquo;m Not Doing</h2>
+<p>No video lectures unless I&rsquo;m stuck. The TYCS authors are explicit that books are the primary medium and videos are optional supplements. I&rsquo;ve defaulted to videos too many times in the past &ndash; they feel productive but the retention without active practice is low.</p>
+<p>No skipping exercises to &ldquo;get through&rdquo; material faster. The only way through SICP is through the exercises. Same with Nand2Tetris. The projects aren&rsquo;t extra credit, they&rsquo;re the point.</p>
+<p>No treating this as interview prep. The goal is actual understanding. Some of it will be useful in interviews, but that&rsquo;s a side effect, not the frame.</p>
+<p>I&rsquo;ll track hours per subject and update this post as I go.</p>
+]]></content:encoded>
+    </item>
+    <item>
+      <title>The Saga Pattern: Distributed Transactions Without the Lock</title>
+      <link>https://KTS-o7.github.io/bear/posts/saga_pattern/</link>
+      <pubDate>Sat, 02 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/posts/saga_pattern/</guid>
+      <description>&lt;p&gt;Two-phase commit gives you distributed atomicity. It also gives you a coordinator that can stall your entire system if it crashes at the wrong moment, and locks held across multiple services for however long the transaction takes. For short, internal transactions that&amp;rsquo;s manageable. For a trip booking flow that touches a flight service, a hotel service, and a payment service &amp;ndash; each owned by a different team, each potentially slow &amp;ndash; it&amp;rsquo;s not.&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>Two-phase commit gives you distributed atomicity. It also gives you a coordinator that can stall your entire system if it crashes at the wrong moment, and locks held across multiple services for however long the transaction takes. For short, internal transactions that&rsquo;s manageable. For a trip booking flow that touches a flight service, a hotel service, and a payment service &ndash; each owned by a different team, each potentially slow &ndash; it&rsquo;s not.</p>
+<p>The Saga pattern is the alternative. You give up true atomicity in exchange for availability, scalability, and no cross-service locks.</p>
+<h2 id="how-it-works">How It Works</h2>
+<p>Break one big distributed transaction into a sequence of local transactions, each owned by a single service. Each step publishes an event or sends a message when it completes. If any step fails, run compensating transactions in reverse to undo the completed steps.</p>
+<p>The classic example is a trip booking:</p>
+
+
+
+
+
+<pre tabindex="0"><code>Step 1: Reserve flight    → local tx in Flight Service
+Step 2: Reserve hotel     → local tx in Hotel Service
+Step 3: Charge card       → local tx in Payment Service</code></pre><p>If step 3 fails:</p>
+
+
+
+
+
+<pre tabindex="0"><code>FORWARD:   [Flight ✓] → [Hotel ✓] → [Payment ✗]
+ROLLBACK:              ← [Cancel Hotel] ← [Cancel Flight]</code></pre><p>No global rollback. No coordinator holding locks across all three services. Each service knows how to undo its own step.</p>
+<h2 id="two-flavors">Two Flavors</h2>
+<p><strong>Choreography</strong> &ndash; each service listens for events and decides what to do next based on what it hears. No central coordinator. Fully decoupled. Easy to start, and a debugging nightmare once you have more than a handful of services. Tracing a failed saga means reconstructing a sequence of events scattered across multiple event streams.</p>
+<p><strong>Orchestration</strong> &ndash; a central saga orchestrator drives the sequence. It tells each service what to do, collects results, and issues compensating calls on failure. Full visibility into saga state. Easier to reason about and monitor. The orchestrator becomes a coordination hub &ndash; not quite a single point of failure if you make it durable, but a complexity center. Most teams end up here in production.</p>
+<h2 id="the-tradeoff-you-cant-avoid">The Tradeoff You Can&rsquo;t Avoid</h2>
+<p>Sagas trade the &ldquo;I&rdquo; in ACID (isolation) for availability. While a saga is in-flight, intermediate state is visible to other parts of the system. A hotel room might be reserved even though the flight hasn&rsquo;t been confirmed yet. Other services can observe that state.</p>
+<p>You have to design for this explicitly:</p>
+<ul>
+<li><strong>Eventual consistency</strong> &ndash; the system converges to a correct final state, but not atomically</li>
+<li><strong>Idempotent compensating transactions</strong> &ndash; if your &ldquo;cancel flight&rdquo; call gets retried twice due to a network hiccup, it must be safe to run twice. Compensation that isn&rsquo;t idempotent will make your failure recovery worse than the original failure.</li>
+</ul>
+<table>
+  <thead>
+      <tr>
+          <th>Property</th>
+          <th>2PC</th>
+          <th>Saga</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>Atomicity</td>
+          <td>Global</td>
+          <td>Per-step only</td>
+      </tr>
+      <tr>
+          <td>Isolation</td>
+          <td>Full</td>
+          <td>Intermediate state visible</td>
+      </tr>
+      <tr>
+          <td>Availability</td>
+          <td>Blocks on coordinator failure</td>
+          <td>Always makes progress</td>
+      </tr>
+      <tr>
+          <td>Scalability</td>
+          <td>Locks across services</td>
+          <td>No cross-service locks</td>
+      </tr>
+  </tbody>
+</table>
 <h2 id="where-it-shows-up">Where It Shows Up</h2>
-<p>Consistent hashing is the routing primitive in almost every large-scale distributed storage system:</p>
+<p>Basically every large-scale order or booking flow:</p>
 <ul>
-<li><strong>Amazon DynamoDB</strong> &ndash; keys mapped to vnodes on a ring, each vnode owned by a replica group. Rebalancing happens automatically as the cluster scales.</li>
-<li><strong>Apache Cassandra</strong> &ndash; the token ring is consistent hashing. Vnodes are on by default since 1.2; Cassandra 4.0 moved to 256 tokens per node as default.</li>
-<li><strong>Memcached</strong> &ndash; ketama is the consistent hashing client library that standardized this approach for caching. Most client libraries implement it.</li>
-<li><strong>Redis Cluster</strong> &ndash; uses a variant called hash slots (16384 fixed slots, nodes own ranges of slots). Conceptually the same idea, implemented as a fixed-size ring.</li>
+<li><strong>Uber</strong> &ndash; ride booking, driver assignment, payment charge, all as separate service transactions</li>
+<li><strong>Amazon</strong> &ndash; order placement, inventory reservation, fulfillment, shipping</li>
+<li><strong>Netflix</strong> &ndash; subscription management, content licensing flows</li>
 </ul>
-<p>The algorithm itself is from a 1997 paper by Karger et al., written to solve exactly this problem for web caching. The core idea hasn&rsquo;t changed. The production details &ndash; vnode count, rebalancing triggers, hotspot detection, replica placement &ndash; are where the real engineering lives.</p>
+<p>These systems can&rsquo;t afford to hold cross-service locks for the duration of a user-facing transaction. They accept that intermediate states exist and design their compensating logic carefully.</p>
+<p>The saga pattern doesn&rsquo;t make distributed transactions easy. It makes the tradeoffs explicit and gives you a way to build systems that stay available even when individual steps fail.</p>
+]]></content:encoded>
+    </item>
+    <item>
+      <title>Two-Phase Commit: Distributed Atomicity and Its Fatal Flaw</title>
+      <link>https://KTS-o7.github.io/bear/posts/two_phase_commit/</link>
+      <pubDate>Sat, 02 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/posts/two_phase_commit/</guid>
+      <description>&lt;p&gt;The problem is simple to state: you have a transaction that touches multiple nodes. You want all of them to commit, or none of them to. No partial states, no one node committing while another aborts.&lt;/p&gt;&#xA;&lt;p&gt;Two-phase commit (2PC) solves this. It&amp;rsquo;s been in production databases for decades. It also has a flaw that makes it unusable for anything long-running, which is why most modern large-scale systems don&amp;rsquo;t use it directly.&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>The problem is simple to state: you have a transaction that touches multiple nodes. You want all of them to commit, or none of them to. No partial states, no one node committing while another aborts.</p>
+<p>Two-phase commit (2PC) solves this. It&rsquo;s been in production databases for decades. It also has a flaw that makes it unusable for anything long-running, which is why most modern large-scale systems don&rsquo;t use it directly.</p>
+<h2 id="the-protocol">The Protocol</h2>
+<p>There&rsquo;s a coordinator and a set of participants. The coordinator drives the protocol.</p>
+<p><strong>Phase 1 &ndash; Prepare</strong></p>
+<p>The coordinator sends <code>PREPARE</code> to every participant. Each participant:</p>
+<ul>
+<li>Writes the transaction to a durable log</li>
+<li>Acquires the necessary locks</li>
+<li>Replies <code>YES</code> (ready to commit) or <code>NO</code> (something failed)</li>
+</ul>
+<p><strong>Phase 2 &ndash; Commit or Abort</strong></p>
+<ul>
+<li>If all participants said YES: coordinator sends <code>COMMIT</code> to everyone</li>
+<li>If anyone said NO: coordinator sends <code>ABORT</code></li>
+</ul>
+<p>Participants execute the decision and release their locks.</p>
+
+
+
+
+
+<pre tabindex="0"><code>Coordinator         Node A        Node B
+    |--- PREPARE -------&gt;|             |
+    |--- PREPARE ---------|-----------&gt;|
+    |&lt;-- YES ------------|             |
+    |&lt;-- YES ------------|-------------|
+    |--- COMMIT --------&gt;|             |
+    |--- COMMIT ----------|-----------&gt;|</code></pre><p>Clean path works fine. Every node ends up in the same state. Locks are held only for the duration of the protocol.</p>
+<h2 id="the-fatal-flaw">The Fatal Flaw</h2>
+<p>Crash the coordinator after phase 1 but before phase 2.</p>
+<p>Participants are now stuck. They voted YES and locked their resources. They don&rsquo;t know whether the coordinator decided to commit or abort. They can&rsquo;t safely proceed in either direction &ndash; committing might be wrong if another participant said NO, aborting might be wrong if the coordinator was about to send COMMIT.</p>
+<p>They wait. The locks stay held. The system is in limbo until the coordinator recovers.</p>
+<p>This is the <strong>blocking problem</strong>. 2PC is a blocking protocol under failure. A single coordinator crash can stall the entire transaction indefinitely.</p>
+<h2 id="the-attempted-fix-3pc">The Attempted Fix: 3PC</h2>
+<p>Three-phase commit inserts a pre-commit phase between prepare and commit:</p>
+<p><code>PREPARE → PRE-COMMIT → COMMIT</code></p>
+<p>Pre-commit lets participants infer the coordinator&rsquo;s intent even if it crashes: if you received a pre-commit, the coordinator had seen all YES votes and was going to commit. You can safely commit yourself if the coordinator disappears after that point.</p>
+<p>3PC eliminates most blocking scenarios. It costs one extra round of messages and still has edge cases under network partitions. It&rsquo;s not widely used in practice &ndash; the complexity tradeoff isn&rsquo;t worth it for most systems.</p>
+<h2 id="what-systems-actually-do">What Systems Actually Do</h2>
+<table>
+  <thead>
+      <tr>
+          <th>Approach</th>
+          <th>Mechanism</th>
+          <th>Tradeoff</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>Saga pattern</td>
+          <td>Compensating transactions</td>
+          <td>No locks, but no true atomicity</td>
+      </tr>
+      <tr>
+          <td>Paxos / Raft</td>
+          <td>Consensus algorithm</td>
+          <td>Strong guarantees, higher complexity</td>
+      </tr>
+      <tr>
+          <td>Optimistic concurrency</td>
+          <td>Detect conflicts at commit time</td>
+          <td>Works well for low-contention workloads</td>
+      </tr>
+  </tbody>
+</table>
+<p>Most large-scale systems avoid 2PC for anything user-facing. Short, internal database transactions &ndash; a single service committing to one database &ndash; are fine. Cross-service transactions that could run for seconds or involve user interaction are not.</p>
+<p>2PC is worth understanding because it makes the tradeoff concrete: you can have distributed atomicity, but you&rsquo;re paying for it with availability under coordinator failure. Everything else in distributed transactions is a different point on that curve.</p>
+]]></content:encoded>
+    </item>
+    <item>
+      <title>Vector Clocks: Causality Without a Shared Clock</title>
+      <link>https://KTS-o7.github.io/bear/posts/vector_clocks/</link>
+      <pubDate>Sat, 02 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/posts/vector_clocks/</guid>
+      <description>&lt;p&gt;In a distributed system there&amp;rsquo;s no shared clock. Two nodes can&amp;rsquo;t agree on what time it is &amp;ndash; network latency is variable, clocks drift, and NTP only gets you so far. So you can&amp;rsquo;t use timestamps to order events across nodes in any meaningful way.&lt;/p&gt;&#xA;&lt;p&gt;The question is: can you still tell whether one event caused another?&lt;/p&gt;&#xA;&lt;p&gt;Vector clocks answer that question. They don&amp;rsquo;t give you wall-clock time. They give you something more useful: a precise definition of &amp;ldquo;happened before.&amp;rdquo;&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>In a distributed system there&rsquo;s no shared clock. Two nodes can&rsquo;t agree on what time it is &ndash; network latency is variable, clocks drift, and NTP only gets you so far. So you can&rsquo;t use timestamps to order events across nodes in any meaningful way.</p>
+<p>The question is: can you still tell whether one event caused another?</p>
+<p>Vector clocks answer that question. They don&rsquo;t give you wall-clock time. They give you something more useful: a precise definition of &ldquo;happened before.&rdquo;</p>
+<h2 id="how-they-work">How They Work</h2>
+<p>Each node maintains a vector of counters, one slot per node in the system. Call them <code>[A, B, C]</code> for a three-node cluster.</p>
+<p>Three rules:</p>
+<ol>
+<li><strong>Local event</strong> &ndash; increment your own counter</li>
+<li><strong>Send a message</strong> &ndash; attach the current vector to the message</li>
+<li><strong>Receive a message</strong> &ndash; merge by taking the element-wise max of your vector and the received vector, then increment your own counter</li>
+</ol>
+<p>A concrete trace:</p>
+
+
+
+
+
+<pre tabindex="0"><code>Node A starts:  [A:0, B:0, C:0]
+Node A event:   [A:1, B:0, C:0]
+Node A sends to B, attaches [A:1, B:0, C:0]
+
+Node B receives, merges: max([A:0,B:0,C:0], [A:1,B:0,C:0]) = [A:1,B:0,C:0]
+Node B increments own:   [A:1, B:1, C:0]
+Node B event:            [A:1, B:2, C:0]</code></pre><h2 id="what-you-can-determine">What You Can Determine</h2>
+<p>Given two events with vectors <code>V1</code> and <code>V2</code>, exactly one of three things is true:</p>
+<table>
+  <thead>
+      <tr>
+          <th>Result</th>
+          <th>Condition</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>V1 happened-before V2</td>
+          <td>V1[i] &lt;= V2[i] for every i, and strict for at least one</td>
+      </tr>
+      <tr>
+          <td>V2 happened-before V1</td>
+          <td>V2[i] &lt;= V1[i] for every i, and strict for at least one</td>
+      </tr>
+      <tr>
+          <td><strong>Concurrent</strong></td>
+          <td>Neither vector dominates</td>
+      </tr>
+  </tbody>
+</table>
+<p>The concurrent case is the important one. When neither vector dominates, the events genuinely have no causal relationship &ndash; they happened independently on different nodes without either one knowing about the other. No ordering can be inferred because no ordering exists.</p>
+<h2 id="why-this-matters">Why This Matters</h2>
+<p>The alternative is last-write-wins: when two writes conflict, pick the one with the later timestamp and discard the other. This is simple to implement and silently destroys data. If two users edit the same document concurrently, you lose one of their changes without telling anyone.</p>
+<p>Vector clocks let you detect that conflict honestly. DynamoDB and Riak use them (or variants) to surface conflicting writes to the application rather than silently resolving them. The application &ndash; or the user &ndash; can then merge the two versions intelligently.</p>
+<p>&ldquo;Happened-before&rdquo; is a relationship you earn through the causal structure of the system, not one you assume from timestamps.</p>
+<h2 id="the-tradeoff">The Tradeoff</h2>
+<p>Vector size grows O(N) with the number of nodes. In a cluster with hundreds of nodes, attaching a full vector to every message gets expensive.</p>
+<p><strong>Dotted version vectors</strong> are a modern fix: they compress the vector by pruning entries that are causally dominated. Same core semantics, better space efficiency for large clusters.</p>
+<p>Lamport clocks are the scalar predecessor &ndash; a single counter instead of a vector. They give you a consistent ordering (if A happened-before B, A&rsquo;s timestamp is lower), but they don&rsquo;t detect concurrency. Two events with different Lamport timestamps might still be concurrent. Vector clocks are strictly more informative.</p>
 ]]></content:encoded>
     </item>
     <item>
@@ -197,460 +1091,6 @@ P2&#39;s ACCEPT(6, v) is now rejected
 <li><strong>Google Spanner</strong> &ndash; Paxos per shard for cross-replica replication. Combined with TrueTime for external consistency.</li>
 </ul>
 <p>New systems almost universally choose Raft. The guarantees are equivalent and the implementation surface is much smaller. Paxos matters because it&rsquo;s what everything was built on, and because understanding what it leaves unspecified is the clearest way to understand why the distributed systems field spent a decade building on top of it before someone sat down and wrote a protocol that was complete enough to implement from scratch.</p>
-]]></content:encoded>
-    </item>
-    <item>
-      <title>Raft Consensus</title>
-      <link>https://KTS-o7.github.io/bear/posts/raft_consensus/</link>
-      <pubDate>Sun, 26 Apr 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
-      <guid>https://KTS-o7.github.io/bear/posts/raft_consensus/</guid>
-      <description>&lt;p&gt;Distributed consensus &amp;ndash; getting a cluster of nodes to agree on a sequence of values, even when some nodes crash &amp;ndash; is a solved problem. The canonical solution is Paxos. The problem with Paxos is that it&amp;rsquo;s famously hard to understand and even harder to implement correctly.&lt;/p&gt;&#xA;&lt;p&gt;Raft was designed in 2013 specifically to be understandable. Same safety guarantees. Radically different presentation. The paper&amp;rsquo;s introduction literally says: &amp;ldquo;we had several goals: Raft must be complete and practical&amp;hellip; but most importantly, it must be understandable by a large audience.&amp;rdquo;&lt;/p&gt;</description>
-      <content:encoded><![CDATA[<p>Distributed consensus &ndash; getting a cluster of nodes to agree on a sequence of values, even when some nodes crash &ndash; is a solved problem. The canonical solution is Paxos. The problem with Paxos is that it&rsquo;s famously hard to understand and even harder to implement correctly.</p>
-<p>Raft was designed in 2013 specifically to be understandable. Same safety guarantees. Radically different presentation. The paper&rsquo;s introduction literally says: &ldquo;we had several goals: Raft must be complete and practical&hellip; but most importantly, it must be understandable by a large audience.&rdquo;</p>
-<p>That goal shapes every design decision in the protocol.</p>
-<h2 id="the-decomposition">The Decomposition</h2>
-<p>Paxos describes consensus as a single unified mechanism with invariants distributed throughout. Raft explicitly breaks it into three independent subproblems and solves each one in isolation:</p>
-<ol>
-<li><strong>Leader election</strong> &ndash; at any time, exactly one node is the authority for new log entries</li>
-<li><strong>Log replication</strong> &ndash; the leader accepts client writes and drives them to a majority</li>
-<li><strong>Safety</strong> &ndash; a node can only become leader if it has all committed entries; committed entries are never lost</li>
-</ol>
-<p>This decomposition is the insight. Once you have a stable leader, log replication is almost trivially simple. Once you have log replication, safety falls out of the election constraint. The hard part is the election itself &ndash; and Raft handles it with a clean mechanism rather than leaving it informal.</p>
-<h2 id="terms-and-roles">Terms and Roles</h2>
-<p>Raft uses <strong>terms</strong> as its logical clock &ndash; a monotonically increasing integer. Each election starts a new term. Every RPC includes the sender&rsquo;s term. If a node receives a message with a higher term than its own, it immediately updates its term and steps down to follower. Stale leaders don&rsquo;t survive contact with the rest of the cluster.</p>
-<p>Every node is in one of three states:</p>
-<table>
-  <thead>
-      <tr>
-          <th>Role</th>
-          <th>Responsibility</th>
-      </tr>
-  </thead>
-  <tbody>
-      <tr>
-          <td><strong>Follower</strong></td>
-          <td>Passive &ndash; responds to leader and candidate RPCs</td>
-      </tr>
-      <tr>
-          <td><strong>Candidate</strong></td>
-          <td>Temporarily, during an election</td>
-      </tr>
-      <tr>
-          <td><strong>Leader</strong></td>
-          <td>Accepts client requests, replicates entries, sends heartbeats</td>
-      </tr>
-  </tbody>
-</table>
-<p>All nodes start as followers. A node becomes a candidate only when it stops hearing from the leader. There is at most one leader per term.</p>
-<h2 id="leader-election">Leader Election</h2>
-<p>Followers expect a regular heartbeat from the leader &ndash; an <code>AppendEntries</code> RPC with no entries, sent to keep followers from timing out. If a heartbeat doesn&rsquo;t arrive within the <strong>election timeout</strong> (randomized between 150-300ms typically), the follower converts to candidate:</p>
-<ol>
-<li>Increments its term</li>
-<li>Votes for itself</li>
-<li>Sends <code>RequestVote(term, lastLogIndex, lastLogTerm)</code> to all other nodes</li>
-</ol>
-<p>A node grants a vote if:</p>
-<ul>
-<li>It hasn&rsquo;t voted in this term yet</li>
-<li>The candidate&rsquo;s log is <strong>at least as up-to-date</strong> as its own (more on this below)</li>
-</ul>
-<p>The first candidate to collect a majority becomes leader and immediately starts sending heartbeats to suppress any other elections.</p>
-<p><strong>Why randomized timeouts?</strong> If all nodes had the same election timeout, they&rsquo;d all become candidates simultaneously on every leader failure, split votes, and never elect a leader. The random timeout means one node almost always times out first, starts an election, and collects votes before anyone else has even woken up. Split votes still happen occasionally; both candidates pick new random timeouts and retry with a higher term, so they resolve quickly.</p>
-
-
-
-
-
-<pre tabindex="0"><code>All followers, leader goes silent
-Node A&#39;s timeout fires first (it drew the shortest timeout)
-A → Candidate, term=6, votes for self
-A → RequestVote(term=6) → B, C, D, E
-B: hasn&#39;t voted in term 6, A&#39;s log is current → grant
-C: hasn&#39;t voted in term 6, A&#39;s log is current → grant
-A has 3/5 votes → Leader(term=6) → heartbeats begin
-D and E timers never fire</code></pre><h2 id="log-replication">Log Replication</h2>
-<p>Once a leader exists, writes are straightforward:</p>
-<ol>
-<li>Client sends a command to the leader</li>
-<li>Leader appends the entry to its local log (status: <strong>uncommitted</strong>)</li>
-<li>Leader sends <code>AppendEntries(prevLogIndex, prevLogTerm, entries[], leaderCommit)</code> to all followers in parallel</li>
-<li>Once a <strong>majority</strong> of nodes have written the entry to their logs → leader marks it <strong>committed</strong></li>
-<li>Leader applies the entry to its state machine and responds to the client</li>
-<li>On the next heartbeat, followers learn the new commit index and apply pending entries</li>
-</ol>
-
-
-
-
-
-<pre tabindex="0"><code>Client → write x=5 → Leader
-Leader → AppendEntries → Follower A ✓ (writes to log)
-Leader → AppendEntries → Follower B ✓ (writes to log)
-Leader → AppendEntries → Follower C  ✗ (unreachable)
-Majority = Leader + A + B → mark committed → apply x=5 → reply to client
-Follower C recovers later, leader resends missing entries, C catches up</code></pre><p>The <code>prevLogIndex</code> and <code>prevLogTerm</code> fields in AppendEntries are the consistency check. A follower rejects the append if the previous entry in its own log doesn&rsquo;t match. The leader backs up by one and retries. This process finds the last point where the follower&rsquo;s log matches the leader&rsquo;s, and the leader resends everything from there. The leader&rsquo;s log always wins.</p>
-<h2 id="safety-the-election-constraint">Safety: The Election Constraint</h2>
-<p>The critical invariant: a node can only win an election if its log is <strong>at least as up-to-date</strong> as a majority of nodes.</p>
-<p>&ldquo;Up-to-date&rdquo; is a precise comparison:</p>
-<ul>
-<li>Compare the term of the last log entry. Higher term wins.</li>
-<li>If terms are equal, longer log wins.</li>
-</ul>
-<p>This guarantees that a newly elected leader always has all committed entries. Here&rsquo;s why: a committed entry was written by a majority. Any election winner collected votes from a majority. Those two majorities must overlap by at least one node. That overlapping node voted for the winner, which means the winner&rsquo;s log was at least as current as that node&rsquo;s &ndash; which means it has the committed entry.</p>
-<p>No repair step needed. No &ldquo;figure out what was committed before my election.&rdquo; The safety guarantee is structural, not procedural.</p>
-<h2 id="handling-log-divergence">Handling Log Divergence</h2>
-<p>When a leader fails and a new one is elected, some followers may have entries the new leader doesn&rsquo;t have, and vice versa. The resolution: the new leader&rsquo;s log is authoritative. Diverged follower entries are overwritten.</p>
-<p>This is safe because of the election constraint &ndash; the new leader has all committed entries. Any entries only on diverged followers were never committed (the old leader hadn&rsquo;t yet received majority acknowledgement), so discarding them is safe.</p>
-<p>The AppendEntries consistency check drives the catchup automatically. No explicit repair protocol needed.</p>
-<h2 id="raft-vs-paxos">Raft vs. Paxos</h2>
-<table>
-  <thead>
-      <tr>
-          <th></th>
-          <th>Paxos (Multi-Paxos)</th>
-          <th>Raft</th>
-      </tr>
-  </thead>
-  <tbody>
-      <tr>
-          <td><strong>Design goal</strong></td>
-          <td>Correctness</td>
-          <td>Correctness + understandability</td>
-      </tr>
-      <tr>
-          <td><strong>Leader</strong></td>
-          <td>Distinguished proposer (informal)</td>
-          <td>Explicit, enforced by protocol</td>
-      </tr>
-      <tr>
-          <td><strong>Log gaps</strong></td>
-          <td>Allowed &ndash; slots can be filled out of order</td>
-          <td>Not allowed &ndash; entries are sequential</td>
-      </tr>
-      <tr>
-          <td><strong>Config changes</strong></td>
-          <td>Ad hoc, not specified</td>
-          <td>Joint consensus built into the protocol</td>
-      </tr>
-      <tr>
-          <td><strong>Understandability</strong></td>
-          <td>Notoriously hard</td>
-          <td>Designed to be teachable</td>
-      </tr>
-      <tr>
-          <td><strong>Key implementations</strong></td>
-          <td>Chubby, Zab (variant)</td>
-          <td>etcd, CockroachDB, TiKV, Consul</td>
-      </tr>
-  </tbody>
-</table>
-<p>Same fault tolerance: both tolerate up to <code>⌊(N-1)/2⌋</code> failures. 3 nodes tolerates 1 failure. 5 nodes tolerates 2. You need a majority of nodes alive to make progress.</p>
-<h2 id="what-raft-doesnt-cover-and-matters-for-production">What Raft Doesn&rsquo;t Cover (and Matters for Production)</h2>
-<p><strong>Log compaction:</strong> The log grows forever. Snapshots periodically capture the full state machine state and truncate the log prefix. A follower that falls too far behind receives a snapshot instead of individual entries. The Raft paper covers this in the extended version; most implementations handle it, but the details (snapshot transfer, concurrent snapshotting while serving reads) are non-trivial.</p>
-<p><strong>Cluster membership changes:</strong> Adding or removing nodes changes what constitutes a majority. Done naively, this creates a window where two disjoint majorities can exist simultaneously &ndash; a split-brain scenario. Raft&rsquo;s answer is joint consensus: during the transition, a commit requires majority from both the old and new configuration. Implemented in etcd; often the trickiest part of a real Raft implementation.</p>
-<p><strong>Read scaling:</strong> Every read going through the leader is a bottleneck. Follower reads are tempting but require care &ndash; a follower might be behind. Lease-based reads (leader holds a time-bounded lease guaranteeing no other leader exists) allow serving reads without a full round-trip. etcd implements this. The consistency tradeoff is: reads are linearizable only if the lease is valid; clock skew can violate this.</p>
-<h2 id="where-its-used">Where It&rsquo;s Used</h2>
-<ul>
-<li><strong>etcd</strong> &ndash; the backing store for all Kubernetes cluster state. One Raft cluster per etcd deployment; the entire control plane depends on it.</li>
-<li><strong>CockroachDB</strong> &ndash; Raft per range (shard). Each range is a 3-5 node Raft group. Thousands of Raft groups per cluster.</li>
-<li><strong>TiKV</strong> (TiDB&rsquo;s storage layer) &ndash; Raft groups per region, same pattern as CockroachDB.</li>
-<li><strong>Consul</strong> &ndash; service discovery and distributed KV. Single Raft cluster per datacenter.</li>
-</ul>
-<p>The algorithm is young &ndash; the paper is from 2013 &ndash; but it has already become the default answer to the question &ldquo;how does this cluster stay consistent?&rdquo;</p>
-]]></content:encoded>
-    </item>
-    <item>
-      <title>The Saga Pattern</title>
-      <link>https://KTS-o7.github.io/bear/posts/saga_pattern/</link>
-      <pubDate>Sun, 26 Apr 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
-      <guid>https://KTS-o7.github.io/bear/posts/saga_pattern/</guid>
-      <description>&lt;p&gt;Two-Phase Commit gives you distributed atomicity. The cost is a coordinator that can crash and leave every participant locked indefinitely. For short transactions inside a single system, that&amp;rsquo;s acceptable. For a multi-step flow that touches five separate microservices over several seconds, it isn&amp;rsquo;t.&lt;/p&gt;&#xA;&lt;p&gt;The Saga pattern is the practical answer: break the distributed transaction into a sequence of local transactions, and define a compensation for each step. If something fails halfway through, run the compensations in reverse. No global lock. No blocking coordinator. Just a cleanup plan.&lt;/p&gt;</description>
-      <content:encoded><![CDATA[<p>Two-Phase Commit gives you distributed atomicity. The cost is a coordinator that can crash and leave every participant locked indefinitely. For short transactions inside a single system, that&rsquo;s acceptable. For a multi-step flow that touches five separate microservices over several seconds, it isn&rsquo;t.</p>
-<p>The Saga pattern is the practical answer: break the distributed transaction into a sequence of local transactions, and define a compensation for each step. If something fails halfway through, run the compensations in reverse. No global lock. No blocking coordinator. Just a cleanup plan.</p>
-<h2 id="the-basic-mechanics">The Basic Mechanics</h2>
-<p>A saga is a sequence of steps, each executed by a single service as a local transaction:</p>
-
-
-
-
-
-<pre tabindex="0"><code>Step 1: Reserve flight    → local tx in Flight Service
-Step 2: Reserve hotel     → local tx in Hotel Service
-Step 3: Charge card       → local tx in Payment Service</code></pre><p>Each step succeeds or fails independently. If Step 3 fails after Steps 1 and 2 have already committed:</p>
-
-
-
-
-
-<pre tabindex="0"><code>FORWARD:  [Flight ✓] → [Hotel ✓] → [Payment ✗]
-ROLLBACK:             ← [Cancel Hotel] ← [Cancel Flight]</code></pre><p>The compensation for &ldquo;reserve flight&rdquo; is &ldquo;cancel flight&rdquo;. The compensation for &ldquo;reserve hotel&rdquo; is &ldquo;cancel hotel&rdquo;. Each service is responsible for knowing how to undo itself.</p>
-<p>This is fundamentally different from a database rollback. There&rsquo;s no global transaction log. The compensations are domain-level operations that must be designed and implemented explicitly.</p>
-<h2 id="two-coordination-models">Two Coordination Models</h2>
-<h3 id="choreography">Choreography</h3>
-<p>Each service listens for events on a message bus and decides what to do next based on what it hears. No central coordinator. The saga emerges from the interaction of independent services.</p>
-
-
-
-
-
-<pre tabindex="0"><code>Payment Service emits &#34;payment_failed&#34;
-→ Hotel Service hears it, cancels reservation, emits &#34;hotel_cancelled&#34;
-→ Flight Service hears it, cancels reservation, emits &#34;flight_cancelled&#34;
-→ Done</code></pre><p>Works well at small scale. At large scale the flow becomes hard to trace &ndash; debugging a failure means correlating events across N services, each with its own logs, each with its own notion of what happened.</p>
-<h3 id="orchestration">Orchestration</h3>
-<p>A dedicated saga orchestrator drives the sequence. It tells each service what to do, collects the result, and issues compensating calls on failure.</p>
-
-
-
-
-
-<pre tabindex="0"><code>Orchestrator → &#34;reserve flight&#34; → Flight Service → ✓
-Orchestrator → &#34;reserve hotel&#34;  → Hotel Service  → ✓
-Orchestrator → &#34;charge card&#34;    → Payment Service → ✗
-Orchestrator → &#34;cancel hotel&#34;   → Hotel Service  → ✓
-Orchestrator → &#34;cancel flight&#34;  → Flight Service  → ✓</code></pre><p>The orchestrator has a complete view of the saga&rsquo;s state at every point. Debugging is straightforward &ndash; query the orchestrator. The tradeoff is that the orchestrator becomes a coordination hub. It doesn&rsquo;t become a single point of failure (it can be replicated), but it becomes a complexity center that needs its own testing, monitoring, and failure handling.</p>
-<p>Most teams end up at orchestration. The debugging clarity is worth the overhead.</p>
-<h2 id="the-isolation-problem">The Isolation Problem</h2>
-<p>Sagas trade isolation for availability. This is the most important tradeoff to understand, and the one that bites teams who treat sagas as a drop-in replacement for 2PC.</p>
-<p>While a saga is in flight, intermediate state is visible. After Step 1 and Step 2 succeed but before Step 3, there is a committed hotel reservation and a committed flight reservation with no corresponding payment. Other services can see that state. If another saga is running concurrently, it might observe that hotel room as unavailable.</p>
-<p>This is the &ldquo;lost isolation&rdquo; in ACID. You&rsquo;re operating under eventual consistency &ndash; the system will eventually reach a correct state (either fully committed or fully compensated), but it doesn&rsquo;t happen atomically.</p>
-<p>The implications:</p>
-<ul>
-<li><strong>Compensating transactions must be idempotent.</strong> A &ldquo;cancel hotel&rdquo; that gets called twice due to a retry must not double-cancel or throw an error. Design them to be safe to execute multiple times.</li>
-<li><strong>Compensating transactions must be commutative where possible.</strong> The order of compensations shouldn&rsquo;t matter.</li>
-<li><strong>Read-your-writes guarantees go away across service boundaries.</strong> A user might see a confirmed booking briefly, then see it cancelled. Design your UX accordingly.</li>
-</ul>
-<h2 id="compared-to-2pc">Compared to 2PC</h2>
-<table>
-  <thead>
-      <tr>
-          <th>Property</th>
-          <th>2PC</th>
-          <th>Saga</th>
-      </tr>
-  </thead>
-  <tbody>
-      <tr>
-          <td>Atomicity</td>
-          <td>Global</td>
-          <td>Per-step only</td>
-      </tr>
-      <tr>
-          <td>Isolation</td>
-          <td>Full</td>
-          <td>Intermediate state visible</td>
-      </tr>
-      <tr>
-          <td>Availability</td>
-          <td>Blocks on coordinator failure</td>
-          <td>Always makes progress</td>
-      </tr>
-      <tr>
-          <td>Scalability</td>
-          <td>Locks across services</td>
-          <td>No cross-service locks</td>
-      </tr>
-      <tr>
-          <td>Failure model</td>
-          <td>Coordinator SPOF</td>
-          <td>Each step can fail independently</td>
-      </tr>
-  </tbody>
-</table>
-<p>There&rsquo;s no correct choice that applies everywhere. 2PC is right when you need strict atomicity and the transaction is short-lived. Sagas are right when you need availability and the steps are long-lived or span service boundaries.</p>
-<h2 id="what-production-looks-like">What Production Looks Like</h2>
-<p>The saga pattern shows up in basically every large-scale order/booking/fulfillment system:</p>
-<ul>
-<li><strong>Uber</strong> &ndash; a ride request touches driver matching, pricing, payment authorization, and notification services. Each is a local transaction. Driver matching failures trigger compensation in pricing, and so on.</li>
-<li><strong>Amazon</strong> &ndash; order placement reserves inventory, authorizes payment, and initiates fulfillment. Each step can fail and be compensated independently.</li>
-<li><strong>Netflix</strong> &ndash; subscription management spans billing, entitlement, and content licensing. Saga orchestration drives the transitions.</li>
-</ul>
-<p>The implementation details vary, but the pattern is the same: local transactions, explicit compensations, an orchestrator or event bus to drive the flow.</p>
-<h2 id="the-part-nobody-tells-you">The Part Nobody Tells You</h2>
-<p>Designing the happy path of a saga is easy. Designing the compensation path is where it gets hard.</p>
-<p>Compensation failures are the edge case that most teams underspecify. What happens when the &ldquo;cancel hotel&rdquo; compensation call itself fails? You need a retry strategy, a dead-letter queue, and a manual intervention path for cases that can&rsquo;t self-heal. The saga state machine needs to persist its progress durably &ndash; if the orchestrator crashes mid-saga and restarts, it must be able to resume from where it left off without re-running already-completed steps.</p>
-<p>The outbox pattern is the standard solution for durability: instead of calling the next service directly, the orchestrator writes the next command to a local database table in the same transaction that records the current step&rsquo;s result. A separate process reads the outbox and delivers the command. This guarantees at-least-once delivery without distributed transaction semantics.</p>
-<p>A saga without durable state and idempotent compensations is a saga that will eventually corrupt data in production.</p>
-]]></content:encoded>
-    </item>
-    <item>
-      <title>Two-Phase Commit</title>
-      <link>https://KTS-o7.github.io/bear/posts/two_phase_commit/</link>
-      <pubDate>Sun, 26 Apr 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
-      <guid>https://KTS-o7.github.io/bear/posts/two_phase_commit/</guid>
-      <description>&lt;p&gt;Suppose you have a transaction that touches three separate databases &amp;ndash; a flight reservation, a hotel booking, and a payment charge. You want either all three to commit or none of them to. One service can&amp;rsquo;t commit and another abort. How do you coordinate that?&lt;/p&gt;&#xA;&lt;p&gt;The answer most people reach for is Two-Phase Commit (2PC). It works in the happy path. The failure path has a flaw that&amp;rsquo;s been known since the algorithm was described in 1978, and every distributed systems engineer should understand it before deciding whether to use 2PC.&lt;/p&gt;</description>
-      <content:encoded><![CDATA[<p>Suppose you have a transaction that touches three separate databases &ndash; a flight reservation, a hotel booking, and a payment charge. You want either all three to commit or none of them to. One service can&rsquo;t commit and another abort. How do you coordinate that?</p>
-<p>The answer most people reach for is Two-Phase Commit (2PC). It works in the happy path. The failure path has a flaw that&rsquo;s been known since the algorithm was described in 1978, and every distributed systems engineer should understand it before deciding whether to use 2PC.</p>
-<h2 id="the-protocol">The Protocol</h2>
-<p>A single <strong>coordinator</strong> node drives two rounds of messages to all <strong>participants</strong> (the nodes doing the actual work).</p>
-<p><strong>Phase 1 &ndash; Prepare:</strong>
-The coordinator broadcasts &ldquo;can you commit?&rdquo; to all participants. Each participant:</p>
-<ul>
-<li>Writes the transaction to a durable log (so it can replay after a crash)</li>
-<li>Acquires all necessary locks</li>
-<li>Replies YES or NO</li>
-</ul>
-<p><strong>Phase 2 &ndash; Commit or Abort:</strong></p>
-<ul>
-<li>If all participants voted YES → coordinator sends COMMIT to everyone</li>
-<li>If any participant voted NO (or timed out) → coordinator sends ABORT to everyone</li>
-<li>Participants execute the decision and release their locks</li>
-</ul>
-
-
-
-
-
-<pre tabindex="0"><code>Coordinator          Node A        Node B
-    |--- PREPARE -------&gt;|             |
-    |--- PREPARE ---------|-----------&gt;|
-    |&lt;-- YES ------------|             |
-    |&lt;-- YES ------------|-------------|
-    |--- COMMIT --------&gt;|             |
-    |--- COMMIT ----------|-----------&gt;|
-    [all nodes commit, locks released]</code></pre><p>The protocol guarantees atomicity: either every participant commits or every participant aborts. From the outside, the transaction appears to happen all at once or not at all.</p>
-<h2 id="the-fatal-flaw--blocking-under-failure">The Fatal Flaw &ndash; Blocking Under Failure</h2>
-<p>The coordinator crashes after receiving all YES votes but before sending Phase 2.</p>
-<p>Now every participant is stuck. They voted YES and locked their resources. They don&rsquo;t know whether the coordinator decided to commit or abort before it crashed. They can&rsquo;t safely do either:</p>
-<ul>
-<li>If they commit, they might contradict an abort decision the coordinator had already sent to other nodes they can&rsquo;t see</li>
-<li>If they abort, they might contradict a commit decision the coordinator had already sent</li>
-</ul>
-<p>So they wait. Resources stay locked. The system can&rsquo;t make progress until the coordinator recovers.</p>
-<p>This is the <strong>blocking problem</strong>. 2PC is a blocking protocol &ndash; a coordinator failure at exactly the wrong moment halts the entire transaction indefinitely. In a high-availability system, &ldquo;wait for coordinator recovery&rdquo; is not an acceptable answer to a failure.</p>
-<p>The window of vulnerability is specific: after all participants have voted YES but before the coordinator has durably recorded and sent Phase 2. This is exactly the moment when locking is at maximum and the decision hasn&rsquo;t propagated yet.</p>
-<h2 id="why-cant-participants-just-decide-among-themselves">Why Can&rsquo;t Participants Just Decide Among Themselves?</h2>
-<p>When the coordinator goes silent, why can&rsquo;t participants just contact each other and figure out what to do?</p>
-<p>If all participants voted YES, they still can&rsquo;t commit safely &ndash; there might be a participant they can&rsquo;t reach that voted NO. If even one participant voted NO, the correct answer is abort, but the participants that voted YES don&rsquo;t know that. Without the coordinator, they don&rsquo;t have enough information to make a safe decision.</p>
-<p>The only safe action is to wait. This is why 2PC is called a <strong>blocking protocol</strong>: a coordinator failure forces participants into an indefinite blocked state.</p>
-<h2 id="3pc-the-theoretical-fix">3PC: The Theoretical Fix</h2>
-<p>Three-Phase Commit adds a <code>PRE-COMMIT</code> phase between Prepare and Commit:</p>
-<p><code>PREPARE → PRE-COMMIT → COMMIT</code></p>
-<p>The intuition: after all participants acknowledge PRE-COMMIT, every participant knows that every other participant voted YES. If the coordinator fails now, any participant can take over and safely drive the protocol to COMMIT &ndash; they know no one voted NO.</p>
-<p>This eliminates blocking for <strong>crash failures</strong>. It doesn&rsquo;t help under <strong>network partition</strong> &ndash; if the coordinator is unreachable due to a partition, a partitioned participant still can&rsquo;t distinguish &ldquo;coordinator crashed&rdquo; from &ldquo;coordinator is alive but I can&rsquo;t reach it.&rdquo; Attempting to make progress risks committing on one side of the partition and aborting on the other.</p>
-<p>3PC is theoretically cleaner and not used in practice. The partition problem means it doesn&rsquo;t actually deliver on the &ldquo;no blocking&rdquo; promise in real deployments. The extra round-trip cost isn&rsquo;t worth it for partial relief.</p>
-<h2 id="the-cap-angle">The CAP Angle</h2>
-<p>2PC is a CA protocol in CAP terms: it provides consistency and availability in the absence of network partitions, but it doesn&rsquo;t tolerate partitions. When the coordinator becomes unreachable (a partition), participants block &ndash; availability is sacrificed to preserve consistency.</p>
-<p>This is a fundamental constraint, not an implementation bug. Any protocol that guarantees atomicity across multiple nodes must give up availability under some failure scenario. The question is which failure scenarios you&rsquo;re willing to be unavailable for, and how long.</p>
-<h2 id="what-modern-systems-do-instead">What Modern Systems Do Instead</h2>
-<table>
-  <thead>
-      <tr>
-          <th>Approach</th>
-          <th>Mechanism</th>
-          <th>What You Give Up</th>
-      </tr>
-  </thead>
-  <tbody>
-      <tr>
-          <td><strong>Saga pattern</strong></td>
-          <td>Compensating transactions</td>
-          <td>Isolation &ndash; intermediate state is visible</td>
-      </tr>
-      <tr>
-          <td><strong>Paxos / Raft underneath</strong></td>
-          <td>Coordinator is itself replicated</td>
-          <td>Complexity; still blocking but coordinator failure is rare</td>
-      </tr>
-      <tr>
-          <td><strong>Optimistic concurrency</strong></td>
-          <td>Detect conflicts at commit time</td>
-          <td>Retry cost under contention</td>
-      </tr>
-      <tr>
-          <td><strong>Single-node transactions</strong></td>
-          <td>Design away distributed txns</td>
-          <td>Flexibility in data model</td>
-      </tr>
-  </tbody>
-</table>
-<p>The most common outcome for microservices is the Saga pattern &ndash; break the distributed transaction into local steps with explicit compensations. You lose strict atomicity but gain availability and no cross-service locks.</p>
-<p>2PC still shows up inside single databases for coordinating writes across shards. CockroachDB and Spanner both use variants of 2PC internally, but the coordinator is backed by Raft &ndash; a replicated state machine. The coordinator can&rsquo;t go down permanently; it fails over. The blocking window still exists but the recovery time is seconds, not &ldquo;until an engineer restarts the process.&rdquo;</p>
-<h2 id="the-implementation-detail-that-matters-most">The Implementation Detail That Matters Most</h2>
-<p>Good 2PC implementations persist the coordinator&rsquo;s decision to durable storage before sending a single Phase 2 message. The sequence is:</p>
-<ol>
-<li>Collect all YES votes</li>
-<li><strong>Write &ldquo;COMMIT&rdquo; to durable log</strong> (fsync)</li>
-<li>Send COMMIT to all participants</li>
-</ol>
-<p>If the coordinator crashes between steps 2 and 3, recovery reads the log and replays Phase 2. If it crashes before step 2, participants time out and abort &ndash; a safe outcome.</p>
-<p>The dangerous case is a buggy implementation that reverses steps 2 and 3 or doesn&rsquo;t fsync. The coordinator sends some COMMITs, crashes, and restarts without knowing it already sent Phase 2 to some participants. Now you have partial commits with no recovery path.</p>
-<p>The blocking problem is inherent to the protocol. The partial-commit problem is an implementation failure. Both look the same from the outside: a transaction in an unknown state with locked resources. The difference matters for diagnosis and recovery &ndash; and for understanding why so many production systems have quietly moved away from 2PC for anything that matters.</p>
-]]></content:encoded>
-    </item>
-    <item>
-      <title>Vector Clocks</title>
-      <link>https://KTS-o7.github.io/bear/posts/vector_clocks/</link>
-      <pubDate>Sun, 26 Apr 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
-      <guid>https://KTS-o7.github.io/bear/posts/vector_clocks/</guid>
-      <description>&lt;p&gt;Distributed systems have no shared clock. Two nodes can each observe an event and disagree on which came first &amp;ndash; not because they&amp;rsquo;re wrong, but because the question is genuinely unanswerable without a mechanism to track causality.&lt;/p&gt;&#xA;&lt;p&gt;Timestamps don&amp;rsquo;t help. Network latency is unbounded, clocks drift, and even NTP-synchronized clocks have milliseconds of skew. If Node A writes at 10:00:00.100 and Node B writes at 10:00:00.099, you can&amp;rsquo;t conclude B&amp;rsquo;s write happened first &amp;ndash; B&amp;rsquo;s clock might just be slightly behind. Treating wall-clock timestamps as a causal ordering is a data loss bug waiting to happen.&lt;/p&gt;</description>
-      <content:encoded><![CDATA[<p>Distributed systems have no shared clock. Two nodes can each observe an event and disagree on which came first &ndash; not because they&rsquo;re wrong, but because the question is genuinely unanswerable without a mechanism to track causality.</p>
-<p>Timestamps don&rsquo;t help. Network latency is unbounded, clocks drift, and even NTP-synchronized clocks have milliseconds of skew. If Node A writes at 10:00:00.100 and Node B writes at 10:00:00.099, you can&rsquo;t conclude B&rsquo;s write happened first &ndash; B&rsquo;s clock might just be slightly behind. Treating wall-clock timestamps as a causal ordering is a data loss bug waiting to happen.</p>
-<p>The only thing you can reliably know is whether one event <em>caused</em> another &ndash; whether one event happened in a way that could have been influenced by, or was a consequence of, another event. Vector clocks make this relationship explicit.</p>
-<h2 id="the-mechanism">The Mechanism</h2>
-<p>Each node maintains a vector of counters &ndash; one slot per node in the system. The rules are three lines:</p>
-<ol>
-<li><strong>Local event</strong>: increment your own slot</li>
-<li><strong>Send a message</strong>: attach your current vector</li>
-<li><strong>Receive a message</strong>: take the element-wise max of your vector and the incoming one, then increment your own slot</li>
-</ol>
-<p>A concrete example with three nodes:</p>
-
-
-
-
-
-<pre tabindex="0"><code>Initial state:   A=[0,0,0]   B=[0,0,0]   C=[0,0,0]
-
-A does work:     A=[1,0,0]
-A sends to B:    B receives [1,0,0], merges, ticks → B=[1,1,0]
-B sends to C:    C receives [1,1,0], merges, ticks → C=[1,1,1]
-A does more work: A=[2,0,0]
-A sends to C:    C receives [2,0,0], merges, ticks → C=[2,1,2]</code></pre><p>At that last step, C&rsquo;s vector <code>[2,1,2]</code> encodes: &ldquo;I&rsquo;ve seen 2 events from A, 1 from B, and this is my 2nd event.&rdquo; Any node that receives C&rsquo;s next message will know the full causal history C had when it acted.</p>
-<h2 id="happened-before-the-only-ordering-that-matters">Happened-Before: The Only Ordering That Matters</h2>
-<p>Given two events with vectors V1 and V2, exactly one of three things is true:</p>
-<table>
-  <thead>
-      <tr>
-          <th>Result</th>
-          <th>Condition</th>
-      </tr>
-  </thead>
-  <tbody>
-      <tr>
-          <td>V1 happened-before V2</td>
-          <td>V1[i] ≤ V2[i] for all i, and strict &lt; for at least one</td>
-      </tr>
-      <tr>
-          <td>V2 happened-before V1</td>
-          <td>V2[i] ≤ V1[i] for all i, and strict &lt; for at least one</td>
-      </tr>
-      <tr>
-          <td><strong>Concurrent</strong></td>
-          <td>Neither dominates &ndash; some positions where V1 &gt; V2, some where V2 &gt; V1</td>
-      </tr>
-  </tbody>
-</table>
-<p>The &ldquo;happened-before&rdquo; relation (→) was formalized by Lamport in 1978. It captures: A → B if A sent a message that B received, or if there&rsquo;s a chain of such messages connecting them. Events that have no such chain are <em>concurrent</em> &ndash; they happened independently, with no causal link.</p>
-<p>The concurrent case is the key insight. Vector clocks don&rsquo;t force an artificial total order on unrelated events. They say: &ldquo;these two events had no knowledge of each other when they happened, so there is no meaningful ordering between them.&rdquo; That&rsquo;s honest.</p>
-<h2 id="why-concurrency-detection-matters-in-practice">Why Concurrency Detection Matters in Practice</h2>
-<p>The alternative to detecting concurrency is <strong>last-write-wins (LWW)</strong>. If two nodes write to the same key without knowing about each other, you pick the higher timestamp as winner and silently discard the other write. No error, no conflict flag, just data loss.</p>
-<p>LWW is tempting because it&rsquo;s simple and it always produces a single answer. It&rsquo;s also wrong in any system where two concurrent writes are both valid and need to be merged &ndash; which is most real-world conflict scenarios.</p>
-<p>DynamoDB (in some configurations) and Riak use vector clocks to detect concurrent writes and surface the conflict to the application or user for resolution. Riak&rsquo;s model was explicit: if two writes are concurrent, the database returns both values as siblings. The application decides how to merge them. That&rsquo;s honest conflict handling.</p>
-<p>The classic example: two users edit the same shopping cart simultaneously from different devices. LWW silently picks one cart and discards the other. Vector clocks detect that both edits happened concurrently and let you merge them (union the items, in the simplest case).</p>
-<h2 id="lamport-clocks-vs-vector-clocks">Lamport Clocks vs. Vector Clocks</h2>
-<p>Lamport clocks are the scalar predecessor. Each node maintains a single counter; on send, it attaches the counter; on receive, it takes max and increments. Simple.</p>
-<p>The problem: Lamport clocks can only give you a <em>consistent total order</em>. If A → B, then Lamport(A) &lt; Lamport(B) &ndash; that holds. But the converse does not: Lamport(A) &lt; Lamport(B) does <em>not</em> imply A → B. Two concurrent events will have a defined Lamport ordering, but that ordering is artificial &ndash; it doesn&rsquo;t reflect any causal relationship.</p>
-<p>Vector clocks fix this. If V(A) &lt; V(B) (component-wise), then A → B. The implication goes both ways. Concurrency is detectable, not just artificially ordered away.</p>
-<p>When to use which: if you need &ldquo;give me a consistent total order for logging or tie-breaking&rdquo; and you don&rsquo;t care about detecting actual concurrency, Lamport is sufficient and cheap. If you need to know whether two events could have influenced each other &ndash; conflict detection, causal consistency, replica reconciliation &ndash; you need vectors.</p>
-<h2 id="the-space-tradeoff">The Space Tradeoff</h2>
-<p>Vector size grows O(N) with the number of nodes. In a 5-node cluster, every message carries 5 integers &ndash; trivial. In a 500-node cluster, every message carries 500 integers, and every stored value needs 500 integers of metadata. That&rsquo;s not trivial.</p>
-<p><strong>Dotted Version Vectors</strong> address this by pruning entries that are causally dominated &ndash; if a component of the vector is implied by other components, you don&rsquo;t need to store it explicitly. Riak switched to DVVs in 2013. The semantic guarantees are identical; the storage and transmission cost is lower.</p>
-<p><strong>Version vectors</strong> (used in systems like Git) are a related concept: a version vector is per-object rather than per-node, and tracks which version of an object each replica has seen. The causality reasoning is the same.</p>
-<h2 id="what-it-doesnt-solve">What It Doesn&rsquo;t Solve</h2>
-<p>Vector clocks tell you <em>whether</em> events are concurrent. They don&rsquo;t tell you how to merge them. That&rsquo;s the application&rsquo;s problem.</p>
-<p>CRDTs (Conflict-free Replicated Data Types) are one approach: data structures designed so that concurrent updates can always be merged automatically without conflict. A grow-only counter, a set that only allows additions &ndash; these have natural merge semantics. For more complex data, application-level merge logic is necessary.</p>
-<p>The other limitation: vector clocks assume a fixed, known set of nodes. If nodes join and leave dynamically, the vector grows unboundedly or needs garbage collection. This is why some systems use alternative causality tracking schemes &ndash; interval tree clocks, hybrid logical clocks &ndash; that handle dynamic membership more cleanly. The core idea of encoding causal history into a data structure attached to each message is the same across all of them; the differences are in how they handle the bookkeeping as the cluster changes shape.</p>
 ]]></content:encoded>
     </item>
     <item>

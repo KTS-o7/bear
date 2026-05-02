@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en-us">
+
+<head>
+  <meta http-equiv="X-Clacks-Overhead" content="GNU Terry Pratchett" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="shortcut icon" href="https://KTS-o7.github.io/bear/images/favicon.png" />
+<title>Paxos: How Distributed Systems Agree on Anything | </title>
+<meta name="title" content="Paxos: How Distributed Systems Agree on Anything" />
+<meta name="description" content="Every replicated database, every distributed lock, every leader election comes down to the same underlying problem: how do multiple nodes in an unreliable network agree on a single value, even when some of them crash or messages get delayed?
+This is the consensus problem. Paxos is the foundational answer. It&rsquo;s also notoriously difficult to implement correctly &ndash; which is exactly why Raft exists. But you can&rsquo;t really understand Raft without understanding what Paxos is doing and why." />
+<meta name="author" content="" />
+<meta name="keywords" content="" />
+
+
+
+
+
+
+  
+  <meta property="og:url" content="https://KTS-o7.github.io/bear/posts/paxos_consensus/">
+  <meta property="og:title" content="Paxos: How Distributed Systems Agree on Anything">
+  <meta property="og:description" content="Every replicated database, every distributed lock, every leader election comes down to the same underlying problem: how do multiple nodes in an unreliable network agree on a single value, even when some of them crash or messages get delayed?
+This is the consensus problem. Paxos is the foundational answer. It’s also notoriously difficult to implement correctly – which is exactly why Raft exists. But you can’t really understand Raft without understanding what Paxos is doing and why.">
+  <meta property="og:locale" content="en_us">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="posts">
+    <meta property="article:published_time" content="2026-05-02T00:00:00+05:30">
+    <meta property="article:modified_time" content="2026-05-02T00:00:00+05:30">
+    <meta property="og:image" content="https://KTS-o7.github.io/bear/images/share.webp">
+
+
+  
+  
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://KTS-o7.github.io/bear/images/share.webp">
+  <meta name="twitter:title" content="Paxos: How Distributed Systems Agree on Anything">
+  <meta name="twitter:description" content="Every replicated database, every distributed lock, every leader election comes down to the same underlying problem: how do multiple nodes in an unreliable network agree on a single value, even when some of them crash or messages get delayed?
+This is the consensus problem. Paxos is the foundational answer. It’s also notoriously difficult to implement correctly – which is exactly why Raft exists. But you can’t really understand Raft without understanding what Paxos is doing and why.">
+
+
+  
+  
+  <meta itemprop="name" content="Paxos: How Distributed Systems Agree on Anything">
+  <meta itemprop="description" content="Every replicated database, every distributed lock, every leader election comes down to the same underlying problem: how do multiple nodes in an unreliable network agree on a single value, even when some of them crash or messages get delayed?
+This is the consensus problem. Paxos is the foundational answer. It’s also notoriously difficult to implement correctly – which is exactly why Raft exists. But you can’t really understand Raft without understanding what Paxos is doing and why.">
+  <meta itemprop="datePublished" content="2026-05-02T00:00:00+05:30">
+  <meta itemprop="dateModified" content="2026-05-02T00:00:00+05:30">
+  <meta itemprop="wordCount" content="713">
+  <meta itemprop="image" content="https://KTS-o7.github.io/bear/images/share.webp">
+
+<meta name="referrer" content="no-referrer-when-downgrade" />
+
+  
+  <link href="/bear/herman.min.css" rel="stylesheet">
+
+  
+    
+    <link href="/bear/syntax.min.css" rel="stylesheet">
+  
+
+  
+
+  
+
+  
+</head>
+
+<body>
+  <header><a class="skip-link" href="#main-content">Skip to main content</a>
+
+<a href="/bear/" class="title"><h1></h1></a>
+<nav>
+  <a href="/bear/">Home</a>
+
+  <a href="/bear/posts/">Posts</a>
+
+  <a href="/bear/about/">About</a>
+
+  <a href="/bear/ml/">ML Stuff</a>
+
+  <a href="/bear/cses.fi/">CSES.fi</a>
+
+<a href='https://KTS-o7.github.io/bear/index.xml'>RSS</a>
+
+
+
+
+
+
+
+</nav>
+</header>
+  <main id="main-content">
+
+<h1>Paxos: How Distributed Systems Agree on Anything</h1>
+<p class="byline">
+  <time datetime='2026-05-02' pubdate>
+    2026-05-02
+  </time>
+  
+</p>
+
+<content>
+  <p>Every replicated database, every distributed lock, every leader election comes down to the same underlying problem: how do multiple nodes in an unreliable network agree on a single value, even when some of them crash or messages get delayed?</p>
+<p>This is the consensus problem. Paxos is the foundational answer. It&rsquo;s also notoriously difficult to implement correctly &ndash; which is exactly why Raft exists. But you can&rsquo;t really understand Raft without understanding what Paxos is doing and why.</p>
+<h2 id="the-constraint">The Constraint</h2>
+<p>Two-phase commit solves distributed atomicity but requires the coordinator to stay up. If the coordinator crashes after phase 1, participants are stuck holding locks, unable to proceed. That&rsquo;s not consensus &ndash; that&rsquo;s a single point of failure with extra steps.</p>
+<p>Paxos removes that constraint. It guarantees agreement as long as a majority of nodes are up, regardless of which specific nodes fail. Any node can propose a value. No permanent coordinator required.</p>
+<h2 id="roles">Roles</h2>
+<p>In Paxos, nodes play three roles &ndash; and in practice, any node can play any of them:</p>
+<ul>
+<li><strong>Proposer</strong> &ndash; initiates a round, tries to get a value accepted</li>
+<li><strong>Acceptor</strong> &ndash; votes on proposals, must follow the protocol strictly</li>
+<li><strong>Learner</strong> &ndash; learns the final chosen value once consensus is reached</li>
+</ul>
+<h2 id="the-protocol">The Protocol</h2>
+<p>Paxos runs in two phases.</p>
+<h3 id="phase-1--prepare--promise">Phase 1 &ndash; Prepare / Promise</h3>
+<p>The proposer picks a proposal number <code>n</code> &ndash; unique, higher than any it has seen before &ndash; and sends <code>PREPARE(n)</code> to a quorum of acceptors (any majority).</p>
+<p>Each acceptor that receives this:</p>
+<ul>
+<li>Promises to ignore any future <code>PREPARE</code> with a lower number</li>
+<li>If it has already accepted a value in a prior round, includes that <code>(old_n, old_value)</code> in its reply</li>
+</ul>
+<h3 id="phase-2--accept--accepted">Phase 2 &ndash; Accept / Accepted</h3>
+<p>If the proposer receives promises from a quorum:</p>
+<ul>
+<li>If any promise included a prior accepted value, the proposer <strong>must use the highest one</strong> &ndash; it cannot choose freely</li>
+<li>Otherwise it can propose any value it wants</li>
+</ul>
+<p>It sends <code>ACCEPT(n, value)</code> to the quorum. Acceptors that haven&rsquo;t made a conflicting promise write the value and reply <code>ACCEPTED</code>. Once a quorum accepts, the value is chosen.</p>
+
+
+
+
+
+<pre tabindex="0"><code>Proposer       Acceptor A    Acceptor B    Acceptor C
+   |-- PREPARE(5) --&gt;|             |             |
+   |-- PREPARE(5) ---|------------&gt;|             |
+   |&lt;-- PROMISE(5) --|             |             |
+   |&lt;-- PROMISE(5) --|-------------|             |
+   |-- ACCEPT(5,v) -&gt;|             |             |
+   |-- ACCEPT(5,v) --|------------&gt;|             |
+   |&lt;-- ACCEPTED ----|             |             |
+   |&lt;-- ACCEPTED ----|-------------|             |
+      [value v is now chosen]</code></pre><h2 id="why-its-correct">Why It&rsquo;s Correct</h2>
+<p>The safety guarantee &ndash; that no two values are ever chosen &ndash; comes from the quorum overlap. Any two majorities in an N-node cluster share at least one node. That shared node is the bridge: if a value was accepted in round <code>n</code>, a new proposer in round <code>n+1</code> will hear about it from the shared node and be forced to continue it rather than propose something different.</p>
+<p>The constraint that proposers must adopt the highest prior accepted value is what makes this work. A new round can never silently override an old one.</p>
+<h2 id="the-gotchas">The Gotchas</h2>
+<p><strong>Livelock.</strong> Two competing proposers can keep preempting each other with higher proposal numbers indefinitely &ndash; neither ever reaching phase 2. The fix is to elect a single distinguished proposer (a leader) and have everyone else defer to it. This is what Multi-Paxos does.</p>
+<p><strong>Single-value vs. Multi-Paxos.</strong> Basic Paxos agrees on one value. Real systems need a log of values &ndash; a sequence of commands. Multi-Paxos runs Paxos repeatedly for each log slot with a stable leader, amortizing the phase 1 cost across many entries. Once a leader is established, phase 1 only needs to run once per leader lifetime.</p>
+<p><strong>Implementation gap.</strong> The original paper was intentionally abstract. &ldquo;Paxos Made Simple&rdquo; is cleaner but still leaves enormous implementation latitude &ndash; enough that teams have shipped subtly broken versions. The gap between the protocol description and a correct, production-safe implementation is one of the main reasons Raft was designed as an explicit replacement.</p>
+<h2 id="where-it-runs">Where It Runs</h2>
+<ul>
+<li><strong>Google Chubby</strong> &ndash; distributed lock service, underpins Bigtable and GFS coordination</li>
+<li><strong>Apache ZooKeeper</strong> &ndash; uses Zab (ZooKeeper Atomic Broadcast), a Paxos variant</li>
+<li><strong>Google Spanner</strong> &ndash; Paxos per shard for replication across datacenters</li>
+</ul>
+<p>Paxos is the theory. If you&rsquo;re building something new, you&rsquo;ll probably implement Raft instead &ndash; same guarantees, actually debuggable. But the mental model of quorum-based two-phase consensus is worth having regardless of which one you reach for.</p>
+
+</content>
+<p>
+  
+</p>
+
+
+  <p>
+    <a href='mailto:shentharkrishnatejaswi@gmail.com?subject=Reply%20to%20"Paxos%3a%20How%20Distributed%20Systems%20Agree%20on%20Anything"'>
+      Reply to this post by email ↪
+    </a>
+  </p>
+
+
+
+  </main>
+  <footer><small>
+  Krishnatejaswi S | Made with <a href="https://github.com/clente/hugo-bearcub">Bear Cub</a>
+</small></footer>
+
+    
+</body>
+
+</html>

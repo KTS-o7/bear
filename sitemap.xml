@@ -3,10 +3,10 @@
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
     <loc>https://KTS-o7.github.io/bear/</loc>
-    <lastmod>2026-04-26T00:00:00+05:30</lastmod>
+    <lastmod>2026-05-02T00:00:00+05:30</lastmod>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/posts/</loc>
-    <lastmod>2026-04-26T00:00:00+05:30</lastmod>
+    <lastmod>2026-05-02T00:00:00+05:30</lastmod>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/ml/</loc>
     <lastmod>2026-01-08T07:07:07+01:00</lastmod>
@@ -16,22 +16,37 @@
     <loc>https://KTS-o7.github.io/bear/cses.fi/</loc>
     <lastmod>2025-09-19T23:03:51+05:30</lastmod>
   </url><url>
-    <loc>https://KTS-o7.github.io/bear/posts/consistent_hashing/</loc>
-    <lastmod>2026-04-26T00:00:00+05:30</lastmod>
+    <loc>https://KTS-o7.github.io/bear/posts/vps_self_hosting/</loc>
+    <lastmod>2026-05-02T00:00:00+05:30</lastmod>
   </url><url>
-    <loc>https://KTS-o7.github.io/bear/posts/paxos/</loc>
-    <lastmod>2026-04-26T00:00:00+05:30</lastmod>
+    <loc>https://KTS-o7.github.io/bear/posts/circuit_breakers_distributed_systems/</loc>
+    <lastmod>2026-05-02T00:00:00+05:30</lastmod>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/posts/consistent_hashing/</loc>
+    <lastmod>2026-05-02T00:00:00+05:30</lastmod>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/posts/llm_inference_optimization/</loc>
+    <lastmod>2026-05-02T00:00:00+05:30</lastmod>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/posts/paxos_consensus/</loc>
+    <lastmod>2026-05-02T00:00:00+05:30</lastmod>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/posts/raft_consensus/</loc>
-    <lastmod>2026-04-26T00:00:00+05:30</lastmod>
+    <lastmod>2026-05-02T00:00:00+05:30</lastmod>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/posts/teaching_myself_cs/</loc>
+    <lastmod>2026-05-02T00:00:00+05:30</lastmod>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/posts/saga_pattern/</loc>
-    <lastmod>2026-04-26T00:00:00+05:30</lastmod>
+    <lastmod>2026-05-02T00:00:00+05:30</lastmod>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/posts/two_phase_commit/</loc>
-    <lastmod>2026-04-26T00:00:00+05:30</lastmod>
+    <lastmod>2026-05-02T00:00:00+05:30</lastmod>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/posts/vector_clocks/</loc>
+    <lastmod>2026-05-02T00:00:00+05:30</lastmod>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/posts/paxos/</loc>
     <lastmod>2026-04-26T00:00:00+05:30</lastmod>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/posts/vps_self_hosting_stack/</loc>

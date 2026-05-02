@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en-us">
+
+<head>
+  <meta http-equiv="X-Clacks-Overhead" content="GNU Terry Pratchett" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="shortcut icon" href="https://KTS-o7.github.io/bear/images/favicon.png" />
+<title>LLM Inference Optimization: Stop Paying for Idle Silicon | </title>
+<meta name="title" content="LLM Inference Optimization: Stop Paying for Idle Silicon" />
+<meta name="description" content="GPU bills were doubling every quarter. Throughput wasn&rsquo;t moving. I kept assuming the answer was a bigger GPU. It wasn&rsquo;t.
+The problem was naive serving. Standard HuggingFace pipeline() processes one request at a time, sequentially. The GPU sits idle between requests, waiting. You&rsquo;re paying for hardware that&rsquo;s doing nothing most of the time.
+The fix is a set of four techniques, each with a different ROI profile. Here&rsquo;s what they are, how they work, and when to use each one." />
+<meta name="author" content="" />
+<meta name="keywords" content="" />
+
+
+
+
+
+
+  
+  <meta property="og:url" content="https://KTS-o7.github.io/bear/posts/llm_inference_optimization/">
+  <meta property="og:title" content="LLM Inference Optimization: Stop Paying for Idle Silicon">
+  <meta property="og:description" content="GPU bills were doubling every quarter. Throughput wasn’t moving. I kept assuming the answer was a bigger GPU. It wasn’t.
+The problem was naive serving. Standard HuggingFace pipeline() processes one request at a time, sequentially. The GPU sits idle between requests, waiting. You’re paying for hardware that’s doing nothing most of the time.
+The fix is a set of four techniques, each with a different ROI profile. Here’s what they are, how they work, and when to use each one.">
+  <meta property="og:locale" content="en_us">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="posts">
+    <meta property="article:published_time" content="2026-05-02T00:00:00+05:30">
+    <meta property="article:modified_time" content="2026-05-02T00:00:00+05:30">
+    <meta property="og:image" content="https://KTS-o7.github.io/bear/images/share.webp">
+
+
+  
+  
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://KTS-o7.github.io/bear/images/share.webp">
+  <meta name="twitter:title" content="LLM Inference Optimization: Stop Paying for Idle Silicon">
+  <meta name="twitter:description" content="GPU bills were doubling every quarter. Throughput wasn’t moving. I kept assuming the answer was a bigger GPU. It wasn’t.
+The problem was naive serving. Standard HuggingFace pipeline() processes one request at a time, sequentially. The GPU sits idle between requests, waiting. You’re paying for hardware that’s doing nothing most of the time.
+The fix is a set of four techniques, each with a different ROI profile. Here’s what they are, how they work, and when to use each one.">
+
+
+  
+  
+  <meta itemprop="name" content="LLM Inference Optimization: Stop Paying for Idle Silicon">
+  <meta itemprop="description" content="GPU bills were doubling every quarter. Throughput wasn’t moving. I kept assuming the answer was a bigger GPU. It wasn’t.
+The problem was naive serving. Standard HuggingFace pipeline() processes one request at a time, sequentially. The GPU sits idle between requests, waiting. You’re paying for hardware that’s doing nothing most of the time.
+The fix is a set of four techniques, each with a different ROI profile. Here’s what they are, how they work, and when to use each one.">
+  <meta itemprop="datePublished" content="2026-05-02T00:00:00+05:30">
+  <meta itemprop="dateModified" content="2026-05-02T00:00:00+05:30">
+  <meta itemprop="wordCount" content="809">
+  <meta itemprop="image" content="https://KTS-o7.github.io/bear/images/share.webp">
+
+<meta name="referrer" content="no-referrer-when-downgrade" />
+
+  
+  <link href="/bear/herman.min.css" rel="stylesheet">
+
+  
+    
+    <link href="/bear/syntax.min.css" rel="stylesheet">
+  
+
+  
+
+  
+
+  
+</head>
+
+<body>
+  <header><a class="skip-link" href="#main-content">Skip to main content</a>
+
+<a href="/bear/" class="title"><h1></h1></a>
+<nav>
+  <a href="/bear/">Home</a>
+
+  <a href="/bear/posts/">Posts</a>
+
+  <a href="/bear/about/">About</a>
+
+  <a href="/bear/ml/">ML Stuff</a>
+
+  <a href="/bear/cses.fi/">CSES.fi</a>
+
+<a href='https://KTS-o7.github.io/bear/index.xml'>RSS</a>
+
+
+
+
+
+
+
+</nav>
+</header>
+  <main id="main-content">
+
+<h1>LLM Inference Optimization: Stop Paying for Idle Silicon</h1>
+<p class="byline">
+  <time datetime='2026-05-02' pubdate>
+    2026-05-02
+  </time>
+  
+</p>
+
+<content>
+  <p>GPU bills were doubling every quarter. Throughput wasn&rsquo;t moving. I kept assuming the answer was a bigger GPU. It wasn&rsquo;t.</p>
+<p>The problem was naive serving. Standard HuggingFace <code>pipeline()</code> processes one request at a time, sequentially. The GPU sits idle between requests, waiting. You&rsquo;re paying for hardware that&rsquo;s doing nothing most of the time.</p>
+<p>The fix is a set of four techniques, each with a different ROI profile. Here&rsquo;s what they are, how they work, and when to use each one.</p>
+<h2 id="quantization">Quantization</h2>
+<p>This is the first thing to do because it&rsquo;s a one-time change with immediate impact. AWQ 4-bit quantization cuts VRAM usage by roughly 75%. FP8 cuts it by 50% but requires H100s.</p>
+<p>That 75% reduction matters because it changes which GPU class you need. A model that required an A100 might now fit on an A6000. That&rsquo;s not a minor cost reduction &ndash; it&rsquo;s a different tier of hardware entirely.</p>
+<p>The tooling is straightforward. Use <a href="https://github.com/casper-hansen/AutoAWQ">AutoAWQ</a> to quantize yourself, or just pull a pre-quantized checkpoint from HuggingFace. Most popular models have AWQ variants already uploaded.</p>
+<h2 id="serving-engine">Serving Engine</h2>
+<p>Once you&rsquo;re quantized, the next question is which serving engine to use. The two serious options are vLLM and SGLang, and they&rsquo;re not interchangeable.</p>
+<p><strong>vLLM</strong> is the right choice for chat and general inference. Two mechanisms make the difference:</p>
+<p>Continuous batching inserts new requests into the batch as slots open up rather than waiting for a full batch to complete. Naive serving sits at around 20% GPU utilization. vLLM pushes that to 60-85%.</p>
+<p>PagedAttention treats VRAM like virtual memory for the KV cache. Instead of pre-allocating contiguous blocks, it pages memory on demand. More sequences can coexist in memory simultaneously, which means more throughput per dollar.</p>
+<p>The key vLLM flags worth knowing in production:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">--max-num-seqs <span class="m">64</span>        <span class="c1"># tune for your context length + available VRAM</span>
+</span></span><span class="line"><span class="ln">2</span><span class="cl">--disable-log-stats      <span class="c1"># remove logging overhead</span></span></span></code></pre></div><p><strong>SGLang</strong> is the right choice for agentic workflows and structured output. Its main advantage is RadixAttention &ndash; it automatically detects shared prompt prefixes and reuses their KV cache. If every request in your system starts with the same 1000-token system prompt and tool definitions, SGLang computes that prefix once and caches it. LMSYS benchmarks show higher throughput than vLLM on structured generation workloads.</p>
+<p>The rule of thumb: SGLang for agents and JSON, vLLM for chat.</p>
+<h2 id="speculative-decoding">Speculative Decoding</h2>
+<p>This one is less obvious but gets you 2-3x speedup on long-form generation. The mechanism is a draft-then-verify loop:</p>
+<ol>
+<li>A small draft model (1-7B parameters) generates 3-12 candidate tokens per step</li>
+<li>The large target model verifies all candidates in a single parallel forward pass</li>
+<li>When the draft guesses correctly &ndash; which happens 70-90% of the time &ndash; you get multiple tokens for the cost of one forward pass</li>
+</ol>
+<p>The canonical pairing is Llama-3-8B-Instruct-AWQ as the draft model against Llama-3-70B-Instruct-AWQ as the target.</p>
+<p>A full deployment looks like this:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="kn">import</span> <span class="nn">runpod</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl"><span class="n">runpod</span><span class="o">.</span><span class="n">api_key</span> <span class="o">=</span> <span class="s2">&#34;your_api_key&#34;</span>
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl"><span class="n">pod</span> <span class="o">=</span> <span class="n">runpod</span><span class="o">.</span><span class="n">create_pod</span><span class="p">(</span>
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl">    <span class="n">name</span><span class="o">=</span><span class="s2">&#34;llama3-70b-speculative&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl">    <span class="n">image_name</span><span class="o">=</span><span class="s2">&#34;vllm/vllm-openai:latest&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">    <span class="n">gpu_type_id</span><span class="o">=</span><span class="s2">&#34;NVIDIA RTX A6000&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl">    <span class="n">gpu_count</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl">    <span class="n">docker_args</span><span class="o">=</span><span class="p">(</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">        <span class="s2">&#34;--model TechxGenus/Meta-Llama-3-70B-Instruct-AWQ &#34;</span>
+</span></span><span class="line"><span class="ln">10</span><span class="cl">        <span class="s2">&#34;--quantization awq &#34;</span>
+</span></span><span class="line"><span class="ln">11</span><span class="cl">        <span class="s2">&#34;--tensor-parallel-size 2 &#34;</span>
+</span></span><span class="line"><span class="ln">12</span><span class="cl">        <span class="s2">&#34;--speculative-model TechxGenus/Meta-Llama-3-8B-Instruct-AWQ &#34;</span>
+</span></span><span class="line"><span class="ln">13</span><span class="cl">        <span class="s2">&#34;--num-speculative-tokens 5 &#34;</span>
+</span></span><span class="line"><span class="ln">14</span><span class="cl">        <span class="s2">&#34;--max-model-len 8192&#34;</span>
+</span></span><span class="line"><span class="ln">15</span><span class="cl">    <span class="p">)</span>
+</span></span><span class="line"><span class="ln">16</span><span class="cl"><span class="p">)</span></span></span></code></pre></div><p>The critical thing to watch: draft model acceptance rate. Monitor it via Prometheus:</p>
+
+
+
+
+
+<pre tabindex="0"><code>vllm:spec_decode_draft_acceptance_length</code></pre><p>If acceptance drops below 0.5 tokens per step, you have the wrong draft model. It adds overhead rather than saving it. The draft model must match the target architecture &ndash; vLLM won&rsquo;t warn you about this at startup.</p>
+<h2 id="deployment-mode">Deployment Mode</h2>
+<p>The last decision is serverless vs. pods, and it&rsquo;s purely a traffic pattern question.</p>
+<p>Spiky or unpredictable traffic belongs on serverless &ndash; you pay only for actual inference time. Sustained, predictable load is cheaper on pods because you&rsquo;re not paying the serverless premium on every call.</p>
+<p>Neither is universally better. The mistake is running pods for workloads that get 10 requests an hour or paying for serverless when you have a steady 200 RPS.</p>
+<h2 id="why-decode-is-the-bottleneck">Why Decode is the Bottleneck</h2>
+<p>LLM generation has two phases and they&rsquo;re bound by different things.</p>
+<p>Prefill is compute-bound &ndash; processing all the input tokens in one parallel forward pass. Decode is memory-bound &ndash; generating one token at a time, loading the entire model&rsquo;s KV cache from VRAM on every single step.</p>
+<p>This means VRAM bandwidth determines inter-token latency, not FLOPs. Two GPUs with similar compute specs can have very different inference latency:</p>
+<table>
+  <thead>
+      <tr>
+          <th>GPU</th>
+          <th>Memory Bandwidth</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>H100 SXM5</td>
+          <td>3.35 TB/s</td>
+      </tr>
+      <tr>
+          <td>A6000</td>
+          <td>768 GB/s</td>
+      </tr>
+  </tbody>
+</table>
+<p>That&rsquo;s a ~4x difference on long-form generation. If you&rsquo;re choosing hardware for an inference workload and only looking at FLOPs, you&rsquo;re optimizing the wrong thing.</p>
+<p>The practical checklist once you understand this:</p>
+<ul>
+<li>Quantize with AWQ first (or FP8 on H100s)</li>
+<li>Pick SGLang for agents and JSON, vLLM for chat</li>
+<li>Enable speculative decoding for long-form endpoints, monitor acceptance rate</li>
+<li>Wire Prometheus to <code>vllm:gpu_cache_usage_perc</code> to know when you&rsquo;re VRAM-constrained</li>
+<li>Match deployment mode to your actual traffic shape</li>
+</ul>
+<p>The hardware question comes last, not first.</p>
+
+</content>
+<p>
+  
+</p>
+
+
+  <p>
+    <a href='mailto:shentharkrishnatejaswi@gmail.com?subject=Reply%20to%20"LLM%20Inference%20Optimization%3a%20Stop%20Paying%20for%20Idle%20Silicon"'>
+      Reply to this post by email ↪
+    </a>
+  </p>
+
+
+
+  </main>
+  <footer><small>
+  Krishnatejaswi S | Made with <a href="https://github.com/clente/hugo-bearcub">Bear Cub</a>
+</small></footer>
+
+    
+</body>
+
+</html>

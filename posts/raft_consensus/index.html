@@ -6,10 +6,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <link rel="shortcut icon" href="https://KTS-o7.github.io/bear/images/favicon.png" />
-<title>Raft Consensus | </title>
-<meta name="title" content="Raft Consensus" />
-<meta name="description" content="Distributed consensus &ndash; getting a cluster of nodes to agree on a sequence of values, even when some nodes crash &ndash; is a solved problem. The canonical solution is Paxos. The problem with Paxos is that it&rsquo;s famously hard to understand and even harder to implement correctly.
-Raft was designed in 2013 specifically to be understandable. Same safety guarantees. Radically different presentation. The paper&rsquo;s introduction literally says: &ldquo;we had several goals: Raft must be complete and practical&hellip; but most importantly, it must be understandable by a large audience.&rdquo;" />
+<title>Raft: Consensus for the Rest of Us | </title>
+<meta name="title" content="Raft: Consensus for the Rest of Us" />
+<meta name="description" content="Paxos is the algorithm everyone cites and almost nobody implements correctly. The gap between the paper and a working, production-safe implementation is wide enough that teams have shipped subtly broken versions without knowing it for months.
+Raft was built as a direct response to that. Same safety guarantees, designed from scratch for understandability &ndash; the explicit goal was that a student should be able to implement it correctly from the paper alone." />
 <meta name="author" content="" />
 <meta name="keywords" content="" />
 
@@ -20,14 +20,14 @@ Raft was designed in 2013 specifically to be understandable. Same safety guarant
 
   
   <meta property="og:url" content="https://KTS-o7.github.io/bear/posts/raft_consensus/">
-  <meta property="og:title" content="Raft Consensus">
-  <meta property="og:description" content="Distributed consensus – getting a cluster of nodes to agree on a sequence of values, even when some nodes crash – is a solved problem. The canonical solution is Paxos. The problem with Paxos is that it’s famously hard to understand and even harder to implement correctly.
-Raft was designed in 2013 specifically to be understandable. Same safety guarantees. Radically different presentation. The paper’s introduction literally says: “we had several goals: Raft must be complete and practical… but most importantly, it must be understandable by a large audience.”">
+  <meta property="og:title" content="Raft: Consensus for the Rest of Us">
+  <meta property="og:description" content="Paxos is the algorithm everyone cites and almost nobody implements correctly. The gap between the paper and a working, production-safe implementation is wide enough that teams have shipped subtly broken versions without knowing it for months.
+Raft was built as a direct response to that. Same safety guarantees, designed from scratch for understandability – the explicit goal was that a student should be able to implement it correctly from the paper alone.">
   <meta property="og:locale" content="en_us">
   <meta property="og:type" content="article">
     <meta property="article:section" content="posts">
-    <meta property="article:published_time" content="2026-04-26T00:00:00+05:30">
-    <meta property="article:modified_time" content="2026-04-26T00:00:00+05:30">
+    <meta property="article:published_time" content="2026-05-02T00:00:00+05:30">
+    <meta property="article:modified_time" content="2026-05-02T00:00:00+05:30">
     <meta property="og:image" content="https://KTS-o7.github.io/bear/images/share.webp">
 
 
@@ -35,19 +35,19 @@ Raft was designed in 2013 specifically to be understandable. Same safety guarant
   
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:image" content="https://KTS-o7.github.io/bear/images/share.webp">
-  <meta name="twitter:title" content="Raft Consensus">
-  <meta name="twitter:description" content="Distributed consensus – getting a cluster of nodes to agree on a sequence of values, even when some nodes crash – is a solved problem. The canonical solution is Paxos. The problem with Paxos is that it’s famously hard to understand and even harder to implement correctly.
-Raft was designed in 2013 specifically to be understandable. Same safety guarantees. Radically different presentation. The paper’s introduction literally says: “we had several goals: Raft must be complete and practical… but most importantly, it must be understandable by a large audience.”">
+  <meta name="twitter:title" content="Raft: Consensus for the Rest of Us">
+  <meta name="twitter:description" content="Paxos is the algorithm everyone cites and almost nobody implements correctly. The gap between the paper and a working, production-safe implementation is wide enough that teams have shipped subtly broken versions without knowing it for months.
+Raft was built as a direct response to that. Same safety guarantees, designed from scratch for understandability – the explicit goal was that a student should be able to implement it correctly from the paper alone.">
 
 
   
   
-  <meta itemprop="name" content="Raft Consensus">
-  <meta itemprop="description" content="Distributed consensus – getting a cluster of nodes to agree on a sequence of values, even when some nodes crash – is a solved problem. The canonical solution is Paxos. The problem with Paxos is that it’s famously hard to understand and even harder to implement correctly.
-Raft was designed in 2013 specifically to be understandable. Same safety guarantees. Radically different presentation. The paper’s introduction literally says: “we had several goals: Raft must be complete and practical… but most importantly, it must be understandable by a large audience.”">
-  <meta itemprop="datePublished" content="2026-04-26T00:00:00+05:30">
-  <meta itemprop="dateModified" content="2026-04-26T00:00:00+05:30">
-  <meta itemprop="wordCount" content="1397">
+  <meta itemprop="name" content="Raft: Consensus for the Rest of Us">
+  <meta itemprop="description" content="Paxos is the algorithm everyone cites and almost nobody implements correctly. The gap between the paper and a working, production-safe implementation is wide enough that teams have shipped subtly broken versions without knowing it for months.
+Raft was built as a direct response to that. Same safety guarantees, designed from scratch for understandability – the explicit goal was that a student should be able to implement it correctly from the paper alone.">
+  <meta itemprop="datePublished" content="2026-05-02T00:00:00+05:30">
+  <meta itemprop="dateModified" content="2026-05-02T00:00:00+05:30">
+  <meta itemprop="wordCount" content="888">
   <meta itemprop="image" content="https://KTS-o7.github.io/bear/images/share.webp">
 
 <meta name="referrer" content="no-referrer-when-downgrade" />
@@ -94,167 +94,116 @@ Raft was designed in 2013 specifically to be understandable. Same safety guarant
 </header>
   <main id="main-content">
 
-<h1>Raft Consensus</h1>
+<h1>Raft: Consensus for the Rest of Us</h1>
 <p class="byline">
-  <time datetime='2026-04-26' pubdate>
-    2026-04-26
+  <time datetime='2026-05-02' pubdate>
+    2026-05-02
   </time>
   
 </p>
 
 <content>
-  <p>Distributed consensus &ndash; getting a cluster of nodes to agree on a sequence of values, even when some nodes crash &ndash; is a solved problem. The canonical solution is Paxos. The problem with Paxos is that it&rsquo;s famously hard to understand and even harder to implement correctly.</p>
-<p>Raft was designed in 2013 specifically to be understandable. Same safety guarantees. Radically different presentation. The paper&rsquo;s introduction literally says: &ldquo;we had several goals: Raft must be complete and practical&hellip; but most importantly, it must be understandable by a large audience.&rdquo;</p>
-<p>That goal shapes every design decision in the protocol.</p>
+  <p>Paxos is the algorithm everyone cites and almost nobody implements correctly. The gap between the paper and a working, production-safe implementation is wide enough that teams have shipped subtly broken versions without knowing it for months.</p>
+<p>Raft was built as a direct response to that. Same safety guarantees, designed from scratch for understandability &ndash; the explicit goal was that a student should be able to implement it correctly from the paper alone.</p>
+<p>It works. etcd runs on it. Kubernetes&rsquo; entire cluster state lives in etcd. CockroachDB uses a Raft group per range. TiKV, Consul &ndash; Raft is everywhere Paxos was supposed to be.</p>
 <h2 id="the-decomposition">The Decomposition</h2>
-<p>Paxos describes consensus as a single unified mechanism with invariants distributed throughout. Raft explicitly breaks it into three independent subproblems and solves each one in isolation:</p>
+<p>Raft&rsquo;s core move is breaking consensus into three subproblems that can be understood and implemented independently:</p>
 <ol>
-<li><strong>Leader election</strong> &ndash; at any time, exactly one node is the authority for new log entries</li>
-<li><strong>Log replication</strong> &ndash; the leader accepts client writes and drives them to a majority</li>
-<li><strong>Safety</strong> &ndash; a node can only become leader if it has all committed entries; committed entries are never lost</li>
+<li>Leader election &ndash; pick one node as leader at any time</li>
+<li>Log replication &ndash; leader accepts entries, replicates to followers</li>
+<li>Safety &ndash; no two nodes ever commit conflicting entries</li>
 </ol>
-<p>This decomposition is the insight. Once you have a stable leader, log replication is almost trivially simple. Once you have log replication, safety falls out of the election constraint. The hard part is the election itself &ndash; and Raft handles it with a clean mechanism rather than leaving it informal.</p>
+<p>Everything flows through a single leader. There&rsquo;s no &ldquo;any node can propose&rdquo; ambiguity like in basic Paxos. The leader is the sole source of truth for what enters the log. That constraint makes the rest of the protocol tractable.</p>
 <h2 id="terms-and-roles">Terms and Roles</h2>
-<p>Raft uses <strong>terms</strong> as its logical clock &ndash; a monotonically increasing integer. Each election starts a new term. Every RPC includes the sender&rsquo;s term. If a node receives a message with a higher term than its own, it immediately updates its term and steps down to follower. Stale leaders don&rsquo;t survive contact with the rest of the cluster.</p>
-<p>Every node is in one of three states:</p>
-<table>
-  <thead>
-      <tr>
-          <th>Role</th>
-          <th>Responsibility</th>
-      </tr>
-  </thead>
-  <tbody>
-      <tr>
-          <td><strong>Follower</strong></td>
-          <td>Passive &ndash; responds to leader and candidate RPCs</td>
-      </tr>
-      <tr>
-          <td><strong>Candidate</strong></td>
-          <td>Temporarily, during an election</td>
-      </tr>
-      <tr>
-          <td><strong>Leader</strong></td>
-          <td>Accepts client requests, replicates entries, sends heartbeats</td>
-      </tr>
-  </tbody>
-</table>
-<p>All nodes start as followers. A node becomes a candidate only when it stops hearing from the leader. There is at most one leader per term.</p>
-<h2 id="leader-election">Leader Election</h2>
-<p>Followers expect a regular heartbeat from the leader &ndash; an <code>AppendEntries</code> RPC with no entries, sent to keep followers from timing out. If a heartbeat doesn&rsquo;t arrive within the <strong>election timeout</strong> (randomized between 150-300ms typically), the follower converts to candidate:</p>
-<ol>
-<li>Increments its term</li>
-<li>Votes for itself</li>
-<li>Sends <code>RequestVote(term, lastLogIndex, lastLogTerm)</code> to all other nodes</li>
-</ol>
-<p>A node grants a vote if:</p>
+<p>Raft uses a logical clock called a <strong>term</strong> &ndash; a monotonically increasing integer. Each election starts a new term. If a node sees a message from a higher term than its own, it immediately updates and steps down if it was leader. Terms are how stale leaders get detected and evicted.</p>
+<p>Every node is one of three things at any moment:</p>
 <ul>
-<li>It hasn&rsquo;t voted in this term yet</li>
-<li>The candidate&rsquo;s log is <strong>at least as up-to-date</strong> as its own (more on this below)</li>
+<li><strong>Leader</strong> &ndash; accepts client requests, replicates entries, sends heartbeats to prevent new elections</li>
+<li><strong>Follower</strong> &ndash; passive, responds to RPCs from leaders and candidates</li>
+<li><strong>Candidate</strong> &ndash; transitional state during an election</li>
 </ul>
-<p>The first candidate to collect a majority becomes leader and immediately starts sending heartbeats to suppress any other elections.</p>
-<p><strong>Why randomized timeouts?</strong> If all nodes had the same election timeout, they&rsquo;d all become candidates simultaneously on every leader failure, split votes, and never elect a leader. The random timeout means one node almost always times out first, starts an election, and collects votes before anyone else has even woken up. Split votes still happen occasionally; both candidates pick new random timeouts and retry with a higher term, so they resolve quickly.</p>
-
-
-
-
-
-<pre tabindex="0"><code>All followers, leader goes silent
-Node A&#39;s timeout fires first (it drew the shortest timeout)
-A → Candidate, term=6, votes for self
-A → RequestVote(term=6) → B, C, D, E
-B: hasn&#39;t voted in term 6, A&#39;s log is current → grant
-C: hasn&#39;t voted in term 6, A&#39;s log is current → grant
-A has 3/5 votes → Leader(term=6) → heartbeats begin
-D and E timers never fire</code></pre><h2 id="log-replication">Log Replication</h2>
-<p>Once a leader exists, writes are straightforward:</p>
+<p>Every node starts as a follower.</p>
+<h2 id="leader-election">Leader Election</h2>
+<p>Followers expect periodic heartbeats from the leader via AppendEntries RPCs (sent even when there are no entries to replicate). If an election timeout fires without a heartbeat, the follower converts to a candidate:</p>
+<ol>
+<li>Increment current term, vote for self</li>
+<li>Send RequestVote to all peers</li>
+<li>A peer grants its vote if it hasn&rsquo;t voted this term and the candidate&rsquo;s log is at least as up-to-date as its own</li>
+<li>First candidate to collect a majority wins, becomes leader, starts sending heartbeats immediately</li>
+</ol>
+<p>Split votes happen when two candidates start elections simultaneously and each gets half the cluster. Neither reaches majority. Both time out and retry with a new term. Raft handles this with randomized election timeouts (typically 150&ndash;300ms) &ndash; making simultaneous timeouts unlikely without coordination overhead.</p>
+<h2 id="log-replication">Log Replication</h2>
+<p>Once a leader is elected:</p>
 <ol>
 <li>Client sends a command to the leader</li>
-<li>Leader appends the entry to its local log (status: <strong>uncommitted</strong>)</li>
-<li>Leader sends <code>AppendEntries(prevLogIndex, prevLogTerm, entries[], leaderCommit)</code> to all followers in parallel</li>
-<li>Once a <strong>majority</strong> of nodes have written the entry to their logs → leader marks it <strong>committed</strong></li>
-<li>Leader applies the entry to its state machine and responds to the client</li>
-<li>On the next heartbeat, followers learn the new commit index and apply pending entries</li>
+<li>Leader appends the entry to its local log (not yet committed)</li>
+<li>Leader sends AppendEntries to all followers in parallel</li>
+<li>Once a majority have written the entry, the leader marks it committed</li>
+<li>Leader applies the entry to its state machine, replies to client</li>
+<li>On the next heartbeat, followers learn the commit index and apply the entry too</li>
 </ol>
 
 
 
 
 
-<pre tabindex="0"><code>Client → write x=5 → Leader
-Leader → AppendEntries → Follower A ✓ (writes to log)
-Leader → AppendEntries → Follower B ✓ (writes to log)
-Leader → AppendEntries → Follower C  ✗ (unreachable)
-Majority = Leader + A + B → mark committed → apply x=5 → reply to client
-Follower C recovers later, leader resends missing entries, C catches up</code></pre><p>The <code>prevLogIndex</code> and <code>prevLogTerm</code> fields in AppendEntries are the consistency check. A follower rejects the append if the previous entry in its own log doesn&rsquo;t match. The leader backs up by one and retries. This process finds the last point where the follower&rsquo;s log matches the leader&rsquo;s, and the leader resends everything from there. The leader&rsquo;s log always wins.</p>
-<h2 id="safety-the-election-constraint">Safety: The Election Constraint</h2>
-<p>The critical invariant: a node can only win an election if its log is <strong>at least as up-to-date</strong> as a majority of nodes.</p>
-<p>&ldquo;Up-to-date&rdquo; is a precise comparison:</p>
-<ul>
-<li>Compare the term of the last log entry. Higher term wins.</li>
-<li>If terms are equal, longer log wins.</li>
-</ul>
-<p>This guarantees that a newly elected leader always has all committed entries. Here&rsquo;s why: a committed entry was written by a majority. Any election winner collected votes from a majority. Those two majorities must overlap by at least one node. That overlapping node voted for the winner, which means the winner&rsquo;s log was at least as current as that node&rsquo;s &ndash; which means it has the committed entry.</p>
-<p>No repair step needed. No &ldquo;figure out what was committed before my election.&rdquo; The safety guarantee is structural, not procedural.</p>
-<h2 id="handling-log-divergence">Handling Log Divergence</h2>
-<p>When a leader fails and a new one is elected, some followers may have entries the new leader doesn&rsquo;t have, and vice versa. The resolution: the new leader&rsquo;s log is authoritative. Diverged follower entries are overwritten.</p>
-<p>This is safe because of the election constraint &ndash; the new leader has all committed entries. Any entries only on diverged followers were never committed (the old leader hadn&rsquo;t yet received majority acknowledgement), so discarding them is safe.</p>
-<p>The AppendEntries consistency check drives the catchup automatically. No explicit repair protocol needed.</p>
+<pre tabindex="0"><code>Client → [write x=5] → Leader
+Leader  → AppendEntries(x=5) → Follower A  ✓
+Leader  → AppendEntries(x=5) → Follower B  ✓
+Leader  → AppendEntries(x=5) → Follower C  (unreachable)
+[Majority = Leader + A + B → COMMIT] → apply x=5</code></pre><p>Follower C is behind but not a problem. When it reconnects, the leader sends it the missing entries.</p>
+<h2 id="safety-log-matching">Safety: Log Matching</h2>
+<p>Raft&rsquo;s key safety property: if two logs contain an entry with the same index and term, all preceding entries are identical.</p>
+<p>This is enforced by the AppendEntries consistency check. When the leader sends an entry, it includes the index and term of the entry immediately before it. A follower rejects the append if that preceding entry doesn&rsquo;t match its own log. The leader then backs up and resends from an earlier point until it finds a common prefix, then overwrites the diverged entries.</p>
+<p>The vote restriction reinforces this: a node won&rsquo;t vote for a candidate whose log is less up-to-date than its own. This guarantees the new leader always has all committed entries &ndash; it never needs to fetch missing entries from other nodes after winning an election.</p>
+<h2 id="leader-failure">Leader Failure</h2>
+<p>If the leader crashes, the election timeout fires on one of the followers and a new election starts. The vote restriction ensures the winner has the most complete log among the majority. No repair phase, no querying all nodes &ndash; safety comes from the constraint, not from post-election cleanup.</p>
 <h2 id="raft-vs-paxos">Raft vs. Paxos</h2>
 <table>
   <thead>
       <tr>
           <th></th>
-          <th>Paxos (Multi-Paxos)</th>
+          <th>Multi-Paxos</th>
           <th>Raft</th>
       </tr>
   </thead>
   <tbody>
       <tr>
-          <td><strong>Design goal</strong></td>
+          <td>Design goal</td>
           <td>Correctness</td>
           <td>Correctness + understandability</td>
       </tr>
       <tr>
-          <td><strong>Leader</strong></td>
+          <td>Leader</td>
           <td>Distinguished proposer (informal)</td>
           <td>Explicit, enforced by protocol</td>
       </tr>
       <tr>
-          <td><strong>Log gaps</strong></td>
-          <td>Allowed &ndash; slots can be filled out of order</td>
-          <td>Not allowed &ndash; entries are sequential</td>
+          <td>Log holes</td>
+          <td>Can have gaps, complex to fill</td>
+          <td>No gaps, entries apply in order</td>
       </tr>
       <tr>
-          <td><strong>Config changes</strong></td>
-          <td>Ad hoc, not specified</td>
-          <td>Joint consensus built into the protocol</td>
+          <td>Config changes</td>
+          <td>Ad hoc</td>
+          <td>Joint consensus built in</td>
       </tr>
       <tr>
-          <td><strong>Understandability</strong></td>
-          <td>Notoriously hard</td>
-          <td>Designed to be teachable</td>
-      </tr>
-      <tr>
-          <td><strong>Key implementations</strong></td>
-          <td>Chubby, Zab (variant)</td>
+          <td>Implementations</td>
+          <td>Chubby, Zab (variants)</td>
           <td>etcd, CockroachDB, TiKV, Consul</td>
       </tr>
   </tbody>
 </table>
-<p>Same fault tolerance: both tolerate up to <code>⌊(N-1)/2⌋</code> failures. 3 nodes tolerates 1 failure. 5 nodes tolerates 2. You need a majority of nodes alive to make progress.</p>
-<h2 id="what-raft-doesnt-cover-and-matters-for-production">What Raft Doesn&rsquo;t Cover (and Matters for Production)</h2>
-<p><strong>Log compaction:</strong> The log grows forever. Snapshots periodically capture the full state machine state and truncate the log prefix. A follower that falls too far behind receives a snapshot instead of individual entries. The Raft paper covers this in the extended version; most implementations handle it, but the details (snapshot transfer, concurrent snapshotting while serving reads) are non-trivial.</p>
-<p><strong>Cluster membership changes:</strong> Adding or removing nodes changes what constitutes a majority. Done naively, this creates a window where two disjoint majorities can exist simultaneously &ndash; a split-brain scenario. Raft&rsquo;s answer is joint consensus: during the transition, a commit requires majority from both the old and new configuration. Implemented in etcd; often the trickiest part of a real Raft implementation.</p>
-<p><strong>Read scaling:</strong> Every read going through the leader is a bottleneck. Follower reads are tempting but require care &ndash; a follower might be behind. Lease-based reads (leader holds a time-bounded lease guaranteeing no other leader exists) allow serving reads without a full round-trip. etcd implements this. The consistency tradeoff is: reads are linearizable only if the lease is valid; clock skew can violate this.</p>
-<h2 id="where-its-used">Where It&rsquo;s Used</h2>
+<p>Both tolerate up to (N-1)/2 failures in an N-node cluster. The fault tolerance is identical. The difference is that Raft implementations are actually correct in practice because the protocol is debuggable.</p>
+<h2 id="where-it-runs">Where It Runs</h2>
 <ul>
-<li><strong>etcd</strong> &ndash; the backing store for all Kubernetes cluster state. One Raft cluster per etcd deployment; the entire control plane depends on it.</li>
-<li><strong>CockroachDB</strong> &ndash; Raft per range (shard). Each range is a 3-5 node Raft group. Thousands of Raft groups per cluster.</li>
-<li><strong>TiKV</strong> (TiDB&rsquo;s storage layer) &ndash; Raft groups per region, same pattern as CockroachDB.</li>
-<li><strong>Consul</strong> &ndash; service discovery and distributed KV. Single Raft cluster per datacenter.</li>
+<li><strong>etcd</strong> &ndash; Kubernetes&rsquo; backing store; the entire cluster state (pods, services, configs) is a Raft log</li>
+<li><strong>CockroachDB</strong> &ndash; Raft per range; each 512MB range is an independent 3&ndash;5 node Raft group</li>
+<li><strong>TiKV</strong> &ndash; Raft groups per region, underpins TiDB</li>
+<li><strong>Consul</strong> &ndash; service discovery and distributed KV</li>
 </ul>
-<p>The algorithm is young &ndash; the paper is from 2013 &ndash; but it has already become the default answer to the question &ldquo;how does this cluster stay consistent?&rdquo;</p>
+<p>If you&rsquo;re building anything that needs replicated state and strong consistency, Raft is the default answer. The paper is readable in an afternoon. The TLA+ spec exists if you want to verify your implementation. Start there.</p>
 
 </content>
 <p>
@@ -263,7 +212,7 @@ Follower C recovers later, leader resends missing entries, C catches up</code></
 
 
   <p>
-    <a href='mailto:shentharkrishnatejaswi@gmail.com?subject=Reply%20to%20"Raft%20Consensus"'>
+    <a href='mailto:shentharkrishnatejaswi@gmail.com?subject=Reply%20to%20"Raft%3a%20Consensus%20for%20the%20Rest%20of%20Us"'>
       Reply to this post by email ↪
     </a>
   </p>
