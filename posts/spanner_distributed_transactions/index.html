@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en-us">
+
+<head>
+  <meta http-equiv="X-Clacks-Overhead" content="GNU Terry Pratchett" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="shortcut icon" href="https://KTS-o7.github.io/bear/images/favicon.png" />
+<title>How Spanner Does Distributed Transactions Without Classic 2PC | </title>
+<meta name="title" content="How Spanner Does Distributed Transactions Without Classic 2PC" />
+<meta name="description" content="Two-phase commit has a well-known problem: crash the coordinator between Phase 1 and Phase 2 and every participant is stuck holding locks, waiting, with no safe way to proceed. 2PC is a blocking protocol.
+Google Spanner runs distributed transactions across a globally replicated database at scale. It can&rsquo;t afford to block on coordinator failure. Its solution is to not use a standalone coordinator at all &ndash; it runs 2PC on top of Paxos groups, which means the coordinator itself is fault-tolerant." />
+<meta name="author" content="" />
+<meta name="keywords" content="" />
+
+
+
+
+
+
+  
+  <meta property="og:url" content="https://KTS-o7.github.io/bear/posts/spanner_distributed_transactions/">
+  <meta property="og:title" content="How Spanner Does Distributed Transactions Without Classic 2PC">
+  <meta property="og:description" content="Two-phase commit has a well-known problem: crash the coordinator between Phase 1 and Phase 2 and every participant is stuck holding locks, waiting, with no safe way to proceed. 2PC is a blocking protocol.
+Google Spanner runs distributed transactions across a globally replicated database at scale. It can’t afford to block on coordinator failure. Its solution is to not use a standalone coordinator at all – it runs 2PC on top of Paxos groups, which means the coordinator itself is fault-tolerant.">
+  <meta property="og:locale" content="en_us">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="posts">
+    <meta property="article:published_time" content="2026-05-03T00:00:00+05:30">
+    <meta property="article:modified_time" content="2026-05-03T00:00:00+05:30">
+    <meta property="og:image" content="https://KTS-o7.github.io/bear/images/share.webp">
+
+
+  
+  
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://KTS-o7.github.io/bear/images/share.webp">
+  <meta name="twitter:title" content="How Spanner Does Distributed Transactions Without Classic 2PC">
+  <meta name="twitter:description" content="Two-phase commit has a well-known problem: crash the coordinator between Phase 1 and Phase 2 and every participant is stuck holding locks, waiting, with no safe way to proceed. 2PC is a blocking protocol.
+Google Spanner runs distributed transactions across a globally replicated database at scale. It can’t afford to block on coordinator failure. Its solution is to not use a standalone coordinator at all – it runs 2PC on top of Paxos groups, which means the coordinator itself is fault-tolerant.">
+
+
+  
+  
+  <meta itemprop="name" content="How Spanner Does Distributed Transactions Without Classic 2PC">
+  <meta itemprop="description" content="Two-phase commit has a well-known problem: crash the coordinator between Phase 1 and Phase 2 and every participant is stuck holding locks, waiting, with no safe way to proceed. 2PC is a blocking protocol.
+Google Spanner runs distributed transactions across a globally replicated database at scale. It can’t afford to block on coordinator failure. Its solution is to not use a standalone coordinator at all – it runs 2PC on top of Paxos groups, which means the coordinator itself is fault-tolerant.">
+  <meta itemprop="datePublished" content="2026-05-03T00:00:00+05:30">
+  <meta itemprop="dateModified" content="2026-05-03T00:00:00+05:30">
+  <meta itemprop="wordCount" content="763">
+  <meta itemprop="image" content="https://KTS-o7.github.io/bear/images/share.webp">
+
+<meta name="referrer" content="no-referrer-when-downgrade" />
+
+  
+  <link href="/bear/herman.min.css" rel="stylesheet">
+
+  
+
+  
+
+  
+
+  
+</head>
+
+<body>
+  <header><a class="skip-link" href="#main-content">Skip to main content</a>
+
+<a href="/bear/" class="title"><h1></h1></a>
+<nav>
+  <a href="/bear/">Home</a>
+
+  <a href="/bear/posts/">Posts</a>
+
+  <a href="/bear/about/">About</a>
+
+  <a href="/bear/ml/">ML Stuff</a>
+
+  <a href="/bear/cses.fi/">CSES.fi</a>
+
+<a href='https://KTS-o7.github.io/bear/index.xml'>RSS</a>
+
+
+
+
+
+
+
+</nav>
+</header>
+  <main id="main-content">
+
+<h1>How Spanner Does Distributed Transactions Without Classic 2PC</h1>
+<p class="byline">
+  <time datetime='2026-05-03' pubdate>
+    2026-05-03
+  </time>
+  
+</p>
+
+<content>
+  <p>Two-phase commit has a well-known problem: crash the coordinator between Phase 1 and Phase 2 and every participant is stuck holding locks, waiting, with no safe way to proceed. 2PC is a blocking protocol.</p>
+<p>Google Spanner runs distributed transactions across a globally replicated database at scale. It can&rsquo;t afford to block on coordinator failure. Its solution is to not use a standalone coordinator at all &ndash; it runs 2PC on top of Paxos groups, which means the coordinator itself is fault-tolerant.</p>
+<h2 id="the-core-move-paxos-groups-as-participants">The Core Move: Paxos Groups as Participants</h2>
+<p>In classic 2PC, each participant is a single node. It votes, acquires locks, and waits. If it crashes, the transaction is stuck.</p>
+<p>Spanner&rsquo;s participants are Paxos groups. Each shard of data is managed by a Paxos group &ndash; typically 5 replicas spread across datacenters. The Paxos leader for each group acts as the 2PC participant. Lock acquisition and voting happen on the leader, and the decision is durably replicated to the group before the leader responds.</p>
+<p>If the coordinator crashes, a new coordinator can be elected (it&rsquo;s also a Paxos group). If a participant leader crashes, a new leader in that group takes over &ndash; the lock state and vote are already replicated, so the protocol can continue.</p>
+<p>The blocking problem is solved not by changing the protocol but by making every node in the protocol fault-tolerant.</p>
+<h2 id="truetime">TrueTime</h2>
+<p>Spanner adds something 2PC doesn&rsquo;t have: globally synchronized timestamps, accurate enough to use for transaction ordering.</p>
+<p>Google runs GPS receivers and atomic clocks in each datacenter and exposes a <code>TrueTime</code> API that returns a time interval <code>[earliest, latest]</code> rather than a single timestamp. The interval accounts for clock uncertainty. The guarantee is that the real current time lies somewhere in that interval.</p>
+<p>Spanner uses TrueTime to assign commit timestamps. The rule: a transaction&rsquo;s commit timestamp must be after the <code>latest</code> bound of TrueTime at the moment the coordinator decides to commit. This means Spanner waits for a brief period &ndash; typically 1-7ms &ndash; before declaring a transaction committed, to ensure that any other transaction starting after this one will see a strictly later timestamp.</p>
+<p>This is the &ldquo;commit wait.&rdquo; It&rsquo;s intentional latency, paid to guarantee that commit timestamps accurately reflect real-world ordering.</p>
+<h2 id="external-consistency">External Consistency</h2>
+<p>The property this buys is external consistency: if transaction T1 commits before T2 starts (in real-world time), T2 will see T1&rsquo;s writes. This is stronger than serializability &ndash; serializable transactions can be ordered in any way consistent with their conflicts, even if that reorders real-world causality. External consistency preserves real-world order.</p>
+<p>In practical terms: if you commit a write and then tell a colleague &ldquo;it&rsquo;s committed, go read it,&rdquo; their read will see your write. There&rsquo;s no window where a causally later transaction misses a causally earlier committed write.</p>
+<p>Most distributed databases don&rsquo;t provide this. They provide serializability, which is strong, but allows committed writes to be temporarily invisible to transactions that started after the commit in real time. Spanner&rsquo;s external consistency closes that gap.</p>
+<h2 id="what-the-2pc-layer-actually-looks-like">What the 2PC Layer Actually Looks Like</h2>
+<p>A read-write transaction in Spanner:</p>
+<ol>
+<li>Client reads data, buffers writes locally (no locks yet)</li>
+<li>Client sends commit request to the coordinator Paxos group</li>
+<li>Coordinator runs 2PC with each participant Paxos group:
+<ul>
+<li>Sends <code>PREPARE</code> to each participant leader</li>
+<li>Each participant leader acquires locks, logs the prepare record to its Paxos group, replies <code>YES</code></li>
+<li>Coordinator picks a commit timestamp (TrueTime <code>latest</code> + epsilon), logs it to its group</li>
+<li>Sends <code>COMMIT</code> with the timestamp to all participants</li>
+</ul>
+</li>
+<li>Coordinator waits out the commit wait interval</li>
+<li>Participants apply the writes at the commit timestamp, release locks</li>
+<li>Client sees commit confirmation</li>
+</ol>
+<p>The 2PC messages are still there. The key difference is that every step that touches durable state goes through a Paxos replication round first. The coordinator can crash and be replaced. A participant leader can crash and its successor has the full prepare state. Nothing blocks permanently.</p>
+<h2 id="the-cost">The Cost</h2>
+<p>The commit wait adds latency. For single-region transactions it&rsquo;s small (sub-millisecond when clocks are well-synchronized). For multi-region transactions where the coordinator and participants are in different continents, round-trip latency dominates and the TrueTime uncertainty is larger &ndash; you&rsquo;re looking at tens of milliseconds.</p>
+<p>Spanner is designed for this tradeoff: strong global consistency in exchange for latency that scales with geographic distance. For financial systems, global inventory, or anything that requires real external consistency, that tradeoff is often correct. For low-latency local transactions, it&rsquo;s usually not.</p>
+<p>Classic 2PC is blocking because the coordinator is a single node. Spanner&rsquo;s answer is not to fix 2PC &ndash; it&rsquo;s to make every node in the 2PC protocol a replicated state machine.</p>
+
+</content>
+<p>
+  
+</p>
+
+
+  <p>
+    <a href='mailto:shentharkrishnatejaswi@gmail.com?subject=Reply%20to%20"How%20Spanner%20Does%20Distributed%20Transactions%20Without%20Classic%202PC"'>
+      Reply to this post by email ↪
+    </a>
+  </p>
+
+
+
+  </main>
+  <footer><small>
+  Krishnatejaswi S | Made with <a href="https://github.com/clente/hugo-bearcub">Bear Cub</a>
+</small></footer>
+
+    
+</body>
+
+</html>

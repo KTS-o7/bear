@@ -3,10 +3,10 @@
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
     <loc>https://KTS-o7.github.io/bear/</loc>
-    <lastmod>2026-05-02T00:00:00+05:30</lastmod>
+    <lastmod>2026-05-03T00:00:00+05:30</lastmod>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/posts/</loc>
-    <lastmod>2026-05-02T00:00:00+05:30</lastmod>
+    <lastmod>2026-05-03T00:00:00+05:30</lastmod>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/ml/</loc>
     <lastmod>2026-01-08T07:07:07+01:00</lastmod>
@@ -15,6 +15,27 @@
   </url><url>
     <loc>https://KTS-o7.github.io/bear/cses.fi/</loc>
     <lastmod>2025-09-19T23:03:51+05:30</lastmod>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/posts/crdts/</loc>
+    <lastmod>2026-05-03T00:00:00+05:30</lastmod>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/posts/spanner_distributed_transactions/</loc>
+    <lastmod>2026-05-03T00:00:00+05:30</lastmod>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/posts/kv_cache_paged_attention/</loc>
+    <lastmod>2026-05-03T00:00:00+05:30</lastmod>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/posts/multi_paxos/</loc>
+    <lastmod>2026-05-03T00:00:00+05:30</lastmod>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/posts/raft_log_compaction/</loc>
+    <lastmod>2026-05-03T00:00:00+05:30</lastmod>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/posts/bulkhead_pattern/</loc>
+    <lastmod>2026-05-03T00:00:00+05:30</lastmod>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/posts/saga_outbox_pattern/</loc>
+    <lastmod>2026-05-03T00:00:00+05:30</lastmod>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/posts/vps_self_hosting/</loc>
     <lastmod>2026-05-02T00:00:00+05:30</lastmod>

@@ -9,8 +9,370 @@
     <managingEditor>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</managingEditor>
     <webMaster>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</webMaster>
     <copyright>Krishnatejaswi S</copyright>
-    <lastBuildDate>Sat, 02 May 2026 00:00:00 +0530</lastBuildDate>
+    <lastBuildDate>Sun, 03 May 2026 00:00:00 +0530</lastBuildDate>
     <atom:link href="https://KTS-o7.github.io/bear/posts/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>CRDTs: Conflict-Free Replicated Data Types</title>
+      <link>https://KTS-o7.github.io/bear/posts/crdts/</link>
+      <pubDate>Sun, 03 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/posts/crdts/</guid>
+      <description>&lt;p&gt;Vector clocks tell you when two writes conflict. They don&amp;rsquo;t tell you what to do about it. That&amp;rsquo;s still your problem.&lt;/p&gt;&#xA;&lt;p&gt;CRDTs take a different position: design the data structure so that conflicts can never happen. Not &amp;ldquo;detect and resolve&amp;rdquo; &amp;ndash; just structurally eliminate the problem.&lt;/p&gt;&#xA;&lt;h2 id=&#34;the-core-idea&#34;&gt;The Core Idea&lt;/h2&gt;&#xA;&lt;p&gt;A CRDT is a data structure with a merge function that is commutative, associative, and idempotent. Those three properties together mean you can apply updates in any order, any number of times, from any subset of nodes, and always converge to the same state.&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>Vector clocks tell you when two writes conflict. They don&rsquo;t tell you what to do about it. That&rsquo;s still your problem.</p>
+<p>CRDTs take a different position: design the data structure so that conflicts can never happen. Not &ldquo;detect and resolve&rdquo; &ndash; just structurally eliminate the problem.</p>
+<h2 id="the-core-idea">The Core Idea</h2>
+<p>A CRDT is a data structure with a merge function that is commutative, associative, and idempotent. Those three properties together mean you can apply updates in any order, any number of times, from any subset of nodes, and always converge to the same state.</p>
+<ul>
+<li><strong>Commutative</strong>: merge(A, B) = merge(B, A) &ndash; order doesn&rsquo;t matter</li>
+<li><strong>Associative</strong>: merge(A, merge(B, C)) = merge(merge(A, B), C) &ndash; grouping doesn&rsquo;t matter</li>
+<li><strong>Idempotent</strong>: merge(A, A) = A &ndash; applying the same update twice is harmless</li>
+</ul>
+<p>If your data structure satisfies these, you can replicate it across nodes with no coordination. Each node applies updates locally and gossips state to peers. Eventually everyone has the same state.</p>
+<h2 id="the-simplest-crdt-g-counter">The Simplest CRDT: G-Counter</h2>
+<p>A grow-only counter. Each node maintains a vector of counts, one slot per node. To increment, a node adds to its own slot. To read the total, sum all slots. To merge two replicas, take the element-wise max.</p>
+
+
+
+
+
+<pre tabindex="0"><code>Node A: [3, 1, 0]   Node B: [2, 2, 0]
+Merge:  [3, 2, 0]   -- take max per slot
+Total:  5</code></pre><p>Node A can never decrement B&rsquo;s slot and Node B can never decrement A&rsquo;s slot. Merges always move counters up, never down. Convergence is guaranteed.</p>
+<h2 id="adding-decrements-pn-counter">Adding Decrements: PN-Counter</h2>
+<p>A grow-only counter can&rsquo;t go down. If you need decrements, use two G-Counters &ndash; one for increments (P), one for decrements (N). The value is P - N.</p>
+<p>Each node increments its P slot to add and its N slot to subtract. Merges take the element-wise max of both vectors. The final value is the sum of all P slots minus the sum of all N slots.</p>
+<h2 id="sets-the-interesting-case">Sets: The Interesting Case</h2>
+<p>Sets are where CRDTs get non-obvious. The naive approach breaks immediately: if Node A removes an element at the same time Node B adds it, what&rsquo;s the right answer?</p>
+<p><strong>G-Set</strong> (grow-only set) sidesteps this: elements can only be added, never removed. Merge is union. Works perfectly but is obviously limited.</p>
+<p><strong>2P-Set</strong> (two-phase set) adds a remove set R alongside the add set A. An element is in the set if it&rsquo;s in A but not R. Once removed, it can never be re-added. Merge is union on both sets.</p>
+<p><strong>LWW-Element-Set</strong> (last-write-wins) attaches a timestamp to each add and remove. On conflict, the higher timestamp wins. Simple, but you&rsquo;re back to trusting clocks.</p>
+<p><strong>OR-Set</strong> (observed-remove set) is the one that gets this right. Each add operation generates a unique tag. Remove only removes the specific tags that were observed at remove time. If Node A adds element X (tag: t1) and Node B concurrently adds X again (tag: t2), then Node A removing X (removing tag t1) leaves Node B&rsquo;s addition (tag t2) intact. The element stays in the set.</p>
+<p>This matches user intuition: you removed the copy you knew about, not the one that was being added concurrently somewhere else.</p>
+<h2 id="state-based-vs-operation-based">State-based vs. Operation-based</h2>
+<p>There are two families of CRDTs.</p>
+<p><strong>State-based (CvRDTs)</strong>: nodes gossip their full state. Merge is applied on receipt. The merge function must be a join on a join-semilattice &ndash; a partial order where every pair of elements has a least upper bound. Simple to reason about, but shipping full state can be expensive for large structures.</p>
+<p><strong>Operation-based (CmRDTs)</strong>: nodes broadcast operations instead of state. No merge function needed on state &ndash; instead, the transport layer must guarantee exactly-once delivery and causal ordering. More efficient, but the delivery guarantee is a real constraint.</p>
+<p>In practice, libraries like Automerge and Yjs use operation-based CRDTs with a hybrid approach: operations for real-time sync, periodic state snapshots for catch-up after disconnection.</p>
+<h2 id="where-theyre-used">Where They&rsquo;re Used</h2>
+<p><strong>Collaborative editing</strong> is the obvious one. Google Docs uses OT (operational transformation), an older approach with similar goals. Figma uses CRDTs. Notion, Linear, and most newer collaborative tools have moved toward CRDTs because the math is cleaner and they handle offline edits naturally.</p>
+<p><strong>Distributed databases</strong>: Riak&rsquo;s eventual consistency model was built around CRDTs. Redis has CRDT support in Redis Enterprise for multi-region deployments. Azure Cosmos DB uses them internally for its multi-master replication.</p>
+<p><strong>Shopping carts</strong>: Amazon&rsquo;s Dynamo paper mentions the shopping cart as a canonical use case. Adds and removes to a cart from multiple devices or regions converge without a coordinator.</p>
+<h2 id="the-tradeoff">The Tradeoff</h2>
+<p>CRDTs don&rsquo;t work for everything. The merge semantics have to match what your application actually means.</p>
+<p>A bank account is not a PN-Counter. If your account shows $500 and you withdraw $200 concurrently from two ATMs, merging the two PN-Counters would show $100 &ndash; which is correct math but incorrect banking. The constraint &ldquo;balance must not go negative&rdquo; requires coordination. You can&rsquo;t avoid that with a CRDT.</p>
+<p>The rule: CRDTs work when the merge semantics match application intent and when the application can tolerate the conflict-free resolution behavior. They&rsquo;re not a universal replacement for coordination &ndash; they&rsquo;re a way to avoid coordination in cases where the math lines up.</p>
+<p>Vector clocks give you the diagnosis. CRDTs give you a structural guarantee that the diagnosis is never needed.</p>
+]]></content:encoded>
+    </item>
+    <item>
+      <title>How Spanner Does Distributed Transactions Without Classic 2PC</title>
+      <link>https://KTS-o7.github.io/bear/posts/spanner_distributed_transactions/</link>
+      <pubDate>Sun, 03 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/posts/spanner_distributed_transactions/</guid>
+      <description>&lt;p&gt;Two-phase commit has a well-known problem: crash the coordinator between Phase 1 and Phase 2 and every participant is stuck holding locks, waiting, with no safe way to proceed. 2PC is a blocking protocol.&lt;/p&gt;&#xA;&lt;p&gt;Google Spanner runs distributed transactions across a globally replicated database at scale. It can&amp;rsquo;t afford to block on coordinator failure. Its solution is to not use a standalone coordinator at all &amp;ndash; it runs 2PC on top of Paxos groups, which means the coordinator itself is fault-tolerant.&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>Two-phase commit has a well-known problem: crash the coordinator between Phase 1 and Phase 2 and every participant is stuck holding locks, waiting, with no safe way to proceed. 2PC is a blocking protocol.</p>
+<p>Google Spanner runs distributed transactions across a globally replicated database at scale. It can&rsquo;t afford to block on coordinator failure. Its solution is to not use a standalone coordinator at all &ndash; it runs 2PC on top of Paxos groups, which means the coordinator itself is fault-tolerant.</p>
+<h2 id="the-core-move-paxos-groups-as-participants">The Core Move: Paxos Groups as Participants</h2>
+<p>In classic 2PC, each participant is a single node. It votes, acquires locks, and waits. If it crashes, the transaction is stuck.</p>
+<p>Spanner&rsquo;s participants are Paxos groups. Each shard of data is managed by a Paxos group &ndash; typically 5 replicas spread across datacenters. The Paxos leader for each group acts as the 2PC participant. Lock acquisition and voting happen on the leader, and the decision is durably replicated to the group before the leader responds.</p>
+<p>If the coordinator crashes, a new coordinator can be elected (it&rsquo;s also a Paxos group). If a participant leader crashes, a new leader in that group takes over &ndash; the lock state and vote are already replicated, so the protocol can continue.</p>
+<p>The blocking problem is solved not by changing the protocol but by making every node in the protocol fault-tolerant.</p>
+<h2 id="truetime">TrueTime</h2>
+<p>Spanner adds something 2PC doesn&rsquo;t have: globally synchronized timestamps, accurate enough to use for transaction ordering.</p>
+<p>Google runs GPS receivers and atomic clocks in each datacenter and exposes a <code>TrueTime</code> API that returns a time interval <code>[earliest, latest]</code> rather than a single timestamp. The interval accounts for clock uncertainty. The guarantee is that the real current time lies somewhere in that interval.</p>
+<p>Spanner uses TrueTime to assign commit timestamps. The rule: a transaction&rsquo;s commit timestamp must be after the <code>latest</code> bound of TrueTime at the moment the coordinator decides to commit. This means Spanner waits for a brief period &ndash; typically 1-7ms &ndash; before declaring a transaction committed, to ensure that any other transaction starting after this one will see a strictly later timestamp.</p>
+<p>This is the &ldquo;commit wait.&rdquo; It&rsquo;s intentional latency, paid to guarantee that commit timestamps accurately reflect real-world ordering.</p>
+<h2 id="external-consistency">External Consistency</h2>
+<p>The property this buys is external consistency: if transaction T1 commits before T2 starts (in real-world time), T2 will see T1&rsquo;s writes. This is stronger than serializability &ndash; serializable transactions can be ordered in any way consistent with their conflicts, even if that reorders real-world causality. External consistency preserves real-world order.</p>
+<p>In practical terms: if you commit a write and then tell a colleague &ldquo;it&rsquo;s committed, go read it,&rdquo; their read will see your write. There&rsquo;s no window where a causally later transaction misses a causally earlier committed write.</p>
+<p>Most distributed databases don&rsquo;t provide this. They provide serializability, which is strong, but allows committed writes to be temporarily invisible to transactions that started after the commit in real time. Spanner&rsquo;s external consistency closes that gap.</p>
+<h2 id="what-the-2pc-layer-actually-looks-like">What the 2PC Layer Actually Looks Like</h2>
+<p>A read-write transaction in Spanner:</p>
+<ol>
+<li>Client reads data, buffers writes locally (no locks yet)</li>
+<li>Client sends commit request to the coordinator Paxos group</li>
+<li>Coordinator runs 2PC with each participant Paxos group:
+<ul>
+<li>Sends <code>PREPARE</code> to each participant leader</li>
+<li>Each participant leader acquires locks, logs the prepare record to its Paxos group, replies <code>YES</code></li>
+<li>Coordinator picks a commit timestamp (TrueTime <code>latest</code> + epsilon), logs it to its group</li>
+<li>Sends <code>COMMIT</code> with the timestamp to all participants</li>
+</ul>
+</li>
+<li>Coordinator waits out the commit wait interval</li>
+<li>Participants apply the writes at the commit timestamp, release locks</li>
+<li>Client sees commit confirmation</li>
+</ol>
+<p>The 2PC messages are still there. The key difference is that every step that touches durable state goes through a Paxos replication round first. The coordinator can crash and be replaced. A participant leader can crash and its successor has the full prepare state. Nothing blocks permanently.</p>
+<h2 id="the-cost">The Cost</h2>
+<p>The commit wait adds latency. For single-region transactions it&rsquo;s small (sub-millisecond when clocks are well-synchronized). For multi-region transactions where the coordinator and participants are in different continents, round-trip latency dominates and the TrueTime uncertainty is larger &ndash; you&rsquo;re looking at tens of milliseconds.</p>
+<p>Spanner is designed for this tradeoff: strong global consistency in exchange for latency that scales with geographic distance. For financial systems, global inventory, or anything that requires real external consistency, that tradeoff is often correct. For low-latency local transactions, it&rsquo;s usually not.</p>
+<p>Classic 2PC is blocking because the coordinator is a single node. Spanner&rsquo;s answer is not to fix 2PC &ndash; it&rsquo;s to make every node in the 2PC protocol a replicated state machine.</p>
+]]></content:encoded>
+    </item>
+    <item>
+      <title>KV Cache and PagedAttention: Why vLLM Actually Works</title>
+      <link>https://KTS-o7.github.io/bear/posts/kv_cache_paged_attention/</link>
+      <pubDate>Sun, 03 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/posts/kv_cache_paged_attention/</guid>
+      <description>&lt;p&gt;LLM inference is split into two phases with completely different performance characteristics. The first phase processes all input tokens in parallel &amp;ndash; it&amp;rsquo;s compute-bound, and modern GPUs handle it well. The second phase generates one token at a time &amp;ndash; it&amp;rsquo;s memory-bandwidth-bound, and this is where naive serving falls apart.&lt;/p&gt;&#xA;&lt;p&gt;The key data structure driving both phases is the KV cache.&lt;/p&gt;&#xA;&lt;h2 id=&#34;what-the-kv-cache-is&#34;&gt;What the KV Cache Is&lt;/h2&gt;&#xA;&lt;p&gt;In the attention mechanism, each token attends to every previous token in the sequence. To compute attention for token N, you need the key and value vectors for tokens 1 through N-1. Recomputing those from scratch at each step would mean re-running the full model for all previous tokens every time you generate a new one &amp;ndash; O(N^2) compute per sequence.&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>LLM inference is split into two phases with completely different performance characteristics. The first phase processes all input tokens in parallel &ndash; it&rsquo;s compute-bound, and modern GPUs handle it well. The second phase generates one token at a time &ndash; it&rsquo;s memory-bandwidth-bound, and this is where naive serving falls apart.</p>
+<p>The key data structure driving both phases is the KV cache.</p>
+<h2 id="what-the-kv-cache-is">What the KV Cache Is</h2>
+<p>In the attention mechanism, each token attends to every previous token in the sequence. To compute attention for token N, you need the key and value vectors for tokens 1 through N-1. Recomputing those from scratch at each step would mean re-running the full model for all previous tokens every time you generate a new one &ndash; O(N^2) compute per sequence.</p>
+<p>The KV cache avoids this. After the prefill phase, the key and value vectors for every input token are stored in GPU memory. During the decode phase, each new token appended to the sequence just needs to compute its own K and V vectors and append them to the cache. Attending to all previous tokens is then a lookup into the cached K and V tensors, not a recomputation.</p>
+<p>The cost of this: GPU memory. For a 7B parameter model at FP16, the KV cache for a single sequence can be hundreds of megabytes depending on context length, number of layers, and number of attention heads. For larger models serving many concurrent users, the KV cache dominates memory usage.</p>
+<h2 id="the-fragmentation-problem">The Fragmentation Problem</h2>
+<p>Naive serving allocates KV cache memory statically: reserve a maximum-size block for each sequence upfront. This has the same problem as a badly written memory allocator.</p>
+<p>Say you pre-allocate 4096 tokens per sequence and your GPU can hold 20 such blocks. A new request comes in and needs 10 blocks. 18 are free but they&rsquo;re fragmented across physical memory &ndash; no contiguous run of 10. Request rejected, GPU sitting at 60% capacity.</p>
+<p>Even worse: you don&rsquo;t know the output length when a request arrives. If you allocate for the max context length immediately, most of that memory is wasted for short outputs. If you allocate conservatively, long outputs fail mid-generation.</p>
+<h2 id="pagedattention">PagedAttention</h2>
+<p>vLLM&rsquo;s solution, introduced in the 2023 paper, borrows the virtual memory abstraction from operating systems.</p>
+<p>Physical GPU memory is divided into fixed-size blocks (pages), typically 16 tokens each. Each sequence gets a logical block table that maps logical block indices to physical blocks. The blocks for one sequence don&rsquo;t need to be contiguous in physical memory &ndash; the block table handles the translation.</p>
+
+
+
+
+
+<pre tabindex="0"><code>Sequence A: logical [0,1,2] → physical [block_7, block_2, block_15]
+Sequence B: logical [0,1]   → physical [block_3, block_11]</code></pre><p>Blocks are allocated one at a time as tokens are generated, not all upfront. A short output uses a few blocks and returns them when done. A long output gradually accumulates more. Fragmentation is eliminated because the allocation granularity matches the actual growth pattern of sequences.</p>
+<p>The result: GPU memory utilization goes from 20-40% with naive block allocation to 70-90% with PagedAttention. More sequences fit in memory simultaneously, which means higher throughput.</p>
+<h2 id="continuous-batching">Continuous Batching</h2>
+<p>PagedAttention works with continuous batching to make the GPU utilization gains practical.</p>
+<p>Traditional batching waits until a batch of N requests is assembled, runs inference for the full batch, returns all results. Any sequence that finishes early holds its slot until the full batch is done. Expensive for variable-length outputs.</p>
+<p>Continuous batching (also called iteration-level scheduling) processes one decode step at a time across all in-flight sequences. After each step, finished sequences are removed and new requests are inserted into the freed slots. The batch is always full &ndash; there&rsquo;s no waiting.</p>
+<p>Combined with PagedAttention, the memory freed by completed sequences is immediately available for new ones. The GPU is busy at every step, not idling through early completions.</p>
+<h2 id="radixattention">RadixAttention</h2>
+<p>SGLang introduced RadixAttention for workloads with shared prompt prefixes, common in agentic systems and structured generation.</p>
+<p>Consider an agent that runs many LLM calls with the same system prompt and tool definitions &ndash; often 1000+ tokens. With standard PagedAttention, each request recomputes the KV vectors for those shared tokens during prefill. If you&rsquo;re making 100 calls with the same 1000-token preamble, that&rsquo;s 100x the prefill compute for tokens that never change.</p>
+<p>RadixAttention maintains a radix tree of cached KV blocks keyed by token sequence prefix. When a new request arrives, it walks the tree to find the longest matching prefix, reuses those cached blocks, and only computes KV vectors for the novel suffix.</p>
+<p>For agentic workloads where the same system prompt and tool list appear in every call, the first request pays the full prefill cost. Every subsequent request with the same prefix pays only for its unique portion. At the scale of thousands of agent steps, this is a substantial throughput difference.</p>
+<p>The tradeoff: RadixAttention adds cache management overhead. The tree needs to be pruned when memory pressure is high. The eviction policy matters &ndash; evicting a heavily shared prefix that gets reused on the next request undoes the benefit. SGLang uses LRU eviction, which works well for stable prefixes but less well for highly dynamic ones.</p>
+<h2 id="choosing-between-vllm-and-sglang">Choosing Between vLLM and SGLang</h2>
+<p>The choice comes down to workload:</p>
+<p><strong>vLLM</strong> is the default for general inference, chat APIs, and throughput benchmarks. PagedAttention and continuous batching are well-tested across a wide range of models and hardware.</p>
+<p><strong>SGLang</strong> is better for agentic workflows, structured output (constrained decoding for JSON, function calling), and any case where many requests share large prompt prefixes. The RadixAttention benefit only materializes when your prefix reuse rate is high.</p>
+<p>Both expose an OpenAI-compatible API and support the same quantization formats. Running both and profiling your actual traffic pattern is the right answer if you&rsquo;re unsure &ndash; the throughput difference on real workloads is usually decisive.</p>
+<p>The KV cache is why LLM inference is memory-bound rather than compute-bound during decode. Understanding it makes the rest of the optimization landscape &ndash; quantization to shrink the model, PagedAttention to use memory efficiently, RadixAttention to reuse computation &ndash; follow naturally from first principles.</p>
+]]></content:encoded>
+    </item>
+    <item>
+      <title>Multi-Paxos: From Single Decree to a Replicated Log</title>
+      <link>https://KTS-o7.github.io/bear/posts/multi_paxos/</link>
+      <pubDate>Sun, 03 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/posts/multi_paxos/</guid>
+      <description>&lt;p&gt;Basic Paxos agrees on a single value. That&amp;rsquo;s useful for electing a leader or picking a configuration, but a database needs to agree on a sequence of values &amp;ndash; every write in order, forever. Running one full round of Paxos per log slot would work but it&amp;rsquo;s expensive: two network round-trips per slot, and Phase 1 has to complete before Phase 2 can start.&lt;/p&gt;&#xA;&lt;p&gt;Multi-Paxos is the optimization that makes Paxos practical as a replicated log. The insight is that Phase 1 can be amortized across many slots once you have a stable leader.&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>Basic Paxos agrees on a single value. That&rsquo;s useful for electing a leader or picking a configuration, but a database needs to agree on a sequence of values &ndash; every write in order, forever. Running one full round of Paxos per log slot would work but it&rsquo;s expensive: two network round-trips per slot, and Phase 1 has to complete before Phase 2 can start.</p>
+<p>Multi-Paxos is the optimization that makes Paxos practical as a replicated log. The insight is that Phase 1 can be amortized across many slots once you have a stable leader.</p>
+<h2 id="what-phase-1-actually-does">What Phase 1 Actually Does</h2>
+<p>Recall basic Paxos. Phase 1 (Prepare/Promise) establishes that a proposer has the highest ballot number any acceptor will respond to. The acceptors promise to ignore any lower-numbered proposer. This is the &ldquo;take control&rdquo; phase &ndash; after it completes, the proposer has permission to drive proposals through Phase 2.</p>
+<p>Phase 1 doesn&rsquo;t say anything about which value gets proposed. It just establishes leadership over the acceptors for a given ballot number.</p>
+<h2 id="the-amortization">The Amortization</h2>
+<p>If the same leader runs Phase 1 once with a high ballot number, it doesn&rsquo;t need to run Phase 1 again for subsequent log slots &ndash; as long as no other proposer challenges it with a higher ballot.</p>
+<p>The leader runs Phase 1 once, gets promises from a majority, and then drives Phase 2 directly for slot 1, slot 2, slot 3, and so on. Each slot is just one round-trip (Accept/Accepted) instead of two. Throughput roughly doubles for steady-state operation under a stable leader.</p>
+
+
+
+
+
+<pre tabindex="0"><code>Phase 1 (once):   Leader → Prepare(ballot=5) → Majority
+                  Majority → Promise(ballot=5, ...) → Leader
+
+Phase 2 (per slot):
+  Slot 1:  Leader → Accept(ballot=5, slot=1, value=A) → Majority
+           Majority → Accepted → Leader → Committed
+  Slot 2:  Leader → Accept(ballot=5, slot=2, value=B) → Majority
+           Majority → Accepted → Leader → Committed
+  ...</code></pre><p>This is Multi-Paxos. The Phase 1 cost is paid once per leader term, not once per log entry.</p>
+<h2 id="leader-election">Leader Election</h2>
+<p>Basic Paxos has no notion of a leader &ndash; any node can propose at any time, which is why it&rsquo;s correct but chaotic in practice. Multi-Paxos adds an informal leader election layer: one node is designated the distinguished proposer and the others voluntarily defer to it.</p>
+<p>&ldquo;Voluntarily&rdquo; is the key word. If followers suspect the leader is dead (no heartbeats for a timeout period), any of them can run Phase 1 with a higher ballot to take over. The old leader doesn&rsquo;t get a veto &ndash; it just gets its Accept messages rejected because the acceptors have now promised a higher ballot.</p>
+<p>This is where Multi-Paxos implementations diverge significantly. The Paxos paper doesn&rsquo;t specify how leader election works, what timeouts to use, or how to detect a live leader that&rsquo;s just partitioned. Every real implementation makes different choices here, which is part of why Multi-Paxos implementations are hard to compare.</p>
+<h2 id="log-holes">Log Holes</h2>
+<p>One complication basic Paxos avoids: with multiple slots running in parallel, you can get holes. The leader accepts slot 1 and slot 3 but slot 2 hasn&rsquo;t been filled yet because a client request was lost. Followers can&rsquo;t apply slot 3 to the state machine without knowing slot 2.</p>
+<p>Multi-Paxos implementations handle this with a no-op: when a new leader wins an election, it runs Phase 1 for all uncommitted slots and fills any gaps with a no-op entry. This is what &ldquo;leader reconciliation&rdquo; looks like in practice &ndash; the new leader has to figure out what was committed before it took over and resolve any ambiguity.</p>
+<p>Raft avoids holes entirely by requiring that the leader always send entries in order, with no gaps. This simplifies the implementation at the cost of some throughput (you can&rsquo;t pipeline out-of-order).</p>
+<h2 id="zab-vs-multi-paxos">Zab vs. Multi-Paxos</h2>
+<p>ZooKeeper uses Zab (ZooKeeper Atomic Broadcast), which is often described as &ldquo;Paxos-like&rdquo; but is actually closer to Multi-Paxos with some explicit differences.</p>
+<p>The main one: Zab is designed around a primary-backup model where the primary sends updates in a strict FIFO order. The recovery protocol (Phase 1 equivalent in Zab) is designed to ensure the new primary has a superset of all committed entries before it starts serving. Zab also has an explicit synchronization phase where followers sync their logs to the new primary before it starts accepting writes.</p>
+<p>Both tolerate the same number of failures and provide the same safety guarantees. The practical difference is that Zab is tuned for ZooKeeper&rsquo;s specific write pattern (broadcast to all followers, wait for majority ack, apply in order) while Multi-Paxos is a more general framework.</p>
+<h2 id="multi-paxos-vs-raft">Multi-Paxos vs. Raft</h2>
+<table>
+  <thead>
+      <tr>
+          <th></th>
+          <th>Multi-Paxos</th>
+          <th>Raft</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>Leader election</td>
+          <td>Ad hoc, not specified in paper</td>
+          <td>Built into protocol with explicit terms</td>
+      </tr>
+      <tr>
+          <td>Log holes</td>
+          <td>Possible, requires no-op fill on leader change</td>
+          <td>Not possible, entries sent in order</td>
+      </tr>
+      <tr>
+          <td>Pipelining</td>
+          <td>Supported natively</td>
+          <td>Requires extensions</td>
+      </tr>
+      <tr>
+          <td>Understandability</td>
+          <td>Requires significant paper-reading and inference</td>
+          <td>Designed to be implementable from the paper alone</td>
+      </tr>
+      <tr>
+          <td>Real implementations</td>
+          <td>Chubby (Google), custom variants</td>
+          <td>etcd, CockroachDB, TiKV, Consul</td>
+      </tr>
+  </tbody>
+</table>
+<p>Multi-Paxos and Raft have the same fault tolerance and safety properties. The difference is that Raft specifies the things Multi-Paxos leaves up to the implementer &ndash; which is why Raft implementations tend to be more consistent across codebases.</p>
+<p>Google&rsquo;s Chubby uses a Paxos variant internally. Google Spanner uses a Paxos variant per shard. In both cases Google built their own leader election and recovery logic on top of the basic protocol &ndash; which is exactly the work Raft was designed to eliminate.</p>
+]]></content:encoded>
+    </item>
+    <item>
+      <title>Raft Log Compaction: Keeping the Log from Growing Forever</title>
+      <link>https://KTS-o7.github.io/bear/posts/raft_log_compaction/</link>
+      <pubDate>Sun, 03 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/posts/raft_log_compaction/</guid>
+      <description>&lt;p&gt;Raft&amp;rsquo;s correctness relies on the log. Every state change is appended to it, replicated to a majority, and then applied to the state machine. This works perfectly until you&amp;rsquo;ve been running for a few months and the log has millions of entries. Replaying the full log on every restart is slow. A new node joining the cluster would have to receive and apply every entry since the beginning of time.&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>Raft&rsquo;s correctness relies on the log. Every state change is appended to it, replicated to a majority, and then applied to the state machine. This works perfectly until you&rsquo;ve been running for a few months and the log has millions of entries. Replaying the full log on every restart is slow. A new node joining the cluster would have to receive and apply every entry since the beginning of time.</p>
+<p>Log compaction is how you fix this. The idea is simple: once a prefix of the log has been applied to the state machine, you don&rsquo;t need the individual entries anymore &ndash; just a snapshot of the state at that point.</p>
+<h2 id="snapshots">Snapshots</h2>
+<p>A snapshot captures the complete state machine state at a given log index. Once the snapshot is written, all log entries up to and including that index can be discarded.</p>
+
+
+
+
+
+<pre tabindex="0"><code>Before compaction:
+  Log: [1: set x=1] [2: set y=2] [3: set x=3] [4: del y] [5: set z=1]
+  Applied through index 4
+  State machine: {x: 3, z: 1}
+
+After compaction:
+  Snapshot at index 4: {x: 3}  (z not in snapshot -- set z=1 not yet applied)
+  Remaining log: [5: set z=1]</code></pre><p>Wait &ndash; index 5 is retained because it hasn&rsquo;t been applied yet when the snapshot is taken. The snapshot covers only committed, applied entries.</p>
+<p>The snapshot metadata includes the last included index and last included term. These replace the log prefix. When AppendEntries includes a consistency check against the entry before the new one, the leader uses the snapshot&rsquo;s last index and term as the baseline when the follower&rsquo;s log has been compacted past that point.</p>
+<h2 id="when-to-snapshot">When to Snapshot</h2>
+<p>Most implementations trigger a snapshot when the log grows past a size threshold &ndash; say 64MB or 256MB. The Raft paper leaves this as an implementation detail. etcd uses 100MB by default. Smaller thresholds mean more frequent snapshots and less log replay on restart, but snapshot creation has a cost.</p>
+<p>Taking a snapshot of a large state machine can be expensive. If you&rsquo;re snapshotting a database with gigabytes of data, the snapshot itself might take seconds. During that time the state machine is typically paused or copy-on-write semantics are used to take a consistent point-in-time snapshot without stopping serving. Most production implementations use copy-on-write (fork on Linux makes this cheap for process-based state machines).</p>
+<h2 id="installsnapshot-rpc">InstallSnapshot RPC</h2>
+<p>Snapshots matter most for a new node joining the cluster or a node that has been down for a long time and fallen significantly behind.</p>
+<p>If a follower is so far behind that the leader has already compacted the log entries it needs, AppendEntries won&rsquo;t work &ndash; those entries are gone. Instead the leader sends the snapshot directly with InstallSnapshot RPC.</p>
+<p>The follower receives the snapshot, writes it to stable storage, discards its entire existing log, and resets its state machine to the snapshot state. After that it can receive normal AppendEntries for the remaining log entries.</p>
+<p>InstallSnapshot is also used when a brand new node joins the cluster. Rather than replaying potentially years of log history, the leader sends the current snapshot and the follower catches up from there.</p>
+<h2 id="etcd-in-practice">etcd in Practice</h2>
+<p>etcd runs a snapshot at 100MB by default (configurable with <code>--snapshot-count</code>, which actually counts committed entries, not bytes &ndash; the default is 10,000 entries). After snapshotting, etcd retains the last 5 snapshots and the WAL (write-ahead log) segments needed to replay from the oldest retained snapshot. This gives you a window of history for debugging without storing the full log.</p>
+<p>etcd also exposes the snapshot mechanism for operator use. <code>etcdctl snapshot save</code> takes a snapshot of the current state to a file. This is the recommended backup mechanism for etcd clusters &ndash; you back up the snapshot, not the raw data directory.</p>
+<h2 id="leader-leases-and-linearizable-reads">Leader Leases and Linearizable Reads</h2>
+<p>One related problem: reads in a basic Raft cluster go through the leader, which needs to confirm it&rsquo;s still the leader before responding. The way to confirm is to send a heartbeat round to a majority before responding to a read &ndash; which is an extra round-trip per read, expensive under load.</p>
+<p>Leader leases are the optimization. When a leader wins an election and sends its first heartbeats, it records the time and grants itself a lease for a fixed duration (typically the election timeout). During that window, it&rsquo;s guaranteed to still be the leader &ndash; any new leader would need a full election timeout to emerge. So it can serve reads locally without a heartbeat round.</p>
+<p>The caveat: lease-based reads depend on the leader&rsquo;s clock being accurate relative to other nodes. If a leader&rsquo;s clock runs fast and its lease hasn&rsquo;t actually expired on other nodes&rsquo; clocks while it thinks it has, you can serve stale reads. etcd uses clock bounds and makes the lease duration conservative to avoid this. In practice, lease reads are the default in most etcd deployments because the latency benefit outweighs the theoretical risk on well-synchronized hardware clocks.</p>
+<p>Raft&rsquo;s log compaction is not exciting to implement but it&rsquo;s essential for production deployments. A cluster without snapshot support will eventually fall over under its own log weight &ndash; or force every new node to replay history from the beginning, which is equally untenable.</p>
+]]></content:encoded>
+    </item>
+    <item>
+      <title>The Bulkhead Pattern: Isolating Failures Before They Spread</title>
+      <link>https://KTS-o7.github.io/bear/posts/bulkhead_pattern/</link>
+      <pubDate>Sun, 03 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/posts/bulkhead_pattern/</guid>
+      <description>&lt;p&gt;Circuit breakers stop you from hammering a failing downstream service. Bulkheads stop a failing downstream service from consuming all the resources you have &amp;ndash; even if you&amp;rsquo;re not hammering it.&lt;/p&gt;&#xA;&lt;p&gt;The name comes from ship design. A ship&amp;rsquo;s hull is divided into watertight compartments. One compartment floods, the others stay dry. The ship stays afloat. Without bulkheads, one breach sinks everything.&lt;/p&gt;&#xA;&lt;h2 id=&#34;the-problem-without-bulkheads&#34;&gt;The Problem Without Bulkheads&lt;/h2&gt;&#xA;&lt;p&gt;Imagine a service that calls three downstream APIs &amp;ndash; payment, inventory, and recommendations. You have a thread pool with 100 threads handling all outbound requests.&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>Circuit breakers stop you from hammering a failing downstream service. Bulkheads stop a failing downstream service from consuming all the resources you have &ndash; even if you&rsquo;re not hammering it.</p>
+<p>The name comes from ship design. A ship&rsquo;s hull is divided into watertight compartments. One compartment floods, the others stay dry. The ship stays afloat. Without bulkheads, one breach sinks everything.</p>
+<h2 id="the-problem-without-bulkheads">The Problem Without Bulkheads</h2>
+<p>Imagine a service that calls three downstream APIs &ndash; payment, inventory, and recommendations. You have a thread pool with 100 threads handling all outbound requests.</p>
+<p>The recommendations API starts responding slowly. Requests pile up waiting. Threads get tied up waiting for responses that take 10 seconds instead of 100ms. Within minutes all 100 threads are occupied waiting on recommendations. Now payment requests and inventory requests can&rsquo;t get a thread either. Your service is down for all three functions because one non-critical API got slow.</p>
+<p>A circuit breaker would help here once the recommendations API is actually failing &ndash; but slow isn&rsquo;t failing. The requests are completing, just slowly. The circuit never trips. The thread pool still drains.</p>
+<h2 id="the-fix-separate-resource-pools">The Fix: Separate Resource Pools</h2>
+<p>Partition your resources so that one downstream dependency can only consume its own allocation.</p>
+<p>Instead of one pool of 100 threads, you have three pools:</p>
+<ul>
+<li>Payment: 40 threads</li>
+<li>Inventory: 40 threads</li>
+<li>Recommendations: 20 threads</li>
+</ul>
+<p>The recommendations API goes slow. It consumes all 20 of its threads. Payment and inventory are unaffected &ndash; they have their own pools. The non-critical dependency is isolated in its own compartment.</p>
+<h2 id="two-implementation-styles">Two Implementation Styles</h2>
+<p><strong>Thread pool isolation</strong> is what Hystrix made popular. Each downstream call goes through a dedicated thread pool. Callers block on their own pool, not a shared one. Overhead: context switches between the caller thread and the pool thread for every call.</p>
+<p><strong>Semaphore isolation</strong> is lighter. Instead of separate thread pools, you put a semaphore in front of each dependency with a max concurrent count. Callers execute on their own thread but must acquire the semaphore first. No thread switching overhead. The tradeoff: if the call actually blocks the thread (synchronous I/O), you&rsquo;re still tying up the caller&rsquo;s thread. Better for fast calls, worse for slow ones.</p>
+<p>For services making lots of downstream calls with variable latency, thread pool isolation is generally safer. The overhead is real but the isolation is stronger.</p>
+<h2 id="combining-with-circuit-breakers">Combining with Circuit Breakers</h2>
+<p>Bulkheads and circuit breakers are complementary, not alternatives. They protect against different failure modes:</p>
+<ul>
+<li><strong>Bulkhead</strong>: limits resource consumption from a slow or partially degraded dependency</li>
+<li><strong>Circuit breaker</strong>: stops calls entirely when a dependency crosses a failure threshold</li>
+</ul>
+<p>The typical pattern is both together. The bulkhead caps how many threads/connections one dependency can consume. The circuit breaker trips when that dependency starts returning errors. Between the two, you handle the full range of failure behavior from &ldquo;slightly slow&rdquo; to &ldquo;completely down.&rdquo;</p>
+<p>Netflix Hystrix combined both in a single abstraction. Resilience4j does the same. In a service mesh like Istio, connection pool settings are the bulkhead and outlier detection is the circuit breaker &ndash; same ideas, configured at the mesh level rather than the application level.</p>
+<h2 id="what-to-size-the-pools-at">What to Size the Pools At</h2>
+<p>This is the hard part. Too small and you&rsquo;re rejecting valid traffic. Too large and the isolation breaks down.</p>
+<p>A reasonable starting point: look at your normal concurrency for each dependency, add headroom for spikes, and set the max at roughly 2x your normal peak. Monitor pool utilization in steady state &ndash; if the recommendations pool is regularly at 18/20, you either need to size up or your recommendations calls are too slow.</p>
+<p>Bulkheads don&rsquo;t fix slow dependencies. They contain the blast radius while you do.</p>
+]]></content:encoded>
+    </item>
+    <item>
+      <title>The Saga Outbox Pattern: Reliable Event Delivery Without Two-Phase Commit</title>
+      <link>https://KTS-o7.github.io/bear/posts/saga_outbox_pattern/</link>
+      <pubDate>Sun, 03 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/posts/saga_outbox_pattern/</guid>
+      <description>&lt;p&gt;The Saga pattern gives you distributed transactions without cross-service locks. Each step publishes an event when it completes, triggering the next step. But there&amp;rsquo;s a gap in the naive implementation: publishing an event and updating your local database are two separate operations. If your service crashes between them, you get a committed database write with no event published, or an event published with no matching database write. The saga is now in an inconsistent state.&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>The Saga pattern gives you distributed transactions without cross-service locks. Each step publishes an event when it completes, triggering the next step. But there&rsquo;s a gap in the naive implementation: publishing an event and updating your local database are two separate operations. If your service crashes between them, you get a committed database write with no event published, or an event published with no matching database write. The saga is now in an inconsistent state.</p>
+<p>The outbox pattern closes that gap.</p>
+<h2 id="the-dual-write-problem">The Dual-Write Problem</h2>
+<p>Say the flight reservation step succeeds. You update your database to mark the reservation as confirmed and then publish a <code>FlightReserved</code> event to your message broker. These are two operations against two different systems. There&rsquo;s no way to make them atomic without 2PC &ndash; which is exactly what sagas are trying to avoid.</p>
+<p>If you write to the database first and then crash before publishing, the event is never delivered. The hotel reservation step never starts. The saga stalls. Depending on your monitoring, this might sit undetected for a while.</p>
+<p>If you publish first and then crash before writing to the database, you&rsquo;ve told the hotel step to proceed even though the flight reservation isn&rsquo;t durably recorded. The flight service comes back up with no record of the reservation. You&rsquo;ve introduced a phantom.</p>
+<h2 id="the-outbox">The Outbox</h2>
+<p>The fix: write the event to an outbox table in the same database, in the same local transaction as your state update. Then have a separate process relay events from the outbox to the message broker.</p>
+
+
+
+
+
+<pre tabindex="0"><code>BEGIN TRANSACTION
+  UPDATE flights SET status = &#39;reserved&#39; WHERE id = ?
+  INSERT INTO outbox (event_type, payload, created_at)
+    VALUES (&#39;FlightReserved&#39;, &#39;{&#34;booking_id&#34;: 123, ...}&#39;, NOW())
+COMMIT</code></pre><p>The state change and the event are now atomic with respect to the database. Either both are committed or neither is. The outbox row is durable.</p>
+<p>A separate relay process &ndash; sometimes called the outbox processor or message relay &ndash; polls the outbox table, publishes each event to the message broker, and marks the row as processed once delivery is confirmed.</p>
+
+
+
+
+
+<pre tabindex="0"><code>Relay process:
+  SELECT * FROM outbox WHERE processed_at IS NULL ORDER BY created_at LIMIT 100
+  FOR EACH row:
+    publish to message broker
+    UPDATE outbox SET processed_at = NOW() WHERE id = row.id</code></pre><h2 id="at-least-once-delivery">At-Least-Once Delivery</h2>
+<p>The relay delivers at-least-once. If the relay crashes after publishing but before marking the row as processed, it will publish the same event again on restart. Downstream consumers have to be idempotent &ndash; processing the same event twice should produce the same result as processing it once.</p>
+<p>This is a real design constraint. Your hotel reservation step needs to check whether it already processed a given <code>FlightReserved</code> event before creating a new reservation. Deduplication is typically done with a unique constraint on the event ID or booking ID in the receiving service&rsquo;s database.</p>
+<p>At-least-once with idempotent consumers is the standard contract in event-driven systems. Exactly-once is theoretically possible with additional coordination but practically rare &ndash; most systems accept at-least-once and invest in idempotency instead.</p>
+<h2 id="change-data-capture-as-an-alternative-relay">Change Data Capture as an Alternative Relay</h2>
+<p>Polling the outbox table works but adds load to the database. An alternative is Change Data Capture (CDC): instead of a polling process, you read directly from the database replication log.</p>
+<p>Tools like Debezium connect to PostgreSQL&rsquo;s logical replication stream or MySQL&rsquo;s binlog and emit a change event for every row insert. Point Debezium at the outbox table and it publishes events automatically, with no polling query needed.</p>
+<p>CDC-based relay has lower overhead and lower latency. The tradeoff: it&rsquo;s another piece of infrastructure to run and operate. For smaller deployments, polling is simpler. For high-throughput systems where polling lag or database load is a concern, CDC is worth it.</p>
+<h2 id="saga-state-persistence">Saga State Persistence</h2>
+<p>Related to the outbox is the question of where saga state itself lives.</p>
+<p>The orchestrator driving the saga needs to know the current step, which steps have completed, and what the compensating actions are if something fails. Two common approaches:</p>
+<p><strong>Dedicated saga store</strong>: the orchestrator writes saga state to its own database table after each step. Simple, queryable, easy to inspect when debugging a stuck saga. The outbox pattern applies here too &ndash; saga state update and event publish happen in the same transaction.</p>
+<p><strong>Event sourcing</strong>: saga state is derived from the event log itself. There&rsquo;s no explicit state table &ndash; you reconstruct the saga&rsquo;s current position by replaying events. More complex to implement but gives you a full audit trail of everything that happened and an easy path to replaying failed sagas.</p>
+<p>Most teams start with a dedicated saga store and move to event sourcing only if they need the audit trail or replay capability.</p>
+<h2 id="what-fails-in-compensation">What Fails in Compensation</h2>
+<p>One more gap worth naming: compensating transactions can fail too.</p>
+<p>You cancel the hotel reservation as part of rolling back a failed booking. The cancel call times out. Now your saga is stuck in a partially compensated state &ndash; the flight is cancelled but the hotel reservation is still live.</p>
+<p>The standard answer is retry with backoff. Compensating transactions need to be idempotent for the same reason forward steps do. The outbox pattern helps here too &ndash; compensation requests go through the same outbox mechanism, so they&rsquo;re durably enqueued even if the downstream service is temporarily unavailable.</p>
+<p>If compensation keeps failing after retries, the saga is in a &ldquo;saga failure&rdquo; state that requires human intervention or a dead-letter queue. Building an operator UI for stuck sagas is not glamorous work, but it&rsquo;s necessary in any production saga implementation.</p>
+<p>The outbox pattern doesn&rsquo;t make sagas simple. It removes the dual-write problem and gives you reliable event delivery &ndash; which turns a fundamentally broken approach into one that&rsquo;s merely complex.</p>
+]]></content:encoded>
+    </item>
     <item>
       <title>A $22/Year VPS Running Three Self-Hosted Services</title>
       <link>https://KTS-o7.github.io/bear/posts/vps_self_hosting/</link>

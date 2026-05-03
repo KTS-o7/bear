@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en-us">
+
+<head>
+  <meta http-equiv="X-Clacks-Overhead" content="GNU Terry Pratchett" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="shortcut icon" href="https://KTS-o7.github.io/bear/images/favicon.png" />
+<title>CRDTs: Conflict-Free Replicated Data Types | </title>
+<meta name="title" content="CRDTs: Conflict-Free Replicated Data Types" />
+<meta name="description" content="Vector clocks tell you when two writes conflict. They don&rsquo;t tell you what to do about it. That&rsquo;s still your problem.
+CRDTs take a different position: design the data structure so that conflicts can never happen. Not &ldquo;detect and resolve&rdquo; &ndash; just structurally eliminate the problem.
+The Core Idea
+A CRDT is a data structure with a merge function that is commutative, associative, and idempotent. Those three properties together mean you can apply updates in any order, any number of times, from any subset of nodes, and always converge to the same state." />
+<meta name="author" content="" />
+<meta name="keywords" content="" />
+
+
+
+
+
+
+  
+  <meta property="og:url" content="https://KTS-o7.github.io/bear/posts/crdts/">
+  <meta property="og:title" content="CRDTs: Conflict-Free Replicated Data Types">
+  <meta property="og:description" content="Vector clocks tell you when two writes conflict. They don’t tell you what to do about it. That’s still your problem.
+CRDTs take a different position: design the data structure so that conflicts can never happen. Not “detect and resolve” – just structurally eliminate the problem.
+The Core Idea A CRDT is a data structure with a merge function that is commutative, associative, and idempotent. Those three properties together mean you can apply updates in any order, any number of times, from any subset of nodes, and always converge to the same state.">
+  <meta property="og:locale" content="en_us">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="posts">
+    <meta property="article:published_time" content="2026-05-03T00:00:00+05:30">
+    <meta property="article:modified_time" content="2026-05-03T00:00:00+05:30">
+    <meta property="og:image" content="https://KTS-o7.github.io/bear/images/share.webp">
+
+
+  
+  
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://KTS-o7.github.io/bear/images/share.webp">
+  <meta name="twitter:title" content="CRDTs: Conflict-Free Replicated Data Types">
+  <meta name="twitter:description" content="Vector clocks tell you when two writes conflict. They don’t tell you what to do about it. That’s still your problem.
+CRDTs take a different position: design the data structure so that conflicts can never happen. Not “detect and resolve” – just structurally eliminate the problem.
+The Core Idea A CRDT is a data structure with a merge function that is commutative, associative, and idempotent. Those three properties together mean you can apply updates in any order, any number of times, from any subset of nodes, and always converge to the same state.">
+
+
+  
+  
+  <meta itemprop="name" content="CRDTs: Conflict-Free Replicated Data Types">
+  <meta itemprop="description" content="Vector clocks tell you when two writes conflict. They don’t tell you what to do about it. That’s still your problem.
+CRDTs take a different position: design the data structure so that conflicts can never happen. Not “detect and resolve” – just structurally eliminate the problem.
+The Core Idea A CRDT is a data structure with a merge function that is commutative, associative, and idempotent. Those three properties together mean you can apply updates in any order, any number of times, from any subset of nodes, and always converge to the same state.">
+  <meta itemprop="datePublished" content="2026-05-03T00:00:00+05:30">
+  <meta itemprop="dateModified" content="2026-05-03T00:00:00+05:30">
+  <meta itemprop="wordCount" content="874">
+  <meta itemprop="image" content="https://KTS-o7.github.io/bear/images/share.webp">
+
+<meta name="referrer" content="no-referrer-when-downgrade" />
+
+  
+  <link href="/bear/herman.min.css" rel="stylesheet">
+
+  
+    
+    <link href="/bear/syntax.min.css" rel="stylesheet">
+  
+
+  
+
+  
+
+  
+</head>
+
+<body>
+  <header><a class="skip-link" href="#main-content">Skip to main content</a>
+
+<a href="/bear/" class="title"><h1></h1></a>
+<nav>
+  <a href="/bear/">Home</a>
+
+  <a href="/bear/posts/">Posts</a>
+
+  <a href="/bear/about/">About</a>
+
+  <a href="/bear/ml/">ML Stuff</a>
+
+  <a href="/bear/cses.fi/">CSES.fi</a>
+
+<a href='https://KTS-o7.github.io/bear/index.xml'>RSS</a>
+
+
+
+
+
+
+
+</nav>
+</header>
+  <main id="main-content">
+
+<h1>CRDTs: Conflict-Free Replicated Data Types</h1>
+<p class="byline">
+  <time datetime='2026-05-03' pubdate>
+    2026-05-03
+  </time>
+  
+</p>
+
+<content>
+  <p>Vector clocks tell you when two writes conflict. They don&rsquo;t tell you what to do about it. That&rsquo;s still your problem.</p>
+<p>CRDTs take a different position: design the data structure so that conflicts can never happen. Not &ldquo;detect and resolve&rdquo; &ndash; just structurally eliminate the problem.</p>
+<h2 id="the-core-idea">The Core Idea</h2>
+<p>A CRDT is a data structure with a merge function that is commutative, associative, and idempotent. Those three properties together mean you can apply updates in any order, any number of times, from any subset of nodes, and always converge to the same state.</p>
+<ul>
+<li><strong>Commutative</strong>: merge(A, B) = merge(B, A) &ndash; order doesn&rsquo;t matter</li>
+<li><strong>Associative</strong>: merge(A, merge(B, C)) = merge(merge(A, B), C) &ndash; grouping doesn&rsquo;t matter</li>
+<li><strong>Idempotent</strong>: merge(A, A) = A &ndash; applying the same update twice is harmless</li>
+</ul>
+<p>If your data structure satisfies these, you can replicate it across nodes with no coordination. Each node applies updates locally and gossips state to peers. Eventually everyone has the same state.</p>
+<h2 id="the-simplest-crdt-g-counter">The Simplest CRDT: G-Counter</h2>
+<p>A grow-only counter. Each node maintains a vector of counts, one slot per node. To increment, a node adds to its own slot. To read the total, sum all slots. To merge two replicas, take the element-wise max.</p>
+
+
+
+
+
+<pre tabindex="0"><code>Node A: [3, 1, 0]   Node B: [2, 2, 0]
+Merge:  [3, 2, 0]   -- take max per slot
+Total:  5</code></pre><p>Node A can never decrement B&rsquo;s slot and Node B can never decrement A&rsquo;s slot. Merges always move counters up, never down. Convergence is guaranteed.</p>
+<h2 id="adding-decrements-pn-counter">Adding Decrements: PN-Counter</h2>
+<p>A grow-only counter can&rsquo;t go down. If you need decrements, use two G-Counters &ndash; one for increments (P), one for decrements (N). The value is P - N.</p>
+<p>Each node increments its P slot to add and its N slot to subtract. Merges take the element-wise max of both vectors. The final value is the sum of all P slots minus the sum of all N slots.</p>
+<h2 id="sets-the-interesting-case">Sets: The Interesting Case</h2>
+<p>Sets are where CRDTs get non-obvious. The naive approach breaks immediately: if Node A removes an element at the same time Node B adds it, what&rsquo;s the right answer?</p>
+<p><strong>G-Set</strong> (grow-only set) sidesteps this: elements can only be added, never removed. Merge is union. Works perfectly but is obviously limited.</p>
+<p><strong>2P-Set</strong> (two-phase set) adds a remove set R alongside the add set A. An element is in the set if it&rsquo;s in A but not R. Once removed, it can never be re-added. Merge is union on both sets.</p>
+<p><strong>LWW-Element-Set</strong> (last-write-wins) attaches a timestamp to each add and remove. On conflict, the higher timestamp wins. Simple, but you&rsquo;re back to trusting clocks.</p>
+<p><strong>OR-Set</strong> (observed-remove set) is the one that gets this right. Each add operation generates a unique tag. Remove only removes the specific tags that were observed at remove time. If Node A adds element X (tag: t1) and Node B concurrently adds X again (tag: t2), then Node A removing X (removing tag t1) leaves Node B&rsquo;s addition (tag t2) intact. The element stays in the set.</p>
+<p>This matches user intuition: you removed the copy you knew about, not the one that was being added concurrently somewhere else.</p>
+<h2 id="state-based-vs-operation-based">State-based vs. Operation-based</h2>
+<p>There are two families of CRDTs.</p>
+<p><strong>State-based (CvRDTs)</strong>: nodes gossip their full state. Merge is applied on receipt. The merge function must be a join on a join-semilattice &ndash; a partial order where every pair of elements has a least upper bound. Simple to reason about, but shipping full state can be expensive for large structures.</p>
+<p><strong>Operation-based (CmRDTs)</strong>: nodes broadcast operations instead of state. No merge function needed on state &ndash; instead, the transport layer must guarantee exactly-once delivery and causal ordering. More efficient, but the delivery guarantee is a real constraint.</p>
+<p>In practice, libraries like Automerge and Yjs use operation-based CRDTs with a hybrid approach: operations for real-time sync, periodic state snapshots for catch-up after disconnection.</p>
+<h2 id="where-theyre-used">Where They&rsquo;re Used</h2>
+<p><strong>Collaborative editing</strong> is the obvious one. Google Docs uses OT (operational transformation), an older approach with similar goals. Figma uses CRDTs. Notion, Linear, and most newer collaborative tools have moved toward CRDTs because the math is cleaner and they handle offline edits naturally.</p>
+<p><strong>Distributed databases</strong>: Riak&rsquo;s eventual consistency model was built around CRDTs. Redis has CRDT support in Redis Enterprise for multi-region deployments. Azure Cosmos DB uses them internally for its multi-master replication.</p>
+<p><strong>Shopping carts</strong>: Amazon&rsquo;s Dynamo paper mentions the shopping cart as a canonical use case. Adds and removes to a cart from multiple devices or regions converge without a coordinator.</p>
+<h2 id="the-tradeoff">The Tradeoff</h2>
+<p>CRDTs don&rsquo;t work for everything. The merge semantics have to match what your application actually means.</p>
+<p>A bank account is not a PN-Counter. If your account shows $500 and you withdraw $200 concurrently from two ATMs, merging the two PN-Counters would show $100 &ndash; which is correct math but incorrect banking. The constraint &ldquo;balance must not go negative&rdquo; requires coordination. You can&rsquo;t avoid that with a CRDT.</p>
+<p>The rule: CRDTs work when the merge semantics match application intent and when the application can tolerate the conflict-free resolution behavior. They&rsquo;re not a universal replacement for coordination &ndash; they&rsquo;re a way to avoid coordination in cases where the math lines up.</p>
+<p>Vector clocks give you the diagnosis. CRDTs give you a structural guarantee that the diagnosis is never needed.</p>
+
+</content>
+<p>
+  
+</p>
+
+
+  <p>
+    <a href='mailto:shentharkrishnatejaswi@gmail.com?subject=Reply%20to%20"CRDTs%3a%20Conflict-Free%20Replicated%20Data%20Types"'>
+      Reply to this post by email ↪
+    </a>
+  </p>
+
+
+
+  </main>
+  <footer><small>
+  Krishnatejaswi S | Made with <a href="https://github.com/clente/hugo-bearcub">Bear Cub</a>
+</small></footer>
+
+    
+</body>
+
+</html>
