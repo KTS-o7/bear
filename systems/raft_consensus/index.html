@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en-us">
+
+<head>
+  <meta http-equiv="X-Clacks-Overhead" content="GNU Terry Pratchett" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="shortcut icon" href="https://KTS-o7.github.io/bear/images/favicon.png" />
+<title>Raft: Consensus for the Rest of Us | </title>
+<meta name="title" content="Raft: Consensus for the Rest of Us" />
+<meta name="description" content="Paxos is the algorithm everyone cites and almost nobody implements correctly. The gap between the paper and a working, production-safe implementation is wide enough that teams have shipped subtly broken versions without knowing it for months.
+Raft was built as a direct response to that. Same safety guarantees, designed from scratch for understandability &ndash; the explicit goal was that a student should be able to implement it correctly from the paper alone." />
+<meta name="author" content="" />
+<meta name="keywords" content="" />
+
+
+
+
+
+
+  
+  <meta property="og:url" content="https://KTS-o7.github.io/bear/systems/raft_consensus/">
+  <meta property="og:title" content="Raft: Consensus for the Rest of Us">
+  <meta property="og:description" content="Paxos is the algorithm everyone cites and almost nobody implements correctly. The gap between the paper and a working, production-safe implementation is wide enough that teams have shipped subtly broken versions without knowing it for months.
+Raft was built as a direct response to that. Same safety guarantees, designed from scratch for understandability – the explicit goal was that a student should be able to implement it correctly from the paper alone.">
+  <meta property="og:locale" content="en_us">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="systems">
+    <meta property="article:published_time" content="2026-05-02T00:00:00+05:30">
+    <meta property="article:modified_time" content="2026-05-02T00:00:00+05:30">
+    <meta property="og:image" content="https://KTS-o7.github.io/bear/images/share.webp">
+
+
+  
+  
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://KTS-o7.github.io/bear/images/share.webp">
+  <meta name="twitter:title" content="Raft: Consensus for the Rest of Us">
+  <meta name="twitter:description" content="Paxos is the algorithm everyone cites and almost nobody implements correctly. The gap between the paper and a working, production-safe implementation is wide enough that teams have shipped subtly broken versions without knowing it for months.
+Raft was built as a direct response to that. Same safety guarantees, designed from scratch for understandability – the explicit goal was that a student should be able to implement it correctly from the paper alone.">
+
+
+  
+  
+  <meta itemprop="name" content="Raft: Consensus for the Rest of Us">
+  <meta itemprop="description" content="Paxos is the algorithm everyone cites and almost nobody implements correctly. The gap between the paper and a working, production-safe implementation is wide enough that teams have shipped subtly broken versions without knowing it for months.
+Raft was built as a direct response to that. Same safety guarantees, designed from scratch for understandability – the explicit goal was that a student should be able to implement it correctly from the paper alone.">
+  <meta itemprop="datePublished" content="2026-05-02T00:00:00+05:30">
+  <meta itemprop="dateModified" content="2026-05-02T00:00:00+05:30">
+  <meta itemprop="wordCount" content="888">
+  <meta itemprop="image" content="https://KTS-o7.github.io/bear/images/share.webp">
+
+<meta name="referrer" content="no-referrer-when-downgrade" />
+
+  
+  <link href="/bear/herman.min.css" rel="stylesheet">
+
+  
+    
+    <link href="/bear/syntax.min.css" rel="stylesheet">
+  
+
+  
+
+  
+
+  
+</head>
+
+<body>
+  <header><a class="skip-link" href="#main-content">Skip to main content</a>
+
+<div style="display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+  <a href="/bear/" class="title"><h1></h1></a>
+  <button id="theme-toggle" aria-label="Toggle light/dark mode" title="Toggle theme">
+    <span id="theme-toggle-label">○●</span>
+  </button>
+</div>
+<nav>
+  <a href="/bear/">Home</a>
+
+  <a href="/bear/notes/">Notes</a>
+
+  <a href="/bear/about/">About</a>
+
+  <a href="/bear/ml/">ML</a>
+
+  <a href="/bear/cses.fi/">CSES.fi</a>
+
+<a href='https://KTS-o7.github.io/bear/index.xml'>RSS</a>
+
+
+
+
+
+
+
+</nav>
+</header>
+  <main id="main-content">
+
+<h1>Raft: Consensus for the Rest of Us</h1>
+<p class="byline">
+  <time datetime='2026-05-02' pubdate>
+    2026-05-02
+  </time>
+  
+</p>
+
+<content>
+  <p>Paxos is the algorithm everyone cites and almost nobody implements correctly. The gap between the paper and a working, production-safe implementation is wide enough that teams have shipped subtly broken versions without knowing it for months.</p>
+<p>Raft was built as a direct response to that. Same safety guarantees, designed from scratch for understandability &ndash; the explicit goal was that a student should be able to implement it correctly from the paper alone.</p>
+<p>It works. etcd runs on it. Kubernetes&rsquo; entire cluster state lives in etcd. CockroachDB uses a Raft group per range. TiKV, Consul &ndash; Raft is everywhere Paxos was supposed to be.</p>
+<h2 id="the-decomposition">The Decomposition</h2>
+<p>Raft&rsquo;s core move is breaking consensus into three subproblems that can be understood and implemented independently:</p>
+<ol>
+<li>Leader election &ndash; pick one node as leader at any time</li>
+<li>Log replication &ndash; leader accepts entries, replicates to followers</li>
+<li>Safety &ndash; no two nodes ever commit conflicting entries</li>
+</ol>
+<p>Everything flows through a single leader. There&rsquo;s no &ldquo;any node can propose&rdquo; ambiguity like in basic Paxos. The leader is the sole source of truth for what enters the log. That constraint makes the rest of the protocol tractable.</p>
+<h2 id="terms-and-roles">Terms and Roles</h2>
+<p>Raft uses a logical clock called a <strong>term</strong> &ndash; a monotonically increasing integer. Each election starts a new term. If a node sees a message from a higher term than its own, it immediately updates and steps down if it was leader. Terms are how stale leaders get detected and evicted.</p>
+<p>Every node is one of three things at any moment:</p>
+<ul>
+<li><strong>Leader</strong> &ndash; accepts client requests, replicates entries, sends heartbeats to prevent new elections</li>
+<li><strong>Follower</strong> &ndash; passive, responds to RPCs from leaders and candidates</li>
+<li><strong>Candidate</strong> &ndash; transitional state during an election</li>
+</ul>
+<p>Every node starts as a follower.</p>
+<h2 id="leader-election">Leader Election</h2>
+<p>Followers expect periodic heartbeats from the leader via AppendEntries RPCs (sent even when there are no entries to replicate). If an election timeout fires without a heartbeat, the follower converts to a candidate:</p>
+<ol>
+<li>Increment current term, vote for self</li>
+<li>Send RequestVote to all peers</li>
+<li>A peer grants its vote if it hasn&rsquo;t voted this term and the candidate&rsquo;s log is at least as up-to-date as its own</li>
+<li>First candidate to collect a majority wins, becomes leader, starts sending heartbeats immediately</li>
+</ol>
+<p>Split votes happen when two candidates start elections simultaneously and each gets half the cluster. Neither reaches majority. Both time out and retry with a new term. Raft handles this with randomized election timeouts (typically 150&ndash;300ms) &ndash; making simultaneous timeouts unlikely without coordination overhead.</p>
+<h2 id="log-replication">Log Replication</h2>
+<p>Once a leader is elected:</p>
+<ol>
+<li>Client sends a command to the leader</li>
+<li>Leader appends the entry to its local log (not yet committed)</li>
+<li>Leader sends AppendEntries to all followers in parallel</li>
+<li>Once a majority have written the entry, the leader marks it committed</li>
+<li>Leader applies the entry to its state machine, replies to client</li>
+<li>On the next heartbeat, followers learn the commit index and apply the entry too</li>
+</ol>
+
+
+
+
+
+<pre tabindex="0"><code>Client → [write x=5] → Leader
+Leader  → AppendEntries(x=5) → Follower A  ✓
+Leader  → AppendEntries(x=5) → Follower B  ✓
+Leader  → AppendEntries(x=5) → Follower C  (unreachable)
+[Majority = Leader + A + B → COMMIT] → apply x=5</code></pre><p>Follower C is behind but not a problem. When it reconnects, the leader sends it the missing entries.</p>
+<h2 id="safety-log-matching">Safety: Log Matching</h2>
+<p>Raft&rsquo;s key safety property: if two logs contain an entry with the same index and term, all preceding entries are identical.</p>
+<p>This is enforced by the AppendEntries consistency check. When the leader sends an entry, it includes the index and term of the entry immediately before it. A follower rejects the append if that preceding entry doesn&rsquo;t match its own log. The leader then backs up and resends from an earlier point until it finds a common prefix, then overwrites the diverged entries.</p>
+<p>The vote restriction reinforces this: a node won&rsquo;t vote for a candidate whose log is less up-to-date than its own. This guarantees the new leader always has all committed entries &ndash; it never needs to fetch missing entries from other nodes after winning an election.</p>
+<h2 id="leader-failure">Leader Failure</h2>
+<p>If the leader crashes, the election timeout fires on one of the followers and a new election starts. The vote restriction ensures the winner has the most complete log among the majority. No repair phase, no querying all nodes &ndash; safety comes from the constraint, not from post-election cleanup.</p>
+<h2 id="raft-vs-paxos">Raft vs. Paxos</h2>
+<table>
+  <thead>
+      <tr>
+          <th></th>
+          <th>Multi-Paxos</th>
+          <th>Raft</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>Design goal</td>
+          <td>Correctness</td>
+          <td>Correctness + understandability</td>
+      </tr>
+      <tr>
+          <td>Leader</td>
+          <td>Distinguished proposer (informal)</td>
+          <td>Explicit, enforced by protocol</td>
+      </tr>
+      <tr>
+          <td>Log holes</td>
+          <td>Can have gaps, complex to fill</td>
+          <td>No gaps, entries apply in order</td>
+      </tr>
+      <tr>
+          <td>Config changes</td>
+          <td>Ad hoc</td>
+          <td>Joint consensus built in</td>
+      </tr>
+      <tr>
+          <td>Implementations</td>
+          <td>Chubby, Zab (variants)</td>
+          <td>etcd, CockroachDB, TiKV, Consul</td>
+      </tr>
+  </tbody>
+</table>
+<p>Both tolerate up to (N-1)/2 failures in an N-node cluster. The fault tolerance is identical. The difference is that Raft implementations are actually correct in practice because the protocol is debuggable.</p>
+<h2 id="where-it-runs">Where It Runs</h2>
+<ul>
+<li><strong>etcd</strong> &ndash; Kubernetes&rsquo; backing store; the entire cluster state (pods, services, configs) is a Raft log</li>
+<li><strong>CockroachDB</strong> &ndash; Raft per range; each 512MB range is an independent 3&ndash;5 node Raft group</li>
+<li><strong>TiKV</strong> &ndash; Raft groups per region, underpins TiDB</li>
+<li><strong>Consul</strong> &ndash; service discovery and distributed KV</li>
+</ul>
+<p>If you&rsquo;re building anything that needs replicated state and strong consistency, Raft is the default answer. The paper is readable in an afternoon. The TLA+ spec exists if you want to verify your implementation. Start there.</p>
+
+</content>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  <p style="margin-top: 1.5rem; font-size: 0.875rem; color: var(--color-text-muted);">
+    <a href='mailto:shentharkrishnatejaswi@gmail.com?subject=Reply%20to%20"Raft%3a%20Consensus%20for%20the%20Rest%20of%20Us"'>
+      Reply to this post by email ↪
+    </a>
+  </p>
+
+
+
+  </main>
+  <footer><small>
+  Krishnatejaswi S | Made with <a href="https://github.com/clente/hugo-bearcub">Bear Cub</a>
+</small></footer>
+
+    
+<script>
+    (function() {
+      var STORAGE_KEY = 'theme';
+      var btn = document.getElementById('theme-toggle');
+      var label = document.getElementById('theme-toggle-label');
+
+      function getStored() { try { return localStorage.getItem(STORAGE_KEY); } catch(e) { return null; } }
+      function setStored(v) { try { localStorage.setItem(STORAGE_KEY, v); } catch(e) {} }
+
+      function getSystem() {
+        return window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+      }
+
+      function applyTheme(theme) {
+        document.documentElement.setAttribute('data-theme', theme);
+        if (label) label.textContent = theme === 'light' ? '●○' : '○●';
+      }
+
+      var stored = getStored();
+      applyTheme(stored || getSystem());
+
+      if (btn) {
+        btn.addEventListener('click', function() {
+          var current = document.documentElement.getAttribute('data-theme') || getSystem();
+          var next = current === 'dark' ? 'light' : 'dark';
+          setStored(next);
+          applyTheme(next);
+        });
+      }
+
+      
+      if (window.matchMedia) {
+        window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', function(e) {
+          if (!getStored()) applyTheme(e.matches ? 'light' : 'dark');
+        });
+      }
+    })();
+  </script>
+</body>
+
+</html>

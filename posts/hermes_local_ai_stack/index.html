@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="en-us">
 
-<head>
+<head><script src="/bear/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=bear/livereload" data-no-instant defer></script>
   <meta http-equiv="X-Clacks-Overhead" content="GNU Terry Pratchett" />
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<link rel="shortcut icon" href="https://KTS-o7.github.io/bear/images/favicon.png" />
+<link rel="shortcut icon" href="http://localhost:1313/bear/images/favicon.png" />
 <title>Building a Local AI Stack: Hermes, Bifrost, Telegram, and Camoufox | </title>
 <meta name="title" content="Building a Local AI Stack: Hermes, Bifrost, Telegram, and Camoufox" />
 <meta name="description" content="I wanted a persistent AI agent that lives on my machine, reaches cloud models through a single gateway, and talks back to me on Telegram. Not a SaaS. Not a wrapper. Something I own end-to-end.
@@ -28,7 +28,7 @@ The goal was to have Hermes run as a Telegram bot so I could assign it tasks fro
 
 
   
-  <meta property="og:url" content="https://KTS-o7.github.io/bear/posts/hermes_local_ai_stack/">
+  <meta property="og:url" content="http://localhost:1313/bear/posts/hermes_local_ai_stack/">
   <meta property="og:title" content="Building a Local AI Stack: Hermes, Bifrost, Telegram, and Camoufox">
   <meta property="og:description" content="I wanted a persistent AI agent that lives on my machine, reaches cloud models through a single gateway, and talks back to me on Telegram. Not a SaaS. Not a wrapper. Something I own end-to-end.
 This is the story of setting that up in one session, and the parts that went sideways.
@@ -39,13 +39,13 @@ Bifrost – LLM gateway already running on localhost:24242, routing to Ollama cl
     <meta property="article:section" content="posts">
     <meta property="article:published_time" content="2026-04-15T00:00:00+05:30">
     <meta property="article:modified_time" content="2026-04-15T00:00:00+05:30">
-    <meta property="og:image" content="https://KTS-o7.github.io/bear/images/share.webp">
+    <meta property="og:image" content="http://localhost:1313/bear/images/share.webp">
 
 
   
   
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:image" content="https://KTS-o7.github.io/bear/images/share.webp">
+  <meta name="twitter:image" content="http://localhost:1313/bear/images/share.webp">
   <meta name="twitter:title" content="Building a Local AI Stack: Hermes, Bifrost, Telegram, and Camoufox">
   <meta name="twitter:description" content="I wanted a persistent AI agent that lives on my machine, reaches cloud models through a single gateway, and talks back to me on Telegram. Not a SaaS. Not a wrapper. Something I own end-to-end.
 This is the story of setting that up in one session, and the parts that went sideways.
@@ -63,7 +63,7 @@ Bifrost – LLM gateway already running on localhost:24242, routing to Ollama cl
   <meta itemprop="datePublished" content="2026-04-15T00:00:00+05:30">
   <meta itemprop="dateModified" content="2026-04-15T00:00:00+05:30">
   <meta itemprop="wordCount" content="967">
-  <meta itemprop="image" content="https://KTS-o7.github.io/bear/images/share.webp">
+  <meta itemprop="image" content="http://localhost:1313/bear/images/share.webp">
 
 <meta name="referrer" content="no-referrer-when-downgrade" />
 
@@ -85,7 +85,12 @@ Bifrost – LLM gateway already running on localhost:24242, routing to Ollama cl
 <body>
   <header><a class="skip-link" href="#main-content">Skip to main content</a>
 
-<a href="/bear/" class="title"><h1></h1></a>
+<div style="display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+  <a href="/bear/" class="title"><h1></h1></a>
+  <button id="theme-toggle" aria-label="Toggle light/dark mode" title="Toggle theme">
+    <span id="theme-toggle-label">○●</span>
+  </button>
+</div>
 <nav>
   <a href="/bear/">Home</a>
 
@@ -93,11 +98,11 @@ Bifrost – LLM gateway already running on localhost:24242, routing to Ollama cl
 
   <a href="/bear/about/">About</a>
 
-  <a href="/bear/ml/">ML Stuff</a>
+  <a href="/bear/ml/">ML</a>
 
   <a href="/bear/cses.fi/">CSES.fi</a>
 
-<a href='https://KTS-o7.github.io/bear/index.xml'>RSS</a>
+<a href='http://localhost:1313/bear/index.xml'>RSS</a>
 
 
 
@@ -273,12 +278,23 @@ hermes     gateway -- Telegram bot (restricted to single user)</code></pre><p>Th
 </ul>
 
 </content>
-<p>
-  
-</p>
 
 
-  <p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  <p style="margin-top: 1.5rem; font-size: 0.875rem; color: var(--color-text-muted);">
     <a href='mailto:shentharkrishnatejaswi@gmail.com?subject=Reply%20to%20"Building%20a%20Local%20AI%20Stack%3a%20Hermes%2c%20Bifrost%2c%20Telegram%2c%20and%20Camoufox"'>
       Reply to this post by email ↪
     </a>
@@ -292,6 +308,44 @@ hermes     gateway -- Telegram bot (restricted to single user)</code></pre><p>Th
 </small></footer>
 
     
+<script>
+    (function() {
+      var STORAGE_KEY = 'theme';
+      var btn = document.getElementById('theme-toggle');
+      var label = document.getElementById('theme-toggle-label');
+
+      function getStored() { try { return localStorage.getItem(STORAGE_KEY); } catch(e) { return null; } }
+      function setStored(v) { try { localStorage.setItem(STORAGE_KEY, v); } catch(e) {} }
+
+      function getSystem() {
+        return window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+      }
+
+      function applyTheme(theme) {
+        document.documentElement.setAttribute('data-theme', theme);
+        if (label) label.textContent = theme === 'light' ? '●○' : '○●';
+      }
+
+      var stored = getStored();
+      applyTheme(stored || getSystem());
+
+      if (btn) {
+        btn.addEventListener('click', function() {
+          var current = document.documentElement.getAttribute('data-theme') || getSystem();
+          var next = current === 'dark' ? 'light' : 'dark';
+          setStored(next);
+          applyTheme(next);
+        });
+      }
+
+      
+      if (window.matchMedia) {
+        window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', function(e) {
+          if (!getStored()) applyTheme(e.matches ? 'light' : 'dark');
+        });
+      }
+    })();
+  </script>
 </body>
 
 </html>

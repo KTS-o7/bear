@@ -2,7 +2,7 @@
 <html lang="en-us">
 
 <head>
-	<meta name="generator" content="Hugo 0.160.1">
+	<meta name="generator" content="Hugo 0.155.2">
   <meta http-equiv="X-Clacks-Overhead" content="GNU Terry Pratchett" />
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -21,9 +21,7 @@
   
   <meta property="og:url" content="https://KTS-o7.github.io/bear/">
   <meta property="og:title" content="Home">
-  <meta property="og:description" content="ᕦʕ •ᴥ•ʔᕤ hey there, welcome to BearMind ! This is where I share my thoughts, experiences, and insights on various topics that interest me.
-I write random stuff here, so feel free to explore the posts section to see what I’ve been writing about
-What to expect Random posts about my random thoughts and experiences Technical posts about programming, development, and software engineering Tutorials and guides to make sure one doesnt get lost like I did :&lt; Book reviews ( so that I sound fancy :D) Feel free to explore or learn more about me.">
+  <meta property="og:description" content="A research notebook on distributed systems, machine learning, mathematics, and infrastructure engineering. Written slowly, updated continuously.">
   <meta property="og:locale" content="en_us">
   <meta property="og:type" content="website">
     <meta property="og:image" content="https://KTS-o7.github.io/bear/images/share.webp">
@@ -34,20 +32,16 @@ What to expect Random posts about my random thoughts and experiences Technical p
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:image" content="https://KTS-o7.github.io/bear/images/share.webp">
   <meta name="twitter:title" content="Home">
-  <meta name="twitter:description" content="ᕦʕ •ᴥ•ʔᕤ hey there, welcome to BearMind ! This is where I share my thoughts, experiences, and insights on various topics that interest me.
-I write random stuff here, so feel free to explore the posts section to see what I’ve been writing about
-What to expect Random posts about my random thoughts and experiences Technical posts about programming, development, and software engineering Tutorials and guides to make sure one doesnt get lost like I did :&lt; Book reviews ( so that I sound fancy :D) Feel free to explore or learn more about me.">
+  <meta name="twitter:description" content="A research notebook on distributed systems, machine learning, mathematics, and infrastructure engineering. Written slowly, updated continuously.">
 
 
   
   
   <meta itemprop="name" content="Home">
-  <meta itemprop="description" content="ᕦʕ •ᴥ•ʔᕤ hey there, welcome to BearMind ! This is where I share my thoughts, experiences, and insights on various topics that interest me.
-I write random stuff here, so feel free to explore the posts section to see what I’ve been writing about
-What to expect Random posts about my random thoughts and experiences Technical posts about programming, development, and software engineering Tutorials and guides to make sure one doesnt get lost like I did :&lt; Book reviews ( so that I sound fancy :D) Feel free to explore or learn more about me.">
+  <meta itemprop="description" content="A research notebook on distributed systems, machine learning, mathematics, and infrastructure engineering. Written slowly, updated continuously.">
   <meta itemprop="datePublished" content="2026-05-03T00:00:00+05:30">
   <meta itemprop="dateModified" content="2026-05-03T00:00:00+05:30">
-  <meta itemprop="wordCount" content="99">
+  <meta itemprop="wordCount" content="16">
   <meta itemprop="image" content="https://KTS-o7.github.io/bear/images/share.webp">
 
 <meta name="referrer" content="no-referrer-when-downgrade" />
@@ -88,14 +82,30 @@ What to expect Random posts about my random thoughts and experiences Technical p
   document.addEventListener("DOMContentLoaded", function() {
     renderMathInElement(document.body, {
       delimiters: [
-        {left: '\\[', right: '\\]', display: true},   
-        {left: '$$', right: '$$', display: true},     
-        {left: '\\(', right: '\\)', display: false},  
+        {left: '\\[', right: '\\]', display: true},
+        {left: '$$', right: '$$', display: true},
+        {left: '\\(', right: '\\)', display: false},
       ],
       throwOnError: false
     });
   });
 </script>
+<style>
+   
+  .katex { color: inherit; }
+  .katex .katex-html { color: inherit; }
+  .katex-display {
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 0.25rem 0;
+    margin: 1.4rem 0 !important;
+  }
+   
+  @media (max-width: 600px) {
+    .katex-display > .katex { max-width: 100%; }
+    .katex-display > .katex > .katex-html { overflow-x: auto; overflow-y: hidden; }
+  }
+</style>
 
   
 </head>
@@ -103,15 +113,20 @@ What to expect Random posts about my random thoughts and experiences Technical p
 <body>
   <header><a class="skip-link" href="#main-content">Skip to main content</a>
 
-<a href="/bear/" class="title"><h1></h1></a>
+<div style="display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+  <a href="/bear/" class="title"><h1></h1></a>
+  <button id="theme-toggle" aria-label="Toggle light/dark mode" title="Toggle theme">
+    <span id="theme-toggle-label">○●</span>
+  </button>
+</div>
 <nav>
   <a href="/bear/">Home</a>
 
-  <a href="/bear/posts/">Posts</a>
+  <a href="/bear/notes/">Notes</a>
 
   <a href="/bear/about/">About</a>
 
-  <a href="/bear/ml/">ML Stuff</a>
+  <a href="/bear/ml/">ML</a>
 
   <a href="/bear/cses.fi/">CSES.fi</a>
 
@@ -126,21 +141,150 @@ What to expect Random posts about my random thoughts and experiences Technical p
 </nav>
 </header>
   <main id="main-content">
-<hr>
-<h1 id="ᕦʕ-ᴥʔᕤ">ᕦʕ •ᴥ•ʔᕤ</h1>
-<p>hey there, welcome to BearMind !
-This is where I share my thoughts, experiences, and insights on various topics that interest me.</p>
-<p>I write random stuff here, so feel free to explore the <a href="/bear/posts/">posts</a> section to see what I&rsquo;ve been writing about</p>
-<h2 id="what-to-expect">What to expect</h2>
-<ul>
-<li><strong>Random posts</strong> about my random thoughts and experiences</li>
-<li><strong>Technical posts</strong> about programming, development, and software engineering</li>
-<li><strong>Tutorials and guides</strong> to make sure one doesnt get lost like I did :&lt;</li>
-<li><strong>Book reviews</strong> ( so that I sound fancy :D)</li>
+<p>A research notebook on distributed systems, machine learning, mathematics, and infrastructure engineering. Written slowly, updated continuously.</p>
+
+
+
+<div class="section-grid">
+  
+  
+  <a class="section-card" href="/bear/notes/">
+    <span class="section-name">/ notes</span>
+    
+    <span class="section-desc">Short observations, implementation notes, OSS contributions, and ideas in progress.</span>
+    
+  </a>
+  
+  
+  
+  <a class="section-card" href="/bear/ml/">
+    <span class="section-name">/ ml</span>
+    
+    <span class="section-desc">Machine learning concepts, LLM internals, inference optimization, and mathematical intuition.</span>
+    
+  </a>
+  
+  
+  
+  
+  
+  <a class="section-card" href="/bear/systems/">
+    <span class="section-name">/ systems</span>
+    
+    <span class="section-desc">Distributed systems, consensus protocols, databases, and reliability engineering.</span>
+    
+  </a>
+  
+  
+  
+  <a class="section-card" href="/bear/infra/">
+    <span class="section-name">/ infra</span>
+    
+    <span class="section-desc">Kubernetes, CI/CD, observability, and the operational layer of software systems.</span>
+    
+  </a>
+  
+  
+  
+  <a class="section-card" href="/bear/math/">
+    <span class="section-name">/ math</span>
+    
+    <span class="section-desc">Linear algebra, probability, optimization — the mathematical foundations of computation.</span>
+    
+  </a>
+  
+  
+  
+  <a class="section-card" href="/bear/research/">
+    <span class="section-name">/ research</span>
+    
+    <span class="section-desc">Long-form essays on AI, ML systems, and exploratory technical thinking.</span>
+    
+  </a>
+  
+  
+</div>
+
+
+
+
+
+<p class="home-recent-heading">Recent</p>
+<ul class="blog-posts">
+  
+  <li>
+    <span>
+      <time datetime='2026-05-03'>
+        2026-05-03
+      </time>
+    </span>
+    <a href="/bear/systems/crdts/">CRDTs: Conflict-Free Replicated Data Types</a>
+  </li>
+  
+  <li>
+    <span>
+      <time datetime='2026-05-03'>
+        2026-05-03
+      </time>
+    </span>
+    <a href="/bear/systems/spanner_distributed_transactions/">How Spanner Does Distributed Transactions Without Classic 2PC</a>
+  </li>
+  
+  <li>
+    <span>
+      <time datetime='2026-05-03'>
+        2026-05-03
+      </time>
+    </span>
+    <a href="/bear/ml/kv_cache_paged_attention/">KV Cache and PagedAttention: Why vLLM Actually Works</a>
+  </li>
+  
+  <li>
+    <span>
+      <time datetime='2026-05-03'>
+        2026-05-03
+      </time>
+    </span>
+    <a href="/bear/systems/multi_paxos/">Multi-Paxos: From Single Decree to a Replicated Log</a>
+  </li>
+  
+  <li>
+    <span>
+      <time datetime='2026-05-03'>
+        2026-05-03
+      </time>
+    </span>
+    <a href="/bear/systems/raft_log_compaction/">Raft Log Compaction: Keeping the Log from Growing Forever</a>
+  </li>
+  
+  <li>
+    <span>
+      <time datetime='2026-05-03'>
+        2026-05-03
+      </time>
+    </span>
+    <a href="/bear/systems/bulkhead_pattern/">The Bulkhead Pattern: Isolating Failures Before They Spread</a>
+  </li>
+  
+  <li>
+    <span>
+      <time datetime='2026-05-03'>
+        2026-05-03
+      </time>
+    </span>
+    <a href="/bear/systems/saga_outbox_pattern/">The Saga Outbox Pattern: Reliable Event Delivery Without Two-Phase Commit</a>
+  </li>
+  
+  <li>
+    <span>
+      <time datetime='2026-05-02'>
+        2026-05-02
+      </time>
+    </span>
+    <a href="/bear/infra/vps_self_hosting/">A $22/Year VPS Running Three Self-Hosted Services</a>
+  </li>
+  
 </ul>
-<p>Feel free to explore or learn more <a href="/bear/about/">about me</a>.</p>
-<h1 id="ʕงᴥʔง-lets-goooo-">ʕง•ᴥ•ʔง Lets goooo !</h1>
-<hr>
 
 
   </main>
@@ -149,6 +293,44 @@ This is where I share my thoughts, experiences, and insights on various topics t
 </small></footer>
 
     
+<script>
+    (function() {
+      var STORAGE_KEY = 'theme';
+      var btn = document.getElementById('theme-toggle');
+      var label = document.getElementById('theme-toggle-label');
+
+      function getStored() { try { return localStorage.getItem(STORAGE_KEY); } catch(e) { return null; } }
+      function setStored(v) { try { localStorage.setItem(STORAGE_KEY, v); } catch(e) {} }
+
+      function getSystem() {
+        return window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+      }
+
+      function applyTheme(theme) {
+        document.documentElement.setAttribute('data-theme', theme);
+        if (label) label.textContent = theme === 'light' ? '●○' : '○●';
+      }
+
+      var stored = getStored();
+      applyTheme(stored || getSystem());
+
+      if (btn) {
+        btn.addEventListener('click', function() {
+          var current = document.documentElement.getAttribute('data-theme') || getSystem();
+          var next = current === 'dark' ? 'light' : 'dark';
+          setStored(next);
+          applyTheme(next);
+        });
+      }
+
+      
+      if (window.matchMedia) {
+        window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', function(e) {
+          if (!getStored()) applyTheme(e.matches ? 'light' : 'dark');
+        });
+      }
+    })();
+  </script>
 </body>
 
 </html>

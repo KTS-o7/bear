@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en-us">
+
+<head>
+  <meta http-equiv="X-Clacks-Overhead" content="GNU Terry Pratchett" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="shortcut icon" href="https://KTS-o7.github.io/bear/images/favicon.png" />
+<title>Two-Phase Commit: Distributed Atomicity and Its Fatal Flaw | </title>
+<meta name="title" content="Two-Phase Commit: Distributed Atomicity and Its Fatal Flaw" />
+<meta name="description" content="The problem is simple to state: you have a transaction that touches multiple nodes. You want all of them to commit, or none of them to. No partial states, no one node committing while another aborts.
+Two-phase commit (2PC) solves this. It&rsquo;s been in production databases for decades. It also has a flaw that makes it unusable for anything long-running, which is why most modern large-scale systems don&rsquo;t use it directly." />
+<meta name="author" content="" />
+<meta name="keywords" content="" />
+
+
+
+
+
+
+  
+  <meta property="og:url" content="https://KTS-o7.github.io/bear/systems/two_phase_commit/">
+  <meta property="og:title" content="Two-Phase Commit: Distributed Atomicity and Its Fatal Flaw">
+  <meta property="og:description" content="The problem is simple to state: you have a transaction that touches multiple nodes. You want all of them to commit, or none of them to. No partial states, no one node committing while another aborts.
+Two-phase commit (2PC) solves this. It’s been in production databases for decades. It also has a flaw that makes it unusable for anything long-running, which is why most modern large-scale systems don’t use it directly.">
+  <meta property="og:locale" content="en_us">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="systems">
+    <meta property="article:published_time" content="2026-05-02T00:00:00+05:30">
+    <meta property="article:modified_time" content="2026-05-02T00:00:00+05:30">
+    <meta property="og:image" content="https://KTS-o7.github.io/bear/images/share.webp">
+
+
+  
+  
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://KTS-o7.github.io/bear/images/share.webp">
+  <meta name="twitter:title" content="Two-Phase Commit: Distributed Atomicity and Its Fatal Flaw">
+  <meta name="twitter:description" content="The problem is simple to state: you have a transaction that touches multiple nodes. You want all of them to commit, or none of them to. No partial states, no one node committing while another aborts.
+Two-phase commit (2PC) solves this. It’s been in production databases for decades. It also has a flaw that makes it unusable for anything long-running, which is why most modern large-scale systems don’t use it directly.">
+
+
+  
+  
+  <meta itemprop="name" content="Two-Phase Commit: Distributed Atomicity and Its Fatal Flaw">
+  <meta itemprop="description" content="The problem is simple to state: you have a transaction that touches multiple nodes. You want all of them to commit, or none of them to. No partial states, no one node committing while another aborts.
+Two-phase commit (2PC) solves this. It’s been in production databases for decades. It also has a flaw that makes it unusable for anything long-running, which is why most modern large-scale systems don’t use it directly.">
+  <meta itemprop="datePublished" content="2026-05-02T00:00:00+05:30">
+  <meta itemprop="dateModified" content="2026-05-02T00:00:00+05:30">
+  <meta itemprop="wordCount" content="504">
+  <meta itemprop="image" content="https://KTS-o7.github.io/bear/images/share.webp">
+
+<meta name="referrer" content="no-referrer-when-downgrade" />
+
+  
+  <link href="/bear/herman.min.css" rel="stylesheet">
+
+  
+    
+    <link href="/bear/syntax.min.css" rel="stylesheet">
+  
+
+  
+
+  
+
+  
+</head>
+
+<body>
+  <header><a class="skip-link" href="#main-content">Skip to main content</a>
+
+<div style="display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+  <a href="/bear/" class="title"><h1></h1></a>
+  <button id="theme-toggle" aria-label="Toggle light/dark mode" title="Toggle theme">
+    <span id="theme-toggle-label">○●</span>
+  </button>
+</div>
+<nav>
+  <a href="/bear/">Home</a>
+
+  <a href="/bear/notes/">Notes</a>
+
+  <a href="/bear/about/">About</a>
+
+  <a href="/bear/ml/">ML</a>
+
+  <a href="/bear/cses.fi/">CSES.fi</a>
+
+<a href='https://KTS-o7.github.io/bear/index.xml'>RSS</a>
+
+
+
+
+
+
+
+</nav>
+</header>
+  <main id="main-content">
+
+<h1>Two-Phase Commit: Distributed Atomicity and Its Fatal Flaw</h1>
+<p class="byline">
+  <time datetime='2026-05-02' pubdate>
+    2026-05-02
+  </time>
+  
+</p>
+
+<content>
+  <p>The problem is simple to state: you have a transaction that touches multiple nodes. You want all of them to commit, or none of them to. No partial states, no one node committing while another aborts.</p>
+<p>Two-phase commit (2PC) solves this. It&rsquo;s been in production databases for decades. It also has a flaw that makes it unusable for anything long-running, which is why most modern large-scale systems don&rsquo;t use it directly.</p>
+<h2 id="the-protocol">The Protocol</h2>
+<p>There&rsquo;s a coordinator and a set of participants. The coordinator drives the protocol.</p>
+<p><strong>Phase 1 &ndash; Prepare</strong></p>
+<p>The coordinator sends <code>PREPARE</code> to every participant. Each participant:</p>
+<ul>
+<li>Writes the transaction to a durable log</li>
+<li>Acquires the necessary locks</li>
+<li>Replies <code>YES</code> (ready to commit) or <code>NO</code> (something failed)</li>
+</ul>
+<p><strong>Phase 2 &ndash; Commit or Abort</strong></p>
+<ul>
+<li>If all participants said YES: coordinator sends <code>COMMIT</code> to everyone</li>
+<li>If anyone said NO: coordinator sends <code>ABORT</code></li>
+</ul>
+<p>Participants execute the decision and release their locks.</p>
+
+
+
+
+
+<pre tabindex="0"><code>Coordinator         Node A        Node B
+    |--- PREPARE -------&gt;|             |
+    |--- PREPARE ---------|-----------&gt;|
+    |&lt;-- YES ------------|             |
+    |&lt;-- YES ------------|-------------|
+    |--- COMMIT --------&gt;|             |
+    |--- COMMIT ----------|-----------&gt;|</code></pre><p>Clean path works fine. Every node ends up in the same state. Locks are held only for the duration of the protocol.</p>
+<h2 id="the-fatal-flaw">The Fatal Flaw</h2>
+<p>Crash the coordinator after phase 1 but before phase 2.</p>
+<p>Participants are now stuck. They voted YES and locked their resources. They don&rsquo;t know whether the coordinator decided to commit or abort. They can&rsquo;t safely proceed in either direction &ndash; committing might be wrong if another participant said NO, aborting might be wrong if the coordinator was about to send COMMIT.</p>
+<p>They wait. The locks stay held. The system is in limbo until the coordinator recovers.</p>
+<p>This is the <strong>blocking problem</strong>. 2PC is a blocking protocol under failure. A single coordinator crash can stall the entire transaction indefinitely.</p>
+<h2 id="the-attempted-fix-3pc">The Attempted Fix: 3PC</h2>
+<p>Three-phase commit inserts a pre-commit phase between prepare and commit:</p>
+<p><code>PREPARE → PRE-COMMIT → COMMIT</code></p>
+<p>Pre-commit lets participants infer the coordinator&rsquo;s intent even if it crashes: if you received a pre-commit, the coordinator had seen all YES votes and was going to commit. You can safely commit yourself if the coordinator disappears after that point.</p>
+<p>3PC eliminates most blocking scenarios. It costs one extra round of messages and still has edge cases under network partitions. It&rsquo;s not widely used in practice &ndash; the complexity tradeoff isn&rsquo;t worth it for most systems.</p>
+<h2 id="what-systems-actually-do">What Systems Actually Do</h2>
+<table>
+  <thead>
+      <tr>
+          <th>Approach</th>
+          <th>Mechanism</th>
+          <th>Tradeoff</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>Saga pattern</td>
+          <td>Compensating transactions</td>
+          <td>No locks, but no true atomicity</td>
+      </tr>
+      <tr>
+          <td>Paxos / Raft</td>
+          <td>Consensus algorithm</td>
+          <td>Strong guarantees, higher complexity</td>
+      </tr>
+      <tr>
+          <td>Optimistic concurrency</td>
+          <td>Detect conflicts at commit time</td>
+          <td>Works well for low-contention workloads</td>
+      </tr>
+  </tbody>
+</table>
+<p>Most large-scale systems avoid 2PC for anything user-facing. Short, internal database transactions &ndash; a single service committing to one database &ndash; are fine. Cross-service transactions that could run for seconds or involve user interaction are not.</p>
+<p>2PC is worth understanding because it makes the tradeoff concrete: you can have distributed atomicity, but you&rsquo;re paying for it with availability under coordinator failure. Everything else in distributed transactions is a different point on that curve.</p>
+
+</content>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  <p style="margin-top: 1.5rem; font-size: 0.875rem; color: var(--color-text-muted);">
+    <a href='mailto:shentharkrishnatejaswi@gmail.com?subject=Reply%20to%20"Two-Phase%20Commit%3a%20Distributed%20Atomicity%20and%20Its%20Fatal%20Flaw"'>
+      Reply to this post by email ↪
+    </a>
+  </p>
+
+
+
+  </main>
+  <footer><small>
+  Krishnatejaswi S | Made with <a href="https://github.com/clente/hugo-bearcub">Bear Cub</a>
+</small></footer>
+
+    
+<script>
+    (function() {
+      var STORAGE_KEY = 'theme';
+      var btn = document.getElementById('theme-toggle');
+      var label = document.getElementById('theme-toggle-label');
+
+      function getStored() { try { return localStorage.getItem(STORAGE_KEY); } catch(e) { return null; } }
+      function setStored(v) { try { localStorage.setItem(STORAGE_KEY, v); } catch(e) {} }
+
+      function getSystem() {
+        return window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+      }
+
+      function applyTheme(theme) {
+        document.documentElement.setAttribute('data-theme', theme);
+        if (label) label.textContent = theme === 'light' ? '●○' : '○●';
+      }
+
+      var stored = getStored();
+      applyTheme(stored || getSystem());
+
+      if (btn) {
+        btn.addEventListener('click', function() {
+          var current = document.documentElement.getAttribute('data-theme') || getSystem();
+          var next = current === 'dark' ? 'light' : 'dark';
+          setStored(next);
+          applyTheme(next);
+        });
+      }
+
+      
+      if (window.matchMedia) {
+        window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', function(e) {
+          if (!getStored()) applyTheme(e.matches ? 'light' : 'dark');
+        });
+      }
+    })();
+  </script>
+</body>
+
+</html>

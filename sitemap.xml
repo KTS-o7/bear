@@ -5,135 +5,165 @@
     <loc>https://KTS-o7.github.io/bear/</loc>
     <lastmod>2026-05-03T00:00:00+05:30</lastmod>
   </url><url>
-    <loc>https://KTS-o7.github.io/bear/posts/</loc>
-    <lastmod>2026-05-03T00:00:00+05:30</lastmod>
+    <loc>https://KTS-o7.github.io/bear/notes/</loc>
+    <lastmod>2026-05-02T00:00:00+05:30</lastmod>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/ml/</loc>
-    <lastmod>2026-01-08T07:07:07+01:00</lastmod>
+    <lastmod>2026-05-03T00:00:00+05:30</lastmod>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/about/</loc>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/cses.fi/</loc>
     <lastmod>2025-09-19T23:03:51+05:30</lastmod>
   </url><url>
-    <loc>https://KTS-o7.github.io/bear/posts/crdts/</loc>
+    <loc>https://KTS-o7.github.io/bear/systems/crdts/</loc>
     <lastmod>2026-05-03T00:00:00+05:30</lastmod>
   </url><url>
-    <loc>https://KTS-o7.github.io/bear/posts/spanner_distributed_transactions/</loc>
+    <loc>https://KTS-o7.github.io/bear/systems/spanner_distributed_transactions/</loc>
     <lastmod>2026-05-03T00:00:00+05:30</lastmod>
   </url><url>
-    <loc>https://KTS-o7.github.io/bear/posts/kv_cache_paged_attention/</loc>
+    <loc>https://KTS-o7.github.io/bear/ml/kv_cache_paged_attention/</loc>
     <lastmod>2026-05-03T00:00:00+05:30</lastmod>
   </url><url>
-    <loc>https://KTS-o7.github.io/bear/posts/multi_paxos/</loc>
+    <loc>https://KTS-o7.github.io/bear/systems/multi_paxos/</loc>
     <lastmod>2026-05-03T00:00:00+05:30</lastmod>
   </url><url>
-    <loc>https://KTS-o7.github.io/bear/posts/raft_log_compaction/</loc>
+    <loc>https://KTS-o7.github.io/bear/systems/raft_log_compaction/</loc>
     <lastmod>2026-05-03T00:00:00+05:30</lastmod>
   </url><url>
-    <loc>https://KTS-o7.github.io/bear/posts/bulkhead_pattern/</loc>
+    <loc>https://KTS-o7.github.io/bear/systems/</loc>
     <lastmod>2026-05-03T00:00:00+05:30</lastmod>
   </url><url>
-    <loc>https://KTS-o7.github.io/bear/posts/saga_outbox_pattern/</loc>
+    <loc>https://KTS-o7.github.io/bear/systems/bulkhead_pattern/</loc>
     <lastmod>2026-05-03T00:00:00+05:30</lastmod>
   </url><url>
-    <loc>https://KTS-o7.github.io/bear/posts/vps_self_hosting/</loc>
+    <loc>https://KTS-o7.github.io/bear/systems/saga_outbox_pattern/</loc>
+    <lastmod>2026-05-03T00:00:00+05:30</lastmod>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/infra/vps_self_hosting/</loc>
     <lastmod>2026-05-02T00:00:00+05:30</lastmod>
   </url><url>
-    <loc>https://KTS-o7.github.io/bear/posts/circuit_breakers_distributed_systems/</loc>
+    <loc>https://KTS-o7.github.io/bear/systems/circuit_breakers_distributed_systems/</loc>
     <lastmod>2026-05-02T00:00:00+05:30</lastmod>
   </url><url>
-    <loc>https://KTS-o7.github.io/bear/posts/consistent_hashing/</loc>
+    <loc>https://KTS-o7.github.io/bear/systems/consistent_hashing/</loc>
     <lastmod>2026-05-02T00:00:00+05:30</lastmod>
   </url><url>
-    <loc>https://KTS-o7.github.io/bear/posts/llm_inference_optimization/</loc>
+    <loc>https://KTS-o7.github.io/bear/infra/</loc>
     <lastmod>2026-05-02T00:00:00+05:30</lastmod>
   </url><url>
-    <loc>https://KTS-o7.github.io/bear/posts/paxos_consensus/</loc>
+    <loc>https://KTS-o7.github.io/bear/ml/llm_inference_optimization/</loc>
     <lastmod>2026-05-02T00:00:00+05:30</lastmod>
   </url><url>
-    <loc>https://KTS-o7.github.io/bear/posts/raft_consensus/</loc>
+    <loc>https://KTS-o7.github.io/bear/systems/paxos_consensus/</loc>
     <lastmod>2026-05-02T00:00:00+05:30</lastmod>
   </url><url>
-    <loc>https://KTS-o7.github.io/bear/posts/teaching_myself_cs/</loc>
+    <loc>https://KTS-o7.github.io/bear/systems/raft_consensus/</loc>
     <lastmod>2026-05-02T00:00:00+05:30</lastmod>
   </url><url>
-    <loc>https://KTS-o7.github.io/bear/posts/saga_pattern/</loc>
+    <loc>https://KTS-o7.github.io/bear/notes/teaching_myself_cs/</loc>
     <lastmod>2026-05-02T00:00:00+05:30</lastmod>
   </url><url>
-    <loc>https://KTS-o7.github.io/bear/posts/two_phase_commit/</loc>
+    <loc>https://KTS-o7.github.io/bear/systems/saga_pattern/</loc>
     <lastmod>2026-05-02T00:00:00+05:30</lastmod>
   </url><url>
-    <loc>https://KTS-o7.github.io/bear/posts/vector_clocks/</loc>
+    <loc>https://KTS-o7.github.io/bear/systems/two_phase_commit/</loc>
     <lastmod>2026-05-02T00:00:00+05:30</lastmod>
   </url><url>
-    <loc>https://KTS-o7.github.io/bear/posts/paxos/</loc>
+    <loc>https://KTS-o7.github.io/bear/systems/vector_clocks/</loc>
+    <lastmod>2026-05-02T00:00:00+05:30</lastmod>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/systems/paxos/</loc>
     <lastmod>2026-04-26T00:00:00+05:30</lastmod>
   </url><url>
-    <loc>https://KTS-o7.github.io/bear/posts/vps_self_hosting_stack/</loc>
+    <loc>https://KTS-o7.github.io/bear/infra/vps_self_hosting_stack/</loc>
     <lastmod>2026-04-22T00:00:00+05:30</lastmod>
   </url><url>
-    <loc>https://KTS-o7.github.io/bear/posts/obsidian_second_brain/</loc>
+    <loc>https://KTS-o7.github.io/bear/notes/obsidian_second_brain/</loc>
     <lastmod>2026-04-21T00:00:00+05:30</lastmod>
   </url><url>
-    <loc>https://KTS-o7.github.io/bear/posts/agentbudget_ulimit_for_ai_agents/</loc>
+    <loc>https://KTS-o7.github.io/bear/notes/agentbudget_ulimit_for_ai_agents/</loc>
     <lastmod>2026-04-16T00:00:00+05:30</lastmod>
   </url><url>
-    <loc>https://KTS-o7.github.io/bear/posts/hermes_local_ai_stack/</loc>
+    <loc>https://KTS-o7.github.io/bear/notes/hermes_local_ai_stack/</loc>
     <lastmod>2026-04-15T00:00:00+05:30</lastmod>
   </url><url>
-    <loc>https://KTS-o7.github.io/bear/posts/freeseek_proxy/</loc>
+    <loc>https://KTS-o7.github.io/bear/notes/freeseek_proxy/</loc>
     <lastmod>2026-03-14T00:00:00+05:30</lastmod>
   </url><url>
-    <loc>https://KTS-o7.github.io/bear/posts/bifrost_parallel_tool_call_fix/</loc>
+    <loc>https://KTS-o7.github.io/bear/notes/bifrost_parallel_tool_call_fix/</loc>
     <lastmod>2026-03-02T00:00:00+00:00</lastmod>
   </url><url>
-    <loc>https://KTS-o7.github.io/bear/posts/codex_worktrees_adventure/</loc>
+    <loc>https://KTS-o7.github.io/bear/notes/codex_worktrees_adventure/</loc>
     <lastmod>2026-02-19T00:00:00+05:30</lastmod>
   </url><url>
-    <loc>https://KTS-o7.github.io/bear/posts/cicd_docker_buildx_sha_deploys/</loc>
+    <loc>https://KTS-o7.github.io/bear/infra/cicd_docker_buildx_sha_deploys/</loc>
     <lastmod>2026-02-17T00:00:00+00:00</lastmod>
   </url><url>
-    <loc>https://KTS-o7.github.io/bear/posts/kubernetes_oom_memory_leaks/</loc>
+    <loc>https://KTS-o7.github.io/bear/infra/kubernetes_oom_memory_leaks/</loc>
     <lastmod>2026-02-16T00:00:00+00:00</lastmod>
   </url><url>
-    <loc>https://KTS-o7.github.io/bear/posts/sse_disconnect_handling/</loc>
+    <loc>https://KTS-o7.github.io/bear/infra/sse_disconnect_handling/</loc>
     <lastmod>2026-01-23T00:00:00+00:00</lastmod>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/ml/eigen_vals/</loc>
     <lastmod>2026-01-08T07:07:07+01:00</lastmod>
   </url><url>
-    <loc>https://KTS-o7.github.io/bear/posts/reverse_proxy/</loc>
+    <loc>https://KTS-o7.github.io/bear/infra/reverse_proxy/</loc>
     <lastmod>2025-12-27T00:00:00+05:30</lastmod>
   </url><url>
-    <loc>https://KTS-o7.github.io/bear/posts/connection_pool_exhaustion/</loc>
+    <loc>https://KTS-o7.github.io/bear/systems/connection_pool_exhaustion/</loc>
     <lastmod>2025-12-06T12:00:00+00:00</lastmod>
   </url><url>
-    <loc>https://KTS-o7.github.io/bear/posts/git/</loc>
+    <loc>https://KTS-o7.github.io/bear/notes/git/</loc>
     <lastmod>2025-12-04T00:00:00+05:30</lastmod>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/cses.fi/gray_code/</loc>
     <lastmod>2025-09-19T23:03:51+05:30</lastmod>
   </url><url>
+    <loc>https://KTS-o7.github.io/bear/notes/gray_code/</loc>
+    <lastmod>2025-09-19T23:03:51+05:30</lastmod>
+  </url><url>
     <loc>https://KTS-o7.github.io/bear/cses.fi/bit_strings/</loc>
+    <lastmod>2025-09-19T22:53:15+05:30</lastmod>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/notes/bit_strings/</loc>
     <lastmod>2025-09-19T22:53:15+05:30</lastmod>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/cses.fi/two_sets/</loc>
     <lastmod>2025-09-19T15:41:11+05:30</lastmod>
   </url><url>
+    <loc>https://KTS-o7.github.io/bear/notes/two_sets/</loc>
+    <lastmod>2025-09-19T15:41:11+05:30</lastmod>
+  </url><url>
     <loc>https://KTS-o7.github.io/bear/cses.fi/permutations/</loc>
+    <lastmod>2025-09-18T22:49:10+05:30</lastmod>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/notes/permutations/</loc>
     <lastmod>2025-09-18T22:49:10+05:30</lastmod>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/cses.fi/increasing_array/</loc>
     <lastmod>2025-09-18T22:37:39+05:30</lastmod>
   </url><url>
+    <loc>https://KTS-o7.github.io/bear/notes/increasing_array/</loc>
+    <lastmod>2025-09-18T22:37:39+05:30</lastmod>
+  </url><url>
     <loc>https://KTS-o7.github.io/bear/cses.fi/repeatations/</loc>
+    <lastmod>2025-09-18T17:23:25+05:30</lastmod>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/notes/repeatations/</loc>
     <lastmod>2025-09-18T17:23:25+05:30</lastmod>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/cses.fi/missing_number/</loc>
     <lastmod>2025-09-18T17:17:22+05:30</lastmod>
   </url><url>
+    <loc>https://KTS-o7.github.io/bear/notes/missing_number/</loc>
+    <lastmod>2025-09-18T17:17:22+05:30</lastmod>
+  </url><url>
     <loc>https://KTS-o7.github.io/bear/cses.fi/weird_algorithm/</loc>
+    <lastmod>2025-09-18T17:05:38+05:30</lastmod>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/notes/weird_algorithm/</loc>
     <lastmod>2025-09-18T17:05:38+05:30</lastmod>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/ml/params_llms/</loc>
@@ -142,13 +172,17 @@
     <loc>https://KTS-o7.github.io/bear/ml/matrix_vec_dot/</loc>
     <lastmod>2025-09-06T07:07:07+01:00</lastmod>
   </url><url>
-    <loc>https://KTS-o7.github.io/bear/posts/why_mysql_is_not_ca/</loc>
+    <loc>https://KTS-o7.github.io/bear/systems/why_mysql_is_not_ca/</loc>
     <lastmod>2025-09-05T07:07:07+01:00</lastmod>
   </url><url>
-    <loc>https://KTS-o7.github.io/bear/posts/markdown_stuff/</loc>
+    <loc>https://KTS-o7.github.io/bear/notes/markdown_stuff/</loc>
     <lastmod>2024-01-14T07:07:07+01:00</lastmod>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/categories/</loc>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/math/</loc>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/research/</loc>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/tags/</loc>
   </url>

@@ -63,9 +63,9 @@ drop a hi there if you see me around!</p>
     </item>
     <item>
       <title>CRDTs: Conflict-Free Replicated Data Types</title>
-      <link>https://KTS-o7.github.io/bear/posts/crdts/</link>
+      <link>https://KTS-o7.github.io/bear/systems/crdts/</link>
       <pubDate>Sun, 03 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
-      <guid>https://KTS-o7.github.io/bear/posts/crdts/</guid>
+      <guid>https://KTS-o7.github.io/bear/systems/crdts/</guid>
       <description>&lt;p&gt;Vector clocks tell you when two writes conflict. They don&amp;rsquo;t tell you what to do about it. That&amp;rsquo;s still your problem.&lt;/p&gt;&#xA;&lt;p&gt;CRDTs take a different position: design the data structure so that conflicts can never happen. Not &amp;ldquo;detect and resolve&amp;rdquo; &amp;ndash; just structurally eliminate the problem.&lt;/p&gt;&#xA;&lt;h2 id=&#34;the-core-idea&#34;&gt;The Core Idea&lt;/h2&gt;&#xA;&lt;p&gt;A CRDT is a data structure with a merge function that is commutative, associative, and idempotent. Those three properties together mean you can apply updates in any order, any number of times, from any subset of nodes, and always converge to the same state.&lt;/p&gt;</description>
       <content:encoded><![CDATA[<p>Vector clocks tell you when two writes conflict. They don&rsquo;t tell you what to do about it. That&rsquo;s still your problem.</p>
 <p>CRDTs take a different position: design the data structure so that conflicts can never happen. Not &ldquo;detect and resolve&rdquo; &ndash; just structurally eliminate the problem.</p>
@@ -115,9 +115,9 @@ Total:  5</code></pre><p>Node A can never decrement B&rsquo;s slot and Node B ca
     </item>
     <item>
       <title>How Spanner Does Distributed Transactions Without Classic 2PC</title>
-      <link>https://KTS-o7.github.io/bear/posts/spanner_distributed_transactions/</link>
+      <link>https://KTS-o7.github.io/bear/systems/spanner_distributed_transactions/</link>
       <pubDate>Sun, 03 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
-      <guid>https://KTS-o7.github.io/bear/posts/spanner_distributed_transactions/</guid>
+      <guid>https://KTS-o7.github.io/bear/systems/spanner_distributed_transactions/</guid>
       <description>&lt;p&gt;Two-phase commit has a well-known problem: crash the coordinator between Phase 1 and Phase 2 and every participant is stuck holding locks, waiting, with no safe way to proceed. 2PC is a blocking protocol.&lt;/p&gt;&#xA;&lt;p&gt;Google Spanner runs distributed transactions across a globally replicated database at scale. It can&amp;rsquo;t afford to block on coordinator failure. Its solution is to not use a standalone coordinator at all &amp;ndash; it runs 2PC on top of Paxos groups, which means the coordinator itself is fault-tolerant.&lt;/p&gt;</description>
       <content:encoded><![CDATA[<p>Two-phase commit has a well-known problem: crash the coordinator between Phase 1 and Phase 2 and every participant is stuck holding locks, waiting, with no safe way to proceed. 2PC is a blocking protocol.</p>
 <p>Google Spanner runs distributed transactions across a globally replicated database at scale. It can&rsquo;t afford to block on coordinator failure. Its solution is to not use a standalone coordinator at all &ndash; it runs 2PC on top of Paxos groups, which means the coordinator itself is fault-tolerant.</p>
@@ -161,9 +161,9 @@ Total:  5</code></pre><p>Node A can never decrement B&rsquo;s slot and Node B ca
     </item>
     <item>
       <title>KV Cache and PagedAttention: Why vLLM Actually Works</title>
-      <link>https://KTS-o7.github.io/bear/posts/kv_cache_paged_attention/</link>
+      <link>https://KTS-o7.github.io/bear/ml/kv_cache_paged_attention/</link>
       <pubDate>Sun, 03 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
-      <guid>https://KTS-o7.github.io/bear/posts/kv_cache_paged_attention/</guid>
+      <guid>https://KTS-o7.github.io/bear/ml/kv_cache_paged_attention/</guid>
       <description>&lt;p&gt;LLM inference is split into two phases with completely different performance characteristics. The first phase processes all input tokens in parallel &amp;ndash; it&amp;rsquo;s compute-bound, and modern GPUs handle it well. The second phase generates one token at a time &amp;ndash; it&amp;rsquo;s memory-bandwidth-bound, and this is where naive serving falls apart.&lt;/p&gt;&#xA;&lt;p&gt;The key data structure driving both phases is the KV cache.&lt;/p&gt;&#xA;&lt;h2 id=&#34;what-the-kv-cache-is&#34;&gt;What the KV Cache Is&lt;/h2&gt;&#xA;&lt;p&gt;In the attention mechanism, each token attends to every previous token in the sequence. To compute attention for token N, you need the key and value vectors for tokens 1 through N-1. Recomputing those from scratch at each step would mean re-running the full model for all previous tokens every time you generate a new one &amp;ndash; O(N^2) compute per sequence.&lt;/p&gt;</description>
       <content:encoded><![CDATA[<p>LLM inference is split into two phases with completely different performance characteristics. The first phase processes all input tokens in parallel &ndash; it&rsquo;s compute-bound, and modern GPUs handle it well. The second phase generates one token at a time &ndash; it&rsquo;s memory-bandwidth-bound, and this is where naive serving falls apart.</p>
 <p>The key data structure driving both phases is the KV cache.</p>
@@ -207,9 +207,9 @@ Sequence B: logical [0,1]   → physical [block_3, block_11]</code></pre><p>Bloc
     </item>
     <item>
       <title>Multi-Paxos: From Single Decree to a Replicated Log</title>
-      <link>https://KTS-o7.github.io/bear/posts/multi_paxos/</link>
+      <link>https://KTS-o7.github.io/bear/systems/multi_paxos/</link>
       <pubDate>Sun, 03 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
-      <guid>https://KTS-o7.github.io/bear/posts/multi_paxos/</guid>
+      <guid>https://KTS-o7.github.io/bear/systems/multi_paxos/</guid>
       <description>&lt;p&gt;Basic Paxos agrees on a single value. That&amp;rsquo;s useful for electing a leader or picking a configuration, but a database needs to agree on a sequence of values &amp;ndash; every write in order, forever. Running one full round of Paxos per log slot would work but it&amp;rsquo;s expensive: two network round-trips per slot, and Phase 1 has to complete before Phase 2 can start.&lt;/p&gt;&#xA;&lt;p&gt;Multi-Paxos is the optimization that makes Paxos practical as a replicated log. The insight is that Phase 1 can be amortized across many slots once you have a stable leader.&lt;/p&gt;</description>
       <content:encoded><![CDATA[<p>Basic Paxos agrees on a single value. That&rsquo;s useful for electing a leader or picking a configuration, but a database needs to agree on a sequence of values &ndash; every write in order, forever. Running one full round of Paxos per log slot would work but it&rsquo;s expensive: two network round-trips per slot, and Phase 1 has to complete before Phase 2 can start.</p>
 <p>Multi-Paxos is the optimization that makes Paxos practical as a replicated log. The insight is that Phase 1 can be amortized across many slots once you have a stable leader.</p>
@@ -288,9 +288,9 @@ Phase 2 (per slot):
     </item>
     <item>
       <title>Raft Log Compaction: Keeping the Log from Growing Forever</title>
-      <link>https://KTS-o7.github.io/bear/posts/raft_log_compaction/</link>
+      <link>https://KTS-o7.github.io/bear/systems/raft_log_compaction/</link>
       <pubDate>Sun, 03 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
-      <guid>https://KTS-o7.github.io/bear/posts/raft_log_compaction/</guid>
+      <guid>https://KTS-o7.github.io/bear/systems/raft_log_compaction/</guid>
       <description>&lt;p&gt;Raft&amp;rsquo;s correctness relies on the log. Every state change is appended to it, replicated to a majority, and then applied to the state machine. This works perfectly until you&amp;rsquo;ve been running for a few months and the log has millions of entries. Replaying the full log on every restart is slow. A new node joining the cluster would have to receive and apply every entry since the beginning of time.&lt;/p&gt;</description>
       <content:encoded><![CDATA[<p>Raft&rsquo;s correctness relies on the log. Every state change is appended to it, replicated to a majority, and then applied to the state machine. This works perfectly until you&rsquo;ve been running for a few months and the log has millions of entries. Replaying the full log on every restart is slow. A new node joining the cluster would have to receive and apply every entry since the beginning of time.</p>
 <p>Log compaction is how you fix this. The idea is simple: once a prefix of the log has been applied to the state machine, you don&rsquo;t need the individual entries anymore &ndash; just a snapshot of the state at that point.</p>
@@ -330,9 +330,9 @@ After compaction:
     </item>
     <item>
       <title>The Bulkhead Pattern: Isolating Failures Before They Spread</title>
-      <link>https://KTS-o7.github.io/bear/posts/bulkhead_pattern/</link>
+      <link>https://KTS-o7.github.io/bear/systems/bulkhead_pattern/</link>
       <pubDate>Sun, 03 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
-      <guid>https://KTS-o7.github.io/bear/posts/bulkhead_pattern/</guid>
+      <guid>https://KTS-o7.github.io/bear/systems/bulkhead_pattern/</guid>
       <description>&lt;p&gt;Circuit breakers stop you from hammering a failing downstream service. Bulkheads stop a failing downstream service from consuming all the resources you have &amp;ndash; even if you&amp;rsquo;re not hammering it.&lt;/p&gt;&#xA;&lt;p&gt;The name comes from ship design. A ship&amp;rsquo;s hull is divided into watertight compartments. One compartment floods, the others stay dry. The ship stays afloat. Without bulkheads, one breach sinks everything.&lt;/p&gt;&#xA;&lt;h2 id=&#34;the-problem-without-bulkheads&#34;&gt;The Problem Without Bulkheads&lt;/h2&gt;&#xA;&lt;p&gt;Imagine a service that calls three downstream APIs &amp;ndash; payment, inventory, and recommendations. You have a thread pool with 100 threads handling all outbound requests.&lt;/p&gt;</description>
       <content:encoded><![CDATA[<p>Circuit breakers stop you from hammering a failing downstream service. Bulkheads stop a failing downstream service from consuming all the resources you have &ndash; even if you&rsquo;re not hammering it.</p>
 <p>The name comes from ship design. A ship&rsquo;s hull is divided into watertight compartments. One compartment floods, the others stay dry. The ship stays afloat. Without bulkheads, one breach sinks everything.</p>
@@ -369,9 +369,9 @@ After compaction:
     </item>
     <item>
       <title>The Saga Outbox Pattern: Reliable Event Delivery Without Two-Phase Commit</title>
-      <link>https://KTS-o7.github.io/bear/posts/saga_outbox_pattern/</link>
+      <link>https://KTS-o7.github.io/bear/systems/saga_outbox_pattern/</link>
       <pubDate>Sun, 03 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
-      <guid>https://KTS-o7.github.io/bear/posts/saga_outbox_pattern/</guid>
+      <guid>https://KTS-o7.github.io/bear/systems/saga_outbox_pattern/</guid>
       <description>&lt;p&gt;The Saga pattern gives you distributed transactions without cross-service locks. Each step publishes an event when it completes, triggering the next step. But there&amp;rsquo;s a gap in the naive implementation: publishing an event and updating your local database are two separate operations. If your service crashes between them, you get a committed database write with no event published, or an event published with no matching database write. The saga is now in an inconsistent state.&lt;/p&gt;</description>
       <content:encoded><![CDATA[<p>The Saga pattern gives you distributed transactions without cross-service locks. Each step publishes an event when it completes, triggering the next step. But there&rsquo;s a gap in the naive implementation: publishing an event and updating your local database are two separate operations. If your service crashes between them, you get a committed database write with no event published, or an event published with no matching database write. The saga is now in an inconsistent state.</p>
 <p>The outbox pattern closes that gap.</p>
@@ -425,9 +425,9 @@ COMMIT</code></pre><p>The state change and the event are now atomic with respect
     </item>
     <item>
       <title>A $22/Year VPS Running Three Self-Hosted Services</title>
-      <link>https://KTS-o7.github.io/bear/posts/vps_self_hosting/</link>
+      <link>https://KTS-o7.github.io/bear/infra/vps_self_hosting/</link>
       <pubDate>Sat, 02 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
-      <guid>https://KTS-o7.github.io/bear/posts/vps_self_hosting/</guid>
+      <guid>https://KTS-o7.github.io/bear/infra/vps_self_hosting/</guid>
       <description>&lt;p&gt;I wanted three things: a private Obsidian sync server, a Matrix chat instance for personal use, and a self-hosted book library. The obvious path is a cheap VPS, a few Docker containers, and nginx as a reverse proxy in front of everything.&lt;/p&gt;&#xA;&lt;p&gt;The whole stack runs on a budget VPS &amp;ndash; 1 vCPU, 2.9GB RAM, 30GB disk, $22/year. All three services are running with room to spare.&lt;/p&gt;&#xA;&lt;h2 id=&#34;initial-setup&#34;&gt;Initial Setup&lt;/h2&gt;&#xA;&lt;p&gt;&lt;strong&gt;SSH key auth first, password auth off:&lt;/strong&gt;&lt;/p&gt;</description>
       <content:encoded><![CDATA[<p>I wanted three things: a private Obsidian sync server, a Matrix chat instance for personal use, and a self-hosted book library. The obvious path is a cheap VPS, a few Docker containers, and nginx as a reverse proxy in front of everything.</p>
 <p>The whole stack runs on a budget VPS &ndash; 1 vCPU, 2.9GB RAM, 30GB disk, $22/year. All three services are running with room to spare.</p>
@@ -729,9 +729,9 @@ max-port=65535</code></pre><p>nginx config:</p>
     </item>
     <item>
       <title>Circuit Breakers: The Pattern That Stops Cascading Failures</title>
-      <link>https://KTS-o7.github.io/bear/posts/circuit_breakers_distributed_systems/</link>
+      <link>https://KTS-o7.github.io/bear/systems/circuit_breakers_distributed_systems/</link>
       <pubDate>Sat, 02 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
-      <guid>https://KTS-o7.github.io/bear/posts/circuit_breakers_distributed_systems/</guid>
+      <guid>https://KTS-o7.github.io/bear/systems/circuit_breakers_distributed_systems/</guid>
       <description>&lt;p&gt;The payment service starts timing out. The fraud detection API it depends on is slow. Your retry logic kicks in &amp;ndash; which makes sense, retries are good &amp;ndash; but now every incoming request is spawning 3x the load on a service that was already struggling. The fraud service falls over completely. Now the entire checkout flow is dead.&lt;/p&gt;&#xA;&lt;p&gt;This is a cascading failure. One slow dependency turned into a full outage because the upstream service kept hammering it instead of stopping.&lt;/p&gt;</description>
       <content:encoded><![CDATA[<p>The payment service starts timing out. The fraud detection API it depends on is slow. Your retry logic kicks in &ndash; which makes sense, retries are good &ndash; but now every incoming request is spawning 3x the load on a service that was already struggling. The fraud service falls over completely. Now the entire checkout flow is dead.</p>
 <p>This is a cascading failure. One slow dependency turned into a full outage because the upstream service kept hammering it instead of stopping.</p>
@@ -759,9 +759,9 @@ max-port=65535</code></pre><p>nginx config:</p>
     </item>
     <item>
       <title>Consistent Hashing: Scaling a Cluster Without Reshuffling the World</title>
-      <link>https://KTS-o7.github.io/bear/posts/consistent_hashing/</link>
+      <link>https://KTS-o7.github.io/bear/systems/consistent_hashing/</link>
       <pubDate>Sat, 02 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
-      <guid>https://KTS-o7.github.io/bear/posts/consistent_hashing/</guid>
+      <guid>https://KTS-o7.github.io/bear/systems/consistent_hashing/</guid>
       <description>&lt;p&gt;The naive approach to distributing keys across N cache nodes is &lt;code&gt;hash(key) % N&lt;/code&gt;. It works fine until you add or remove a node.&lt;/p&gt;&#xA;&lt;p&gt;When N changes to N+1 or N-1, nearly every key remaps to a different node. You go from a warm cache to a cold one in an instant &amp;ndash; a thundering herd of cache misses hitting your database all at once. For a large cluster, that&amp;rsquo;s enough to take down a service.&lt;/p&gt;</description>
       <content:encoded><![CDATA[<p>The naive approach to distributing keys across N cache nodes is <code>hash(key) % N</code>. It works fine until you add or remove a node.</p>
 <p>When N changes to N+1 or N-1, nearly every key remaps to a different node. You go from a warm cache to a cold one in an instant &ndash; a thundering herd of cache misses hitting your database all at once. For a large cluster, that&rsquo;s enough to take down a service.</p>
@@ -795,9 +795,9 @@ max-port=65535</code></pre><p>nginx config:</p>
     </item>
     <item>
       <title>LLM Inference Optimization: Stop Paying for Idle Silicon</title>
-      <link>https://KTS-o7.github.io/bear/posts/llm_inference_optimization/</link>
+      <link>https://KTS-o7.github.io/bear/ml/llm_inference_optimization/</link>
       <pubDate>Sat, 02 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
-      <guid>https://KTS-o7.github.io/bear/posts/llm_inference_optimization/</guid>
+      <guid>https://KTS-o7.github.io/bear/ml/llm_inference_optimization/</guid>
       <description>&lt;p&gt;GPU bills were doubling every quarter. Throughput wasn&amp;rsquo;t moving. I kept assuming the answer was a bigger GPU. It wasn&amp;rsquo;t.&lt;/p&gt;&#xA;&lt;p&gt;The problem was naive serving. Standard HuggingFace &lt;code&gt;pipeline()&lt;/code&gt; processes one request at a time, sequentially. The GPU sits idle between requests, waiting. You&amp;rsquo;re paying for hardware that&amp;rsquo;s doing nothing most of the time.&lt;/p&gt;&#xA;&lt;p&gt;The fix is a set of four techniques, each with a different ROI profile. Here&amp;rsquo;s what they are, how they work, and when to use each one.&lt;/p&gt;</description>
       <content:encoded><![CDATA[<p>GPU bills were doubling every quarter. Throughput wasn&rsquo;t moving. I kept assuming the answer was a bigger GPU. It wasn&rsquo;t.</p>
 <p>The problem was naive serving. Standard HuggingFace <code>pipeline()</code> processes one request at a time, sequentially. The GPU sits idle between requests, waiting. You&rsquo;re paying for hardware that&rsquo;s doing nothing most of the time.</p>
@@ -896,9 +896,9 @@ max-port=65535</code></pre><p>nginx config:</p>
     </item>
     <item>
       <title>Paxos: How Distributed Systems Agree on Anything</title>
-      <link>https://KTS-o7.github.io/bear/posts/paxos_consensus/</link>
+      <link>https://KTS-o7.github.io/bear/systems/paxos_consensus/</link>
       <pubDate>Sat, 02 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
-      <guid>https://KTS-o7.github.io/bear/posts/paxos_consensus/</guid>
+      <guid>https://KTS-o7.github.io/bear/systems/paxos_consensus/</guid>
       <description>&lt;p&gt;Every replicated database, every distributed lock, every leader election comes down to the same underlying problem: how do multiple nodes in an unreliable network agree on a single value, even when some of them crash or messages get delayed?&lt;/p&gt;&#xA;&lt;p&gt;This is the consensus problem. Paxos is the foundational answer. It&amp;rsquo;s also notoriously difficult to implement correctly &amp;ndash; which is exactly why Raft exists. But you can&amp;rsquo;t really understand Raft without understanding what Paxos is doing and why.&lt;/p&gt;</description>
       <content:encoded><![CDATA[<p>Every replicated database, every distributed lock, every leader election comes down to the same underlying problem: how do multiple nodes in an unreliable network agree on a single value, even when some of them crash or messages get delayed?</p>
 <p>This is the consensus problem. Paxos is the foundational answer. It&rsquo;s also notoriously difficult to implement correctly &ndash; which is exactly why Raft exists. But you can&rsquo;t really understand Raft without understanding what Paxos is doing and why.</p>
@@ -960,9 +960,9 @@ max-port=65535</code></pre><p>nginx config:</p>
     </item>
     <item>
       <title>Raft: Consensus for the Rest of Us</title>
-      <link>https://KTS-o7.github.io/bear/posts/raft_consensus/</link>
+      <link>https://KTS-o7.github.io/bear/systems/raft_consensus/</link>
       <pubDate>Sat, 02 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
-      <guid>https://KTS-o7.github.io/bear/posts/raft_consensus/</guid>
+      <guid>https://KTS-o7.github.io/bear/systems/raft_consensus/</guid>
       <description>&lt;p&gt;Paxos is the algorithm everyone cites and almost nobody implements correctly. The gap between the paper and a working, production-safe implementation is wide enough that teams have shipped subtly broken versions without knowing it for months.&lt;/p&gt;&#xA;&lt;p&gt;Raft was built as a direct response to that. Same safety guarantees, designed from scratch for understandability &amp;ndash; the explicit goal was that a student should be able to implement it correctly from the paper alone.&lt;/p&gt;</description>
       <content:encoded><![CDATA[<p>Paxos is the algorithm everyone cites and almost nobody implements correctly. The gap between the paper and a working, production-safe implementation is wide enough that teams have shipped subtly broken versions without knowing it for months.</p>
 <p>Raft was built as a direct response to that. Same safety guarantees, designed from scratch for understandability &ndash; the explicit goal was that a student should be able to implement it correctly from the paper alone.</p>
@@ -1069,9 +1069,9 @@ Leader  → AppendEntries(x=5) → Follower C  (unreachable)
     </item>
     <item>
       <title>Teaching Myself CS: The Plan</title>
-      <link>https://KTS-o7.github.io/bear/posts/teaching_myself_cs/</link>
+      <link>https://KTS-o7.github.io/bear/notes/teaching_myself_cs/</link>
       <pubDate>Sat, 02 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
-      <guid>https://KTS-o7.github.io/bear/posts/teaching_myself_cs/</guid>
+      <guid>https://KTS-o7.github.io/bear/notes/teaching_myself_cs/</guid>
       <description>&lt;p&gt;I&amp;rsquo;ve been building things with code for a while now, but there are gaps. Not the kind that show up in day-to-day work &amp;ndash; the kind that show up when you&amp;rsquo;re reading a paper and hit a concept you sort of understand but can&amp;rsquo;t really explain, or when you&amp;rsquo;re debugging something deep in a system and realize you&amp;rsquo;re guessing at the underlying mechanics.&lt;/p&gt;&#xA;&lt;p&gt;The fix is obvious in theory: go back and learn the fundamentals properly. The hard part is doing it without spending two years on a degree or burning out on a curriculum that assumes you have nothing else going on.&lt;/p&gt;</description>
       <content:encoded><![CDATA[<p>I&rsquo;ve been building things with code for a while now, but there are gaps. Not the kind that show up in day-to-day work &ndash; the kind that show up when you&rsquo;re reading a paper and hit a concept you sort of understand but can&rsquo;t really explain, or when you&rsquo;re debugging something deep in a system and realize you&rsquo;re guessing at the underlying mechanics.</p>
 <p>The fix is obvious in theory: go back and learn the fundamentals properly. The hard part is doing it without spending two years on a degree or burning out on a curriculum that assumes you have nothing else going on.</p>
@@ -1150,9 +1150,9 @@ Leader  → AppendEntries(x=5) → Follower C  (unreachable)
     </item>
     <item>
       <title>The Saga Pattern: Distributed Transactions Without the Lock</title>
-      <link>https://KTS-o7.github.io/bear/posts/saga_pattern/</link>
+      <link>https://KTS-o7.github.io/bear/systems/saga_pattern/</link>
       <pubDate>Sat, 02 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
-      <guid>https://KTS-o7.github.io/bear/posts/saga_pattern/</guid>
+      <guid>https://KTS-o7.github.io/bear/systems/saga_pattern/</guid>
       <description>&lt;p&gt;Two-phase commit gives you distributed atomicity. It also gives you a coordinator that can stall your entire system if it crashes at the wrong moment, and locks held across multiple services for however long the transaction takes. For short, internal transactions that&amp;rsquo;s manageable. For a trip booking flow that touches a flight service, a hotel service, and a payment service &amp;ndash; each owned by a different team, each potentially slow &amp;ndash; it&amp;rsquo;s not.&lt;/p&gt;</description>
       <content:encoded><![CDATA[<p>Two-phase commit gives you distributed atomicity. It also gives you a coordinator that can stall your entire system if it crashes at the wrong moment, and locks held across multiple services for however long the transaction takes. For short, internal transactions that&rsquo;s manageable. For a trip booking flow that touches a flight service, a hotel service, and a payment service &ndash; each owned by a different team, each potentially slow &ndash; it&rsquo;s not.</p>
 <p>The Saga pattern is the alternative. You give up true atomicity in exchange for availability, scalability, and no cross-service locks.</p>
@@ -1228,9 +1228,9 @@ ROLLBACK:              ← [Cancel Hotel] ← [Cancel Flight]</code></pre><p>No 
     </item>
     <item>
       <title>Two-Phase Commit: Distributed Atomicity and Its Fatal Flaw</title>
-      <link>https://KTS-o7.github.io/bear/posts/two_phase_commit/</link>
+      <link>https://KTS-o7.github.io/bear/systems/two_phase_commit/</link>
       <pubDate>Sat, 02 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
-      <guid>https://KTS-o7.github.io/bear/posts/two_phase_commit/</guid>
+      <guid>https://KTS-o7.github.io/bear/systems/two_phase_commit/</guid>
       <description>&lt;p&gt;The problem is simple to state: you have a transaction that touches multiple nodes. You want all of them to commit, or none of them to. No partial states, no one node committing while another aborts.&lt;/p&gt;&#xA;&lt;p&gt;Two-phase commit (2PC) solves this. It&amp;rsquo;s been in production databases for decades. It also has a flaw that makes it unusable for anything long-running, which is why most modern large-scale systems don&amp;rsquo;t use it directly.&lt;/p&gt;</description>
       <content:encoded><![CDATA[<p>The problem is simple to state: you have a transaction that touches multiple nodes. You want all of them to commit, or none of them to. No partial states, no one node committing while another aborts.</p>
 <p>Two-phase commit (2PC) solves this. It&rsquo;s been in production databases for decades. It also has a flaw that makes it unusable for anything long-running, which is why most modern large-scale systems don&rsquo;t use it directly.</p>
@@ -1304,9 +1304,9 @@ ROLLBACK:              ← [Cancel Hotel] ← [Cancel Flight]</code></pre><p>No 
     </item>
     <item>
       <title>Vector Clocks: Causality Without a Shared Clock</title>
-      <link>https://KTS-o7.github.io/bear/posts/vector_clocks/</link>
+      <link>https://KTS-o7.github.io/bear/systems/vector_clocks/</link>
       <pubDate>Sat, 02 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
-      <guid>https://KTS-o7.github.io/bear/posts/vector_clocks/</guid>
+      <guid>https://KTS-o7.github.io/bear/systems/vector_clocks/</guid>
       <description>&lt;p&gt;In a distributed system there&amp;rsquo;s no shared clock. Two nodes can&amp;rsquo;t agree on what time it is &amp;ndash; network latency is variable, clocks drift, and NTP only gets you so far. So you can&amp;rsquo;t use timestamps to order events across nodes in any meaningful way.&lt;/p&gt;&#xA;&lt;p&gt;The question is: can you still tell whether one event caused another?&lt;/p&gt;&#xA;&lt;p&gt;Vector clocks answer that question. They don&amp;rsquo;t give you wall-clock time. They give you something more useful: a precise definition of &amp;ldquo;happened before.&amp;rdquo;&lt;/p&gt;</description>
       <content:encoded><![CDATA[<p>In a distributed system there&rsquo;s no shared clock. Two nodes can&rsquo;t agree on what time it is &ndash; network latency is variable, clocks drift, and NTP only gets you so far. So you can&rsquo;t use timestamps to order events across nodes in any meaningful way.</p>
 <p>The question is: can you still tell whether one event caused another?</p>
@@ -1368,9 +1368,9 @@ Node B event:            [A:1, B:2, C:0]</code></pre><h2 id="what-you-can-determ
     </item>
     <item>
       <title>Paxos</title>
-      <link>https://KTS-o7.github.io/bear/posts/paxos/</link>
+      <link>https://KTS-o7.github.io/bear/systems/paxos/</link>
       <pubDate>Sun, 26 Apr 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
-      <guid>https://KTS-o7.github.io/bear/posts/paxos/</guid>
+      <guid>https://KTS-o7.github.io/bear/systems/paxos/</guid>
       <description>&lt;p&gt;Before Raft, there was Paxos. For about two decades it was the foundational answer to distributed consensus &amp;ndash; and it was notoriously hard to implement correctly. Lamport published the original paper in 1989, but it was so difficult to parse that he rewrote it as &amp;ldquo;Paxos Made Simple&amp;rdquo; in 2001. The simpler version is still genuinely hard.&lt;/p&gt;&#xA;&lt;p&gt;Understanding Paxos is worth doing. It&amp;rsquo;s not just historical &amp;ndash; Chubby, ZooKeeper, and Spanner are built on it or close variants, and many distributed systems interviews probe it. More importantly, every simplification Raft makes is a direct response to a specific pain point in Paxos. Understanding what Paxos gets wrong explains why Raft looks the way it does.&lt;/p&gt;</description>
       <content:encoded><![CDATA[<p>Before Raft, there was Paxos. For about two decades it was the foundational answer to distributed consensus &ndash; and it was notoriously hard to implement correctly. Lamport published the original paper in 1989, but it was so difficult to parse that he rewrote it as &ldquo;Paxos Made Simple&rdquo; in 2001. The simpler version is still genuinely hard.</p>
 <p>Understanding Paxos is worth doing. It&rsquo;s not just historical &ndash; Chubby, ZooKeeper, and Spanner are built on it or close variants, and many distributed systems interviews probe it. More importantly, every simplification Raft makes is a direct response to a specific pain point in Paxos. Understanding what Paxos gets wrong explains why Raft looks the way it does.</p>
@@ -1507,9 +1507,9 @@ P2&#39;s ACCEPT(6, v) is now rejected
     </item>
     <item>
       <title>Three Useful Services on a $22/Year VPS</title>
-      <link>https://KTS-o7.github.io/bear/posts/vps_self_hosting_stack/</link>
+      <link>https://KTS-o7.github.io/bear/infra/vps_self_hosting_stack/</link>
       <pubDate>Wed, 22 Apr 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
-      <guid>https://KTS-o7.github.io/bear/posts/vps_self_hosting_stack/</guid>
+      <guid>https://KTS-o7.github.io/bear/infra/vps_self_hosting_stack/</guid>
       <description>&lt;p&gt;I bought a budget VPS for $22/year &amp;ndash; 1 vCPU, 2.9GB RAM, 30GB disk, Dallas datacenter, Ubuntu 24.04. The plan was to run bots and experiments. I ended up setting up three services that are immediately useful: Obsidian note sync, a private Matrix chat server, and a personal book library.&lt;/p&gt;&#xA;&lt;p&gt;This post covers what I set up, what broke, and what actually works now.&lt;/p&gt;&#xA;&lt;h2 id=&#34;starting-point&#34;&gt;Starting point&lt;/h2&gt;&#xA;&lt;p&gt;The provider gives you a root password on first boot. First thing I did was generate an ed25519 SSH key pair locally, paste the public key into the VPS control panel, add a &lt;code&gt;Host personal&lt;/code&gt; entry to &lt;code&gt;~/.ssh/config&lt;/code&gt;, and verify key auth works before touching anything else. Then disabling password login:&lt;/p&gt;</description>
       <content:encoded><![CDATA[<p>I bought a budget VPS for $22/year &ndash; 1 vCPU, 2.9GB RAM, 30GB disk, Dallas datacenter, Ubuntu 24.04. The plan was to run bots and experiments. I ended up setting up three services that are immediately useful: Obsidian note sync, a private Matrix chat server, and a personal book library.</p>
 <p>This post covers what I set up, what broke, and what actually works now.</p>
@@ -1724,9 +1724,9 @@ Disk used        ~6GB / 30GB</code></pre><p>74% of RAM still free. The 2GB swap 
     </item>
     <item>
       <title>Building a Second Brain with Obsidian, Zettelkasten, and an AI Agent</title>
-      <link>https://KTS-o7.github.io/bear/posts/obsidian_second_brain/</link>
+      <link>https://KTS-o7.github.io/bear/notes/obsidian_second_brain/</link>
       <pubDate>Tue, 21 Apr 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
-      <guid>https://KTS-o7.github.io/bear/posts/obsidian_second_brain/</guid>
+      <guid>https://KTS-o7.github.io/bear/notes/obsidian_second_brain/</guid>
       <description>&lt;p&gt;I spend most of my time building things. CNCFlow, a side project blog, ML experiments, X threads. The problem is not a lack of output &amp;ndash; it is that none of it compounds. I finish a project, learn something real, and two months later I am re-deriving the same insight from scratch because it never got written down anywhere I would actually look again.&lt;/p&gt;&#xA;&lt;p&gt;I have tried Notion. Tried Apple Notes. Tried dumping things in a text file. All of them eventually become a graveyard of notes I never revisit.&lt;/p&gt;</description>
       <content:encoded><![CDATA[<p>I spend most of my time building things. CNCFlow, a side project blog, ML experiments, X threads. The problem is not a lack of output &ndash; it is that none of it compounds. I finish a project, learn something real, and two months later I am re-deriving the same insight from scratch because it never got written down anywhere I would actually look again.</p>
 <p>I have tried Notion. Tried Apple Notes. Tried dumping things in a text file. All of them eventually become a graveyard of notes I never revisit.</p>
@@ -1798,9 +1798,9 @@ GOOD: <code>CAD users switch tools only when workflow pain exceeds switching cos
     </item>
     <item>
       <title>Fixing Silent $0 Streaming Costs in AgentBudget: An OSS Contribution</title>
-      <link>https://KTS-o7.github.io/bear/posts/agentbudget_ulimit_for_ai_agents/</link>
+      <link>https://KTS-o7.github.io/bear/notes/agentbudget_ulimit_for_ai_agents/</link>
       <pubDate>Thu, 16 Apr 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
-      <guid>https://KTS-o7.github.io/bear/posts/agentbudget_ulimit_for_ai_agents/</guid>
+      <guid>https://KTS-o7.github.io/bear/notes/agentbudget_ulimit_for_ai_agents/</guid>
       <description>&lt;p&gt;AgentBudget patches the OpenAI and Anthropic SDKs to track the cost of every LLM call. Set a budget, get a hard limit. Simple premise.&lt;/p&gt;&#xA;&lt;p&gt;Except there was a gap. Every streaming call cost $0.00 in the ledger. Silently. No error, no warning &amp;ndash; just wrong numbers.&lt;/p&gt;&#xA;&lt;p&gt;I found the gap, fixed it, and got the PR merged. This is the story of how streaming cost tracking actually works.&lt;/p&gt;&#xA;&lt;h2 id=&#34;what-agentbudget-does&#34;&gt;What AgentBudget does&lt;/h2&gt;&#xA;&lt;p&gt;AgentBudget is an open-source SDK that puts a hard dollar limit on AI agent sessions. Two lines, no infrastructure:&lt;/p&gt;</description>
       <content:encoded><![CDATA[<p>AgentBudget patches the OpenAI and Anthropic SDKs to track the cost of every LLM call. Set a budget, get a hard limit. Simple premise.</p>
 <p>Except there was a gap. Every streaming call cost $0.00 in the ledger. Silently. No error, no warning &ndash; just wrong numbers.</p>
@@ -1941,9 +1941,9 @@ GOOD: <code>CAD users switch tools only when workflow pain exceeds switching cos
     </item>
     <item>
       <title>Building a Local AI Stack: Hermes, Bifrost, Telegram, and Camoufox</title>
-      <link>https://KTS-o7.github.io/bear/posts/hermes_local_ai_stack/</link>
+      <link>https://KTS-o7.github.io/bear/notes/hermes_local_ai_stack/</link>
       <pubDate>Wed, 15 Apr 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
-      <guid>https://KTS-o7.github.io/bear/posts/hermes_local_ai_stack/</guid>
+      <guid>https://KTS-o7.github.io/bear/notes/hermes_local_ai_stack/</guid>
       <description>&lt;p&gt;I wanted a persistent AI agent that lives on my machine, reaches cloud models through a single gateway, and talks back to me on Telegram. Not a SaaS. Not a wrapper. Something I own end-to-end.&lt;/p&gt;&#xA;&lt;p&gt;This is the story of setting that up in one session, and the parts that went sideways.&lt;/p&gt;&#xA;&lt;h2 id=&#34;the-stack&#34;&gt;The Stack&lt;/h2&gt;&#xA;&lt;p&gt;Four moving parts:&lt;/p&gt;&#xA;&lt;ul&gt;&#xA;&lt;li&gt;&lt;strong&gt;Bifrost&lt;/strong&gt; &amp;ndash; LLM gateway already running on localhost:24242, routing to Ollama cloud models&lt;/li&gt;&#xA;&lt;li&gt;&lt;strong&gt;Hermes Agent&lt;/strong&gt; &amp;ndash; open-source AI agent framework by Nous Research, pointed at Bifrost&lt;/li&gt;&#xA;&lt;li&gt;&lt;strong&gt;Ollama&lt;/strong&gt; &amp;ndash; cloud relay for gemma4 and qwen3.5 cloud models via ollama.com&lt;/li&gt;&#xA;&lt;li&gt;&lt;strong&gt;Camoufox&lt;/strong&gt; &amp;ndash; Firefox fork with TLS fingerprint spoofing for scraping tasks&lt;/li&gt;&#xA;&lt;/ul&gt;&#xA;&lt;p&gt;The goal was to have Hermes run as a Telegram bot so I could assign it tasks from my phone, with all model traffic flowing through Bifrost so routing stays centralized.&lt;/p&gt;</description>
       <content:encoded><![CDATA[<p>I wanted a persistent AI agent that lives on my machine, reaches cloud models through a single gateway, and talks back to me on Telegram. Not a SaaS. Not a wrapper. Something I own end-to-end.</p>
 <p>This is the story of setting that up in one session, and the parts that went sideways.</p>
@@ -2102,9 +2102,9 @@ hermes     gateway -- Telegram bot (restricted to single user)</code></pre><p>Th
     </item>
     <item>
       <title>Freeseek: Turning DeepSeek&#39;s Web Chat into an OpenAI-Compatible API</title>
-      <link>https://KTS-o7.github.io/bear/posts/freeseek_proxy/</link>
+      <link>https://KTS-o7.github.io/bear/notes/freeseek_proxy/</link>
       <pubDate>Sat, 14 Mar 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
-      <guid>https://KTS-o7.github.io/bear/posts/freeseek_proxy/</guid>
+      <guid>https://KTS-o7.github.io/bear/notes/freeseek_proxy/</guid>
       <description>&lt;p&gt;I wanted to use DeepSeek with tools that only speak OpenAI&amp;rsquo;s API. DeepSeek&amp;rsquo;s official API has rate limits and costs money. Their web chat is free and unrestricted but it isn&amp;rsquo;t an API — it&amp;rsquo;s a browser session with Cloudflare protection, Proof-of-Work challenges, and a proprietary SSE format.&lt;/p&gt;&#xA;&lt;p&gt;So I built &lt;a href=&#34;https://github.com/KTS-o7/freeseek-proxy&#34;&gt;freeseek-proxy&lt;/a&gt;: a local proxy that sits between OpenAI-compatible clients (opencode, Claude Code, any SDK) and DeepSeek&amp;rsquo;s web chat backend. You send standard &lt;code&gt;/v1/chat/completions&lt;/code&gt; requests; it handles sessions, PoW, TLS fingerprinting, and SSE translation behind the scenes.&lt;/p&gt;</description>
       <content:encoded><![CDATA[<p>I wanted to use DeepSeek with tools that only speak OpenAI&rsquo;s API. DeepSeek&rsquo;s official API has rate limits and costs money. Their web chat is free and unrestricted but it isn&rsquo;t an API — it&rsquo;s a browser session with Cloudflare protection, Proof-of-Work challenges, and a proprietary SSE format.</p>
 <p>So I built <a href="https://github.com/KTS-o7/freeseek-proxy">freeseek-proxy</a>: a local proxy that sits between OpenAI-compatible clients (opencode, Claude Code, any SDK) and DeepSeek&rsquo;s web chat backend. You send standard <code>/v1/chat/completions</code> requests; it handles sessions, PoW, TLS fingerprinting, and SSE translation behind the scenes.</p>
@@ -2374,9 +2374,9 @@ data: [DONE]</code></pre><p>Indistinguishable from OpenAI. Any client that speak
     </item>
     <item>
       <title>Fixing Parallel Tool Call Streaming in Bifrost: An OSS Bug Hunt</title>
-      <link>https://KTS-o7.github.io/bear/posts/bifrost_parallel_tool_call_fix/</link>
+      <link>https://KTS-o7.github.io/bear/notes/bifrost_parallel_tool_call_fix/</link>
       <pubDate>Mon, 02 Mar 2026 00:00:00 +0000</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
-      <guid>https://KTS-o7.github.io/bear/posts/bifrost_parallel_tool_call_fix/</guid>
+      <guid>https://KTS-o7.github.io/bear/notes/bifrost_parallel_tool_call_fix/</guid>
       <description>&lt;p&gt;An AI agent calls three tools in parallel. The LLM streams back interleaved deltas — a few bytes of &lt;code&gt;search_documents&lt;/code&gt; arguments, then a few bytes of &lt;code&gt;get_user&lt;/code&gt;, then more &lt;code&gt;search_documents&lt;/code&gt;. On the other end, the gateway reassembles these fragments into complete tool calls.&lt;/p&gt;&#xA;&lt;p&gt;Except it doesn&amp;rsquo;t. It concatenates them all into one call: &lt;code&gt;search_documentsget_usersearch_documents&lt;/code&gt;. The agent hallucinates, retries, and loops. I stared at the telemetry for twenty minutes before I realized the bug wasn&amp;rsquo;t in the agent — it was in the gateway&amp;rsquo;s streaming accumulator.&lt;/p&gt;</description>
       <content:encoded><![CDATA[<p>An AI agent calls three tools in parallel. The LLM streams back interleaved deltas — a few bytes of <code>search_documents</code> arguments, then a few bytes of <code>get_user</code>, then more <code>search_documents</code>. On the other end, the gateway reassembles these fragments into complete tool calls.</p>
 <p>Except it doesn&rsquo;t. It concatenates them all into one call: <code>search_documentsget_usersearch_documents</code>. The agent hallucinates, retries, and loops. I stared at the telemetry for twenty minutes before I realized the bug wasn&rsquo;t in the agent — it was in the gateway&rsquo;s streaming accumulator.</p>
@@ -2602,9 +2602,9 @@ Delta 6: tool_call[1] args=&#39;123&#34;}&#39;             (index=1)</code></pre
     </item>
     <item>
       <title>Many Small Tasks, One Deadline: Running Parallel AI Agents with Git Worktrees</title>
-      <link>https://KTS-o7.github.io/bear/posts/codex_worktrees_adventure/</link>
+      <link>https://KTS-o7.github.io/bear/notes/codex_worktrees_adventure/</link>
       <pubDate>Thu, 19 Feb 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
-      <guid>https://KTS-o7.github.io/bear/posts/codex_worktrees_adventure/</guid>
+      <guid>https://KTS-o7.github.io/bear/notes/codex_worktrees_adventure/</guid>
       <description>&lt;p&gt;I thought this would be an easy day.&lt;/p&gt;&#xA;&lt;p&gt;The tasks were small. The backlog was not. This is the worst possible combo for a normal workflow because the fixed overhead dominates: branch setup, dependency sync, commits, reviewable diffs, and PR management. Doing it serially feels safe, but it is slow in a way that doesn&amp;rsquo;t show up in estimates.&lt;/p&gt;&#xA;&lt;p&gt;So I tried the obvious cheat: run multiple AI agents in parallel.&lt;/p&gt;</description>
       <content:encoded><![CDATA[<p>I thought this would be an easy day.</p>
 <p>The tasks were small. The backlog was not. This is the worst possible combo for a normal workflow because the fixed overhead dominates: branch setup, dependency sync, commits, reviewable diffs, and PR management. Doing it serially feels safe, but it is slow in a way that doesn&rsquo;t show up in estimates.</p>
@@ -2772,9 +2772,9 @@ Delta 6: tool_call[1] args=&#39;123&#34;}&#39;             (index=1)</code></pre
     </item>
     <item>
       <title>From Manual Deploys to SHA-Tagged Containers: CI/CD for a K8s Platform</title>
-      <link>https://KTS-o7.github.io/bear/posts/cicd_docker_buildx_sha_deploys/</link>
+      <link>https://KTS-o7.github.io/bear/infra/cicd_docker_buildx_sha_deploys/</link>
       <pubDate>Tue, 17 Feb 2026 00:00:00 +0000</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
-      <guid>https://KTS-o7.github.io/bear/posts/cicd_docker_buildx_sha_deploys/</guid>
+      <guid>https://KTS-o7.github.io/bear/infra/cicd_docker_buildx_sha_deploys/</guid>
       <description>&lt;p&gt;Someone tagged an image &lt;code&gt;latest&lt;/code&gt;, pushed it to ECR, and overwrote the image another service was using. Four hours of debugging later, we figured out we were running the wrong binary entirely. That was the week I decided to stop treating deployment as a manual process.&lt;/p&gt;&#xA;&lt;p&gt;This post covers three CI/CD problems I solved with Docker Buildx, SHA-based image tagging, and dynamic workflow generation — and one thing I broke along the way.&lt;/p&gt;</description>
       <content:encoded><![CDATA[<p>Someone tagged an image <code>latest</code>, pushed it to ECR, and overwrote the image another service was using. Four hours of debugging later, we figured out we were running the wrong binary entirely. That was the week I decided to stop treating deployment as a manual process.</p>
 <p>This post covers three CI/CD problems I solved with Docker Buildx, SHA-based image tagging, and dynamic workflow generation — and one thing I broke along the way.</p>
@@ -3183,9 +3183,9 @@ node_modules/</code></pre><p>Without this, we were sending ~500MB of context for
     </item>
     <item>
       <title>Hunting OOMKilled in Kubernetes: Four Memory Leaks That Almost Took Down Our Platform</title>
-      <link>https://KTS-o7.github.io/bear/posts/kubernetes_oom_memory_leaks/</link>
+      <link>https://KTS-o7.github.io/bear/infra/kubernetes_oom_memory_leaks/</link>
       <pubDate>Mon, 16 Feb 2026 00:00:00 +0000</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
-      <guid>https://KTS-o7.github.io/bear/posts/kubernetes_oom_memory_leaks/</guid>
+      <guid>https://KTS-o7.github.io/bear/infra/kubernetes_oom_memory_leaks/</guid>
       <description>&lt;p&gt;A pod restarts at 3 AM. Then again at 3:14. By 3:30 it&amp;rsquo;s in a &lt;code&gt;CrashLoopBackOff&lt;/code&gt;. The dashboard shows memory climbing in a clean line - no spikes, no sudden jumps - just a slow, relentless climb until the OOM killer steps in.&lt;/p&gt;&#xA;&lt;p&gt;This is the story of how I tracked down four distinct memory leaks across two Python services running on Kubernetes. Each one was a different flavor of &amp;ldquo;silent accumulation,&amp;rdquo; and each one taught me something about how easy it is to bleed memory in async Python without any obvious errors.&lt;/p&gt;</description>
       <content:encoded><![CDATA[<p>A pod restarts at 3 AM. Then again at 3:14. By 3:30 it&rsquo;s in a <code>CrashLoopBackOff</code>. The dashboard shows memory climbing in a clean line - no spikes, no sudden jumps - just a slow, relentless climb until the OOM killer steps in.</p>
 <p>This is the story of how I tracked down four distinct memory leaks across two Python services running on Kubernetes. Each one was a different flavor of &ldquo;silent accumulation,&rdquo; and each one taught me something about how easy it is to bleed memory in async Python without any obvious errors.</p>
@@ -3628,9 +3628,9 @@ node_modules/</code></pre><p>Without this, we were sending ~500MB of context for
     </item>
     <item>
       <title>SSE in FastAPI: The Tab Closed and My “Done” Code Never Ran</title>
-      <link>https://KTS-o7.github.io/bear/posts/sse_disconnect_handling/</link>
+      <link>https://KTS-o7.github.io/bear/infra/sse_disconnect_handling/</link>
       <pubDate>Fri, 23 Jan 2026 00:00:00 +0000</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
-      <guid>https://KTS-o7.github.io/bear/posts/sse_disconnect_handling/</guid>
+      <guid>https://KTS-o7.github.io/bear/infra/sse_disconnect_handling/</guid>
       <description>&lt;p&gt;I hit this bug the annoying way.&lt;/p&gt;&#xA;&lt;p&gt;A coworker said: “I ran task generation, closed the tab, and the status never moved.”&lt;/p&gt;&#xA;&lt;p&gt;My first reaction was “no way.” The backend is doing the work, not the browser.&lt;/p&gt;&#xA;&lt;p&gt;Turns out… yeah. It was right. And once you see why, you stop trusting “code after the stream” forever.&lt;/p&gt;&#xA;&lt;p&gt;This post is about a very specific trap:&lt;/p&gt;&#xA;&lt;ul&gt;&#xA;&lt;li&gt;you stream progress with SSE from a FastAPI endpoint&lt;/li&gt;&#xA;&lt;li&gt;you put important side effects &lt;em&gt;after&lt;/em&gt; the streaming loop (DB status updates, poller kickoff, Slack notifications)&lt;/li&gt;&#xA;&lt;li&gt;a client disconnect cancels the stream&lt;/li&gt;&#xA;&lt;li&gt;your “after the loop” code never runs&lt;/li&gt;&#xA;&lt;/ul&gt;&#xA;&lt;p&gt;It doesn’t always fail. It fails just enough to make you doubt your own system.&lt;/p&gt;</description>
       <content:encoded><![CDATA[<p>I hit this bug the annoying way.</p>
 <p>A coworker said: “I ran task generation, closed the tab, and the status never moved.”</p>
@@ -4178,9 +4178,9 @@ The trace is 14, \(\sigma_2(A)\) collects the 2×2 minors (e.g., \(2\cdot3, 2\cd
     </item>
     <item>
       <title>End-to-End HTTPS with Cloudflare Origin Certificates and Nginx</title>
-      <link>https://KTS-o7.github.io/bear/posts/reverse_proxy/</link>
+      <link>https://KTS-o7.github.io/bear/infra/reverse_proxy/</link>
       <pubDate>Sat, 27 Dec 2025 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
-      <guid>https://KTS-o7.github.io/bear/posts/reverse_proxy/</guid>
+      <guid>https://KTS-o7.github.io/bear/infra/reverse_proxy/</guid>
       <description>&lt;p&gt;Setting up proper SSL/TLS for your web application can be confusing, especially when Cloudflare is in the picture. This guide walks through configuring end-to-end encryption from browser to origin server using Cloudflare Origin Certificates with an Nginx reverse proxy running in Docker.&lt;/p&gt;&#xA;&lt;hr&gt;&#xA;&lt;h3 id=&#34;the-problem-cloudflare-521-errors&#34;&gt;The Problem: Cloudflare 521 Errors&lt;/h3&gt;&#xA;&lt;p&gt;If you&amp;rsquo;re running Nginx behind Cloudflare and seeing &lt;strong&gt;521 errors&lt;/strong&gt;, you likely have a mismatch between your Cloudflare SSL mode and what your origin server supports.&lt;/p&gt;</description>
       <content:encoded><![CDATA[<p>Setting up proper SSL/TLS for your web application can be confusing, especially when Cloudflare is in the picture. This guide walks through configuring end-to-end encryption from browser to origin server using Cloudflare Origin Certificates with an Nginx reverse proxy running in Docker.</p>
 <hr>
@@ -4786,9 +4786,9 @@ Since these certificates are for specific public domains, you can&rsquo;t easily
     </item>
     <item>
       <title>MongoDB Connection Pool Exhaustion: Diagnosis, Fixes, and SDAM</title>
-      <link>https://KTS-o7.github.io/bear/posts/connection_pool_exhaustion/</link>
+      <link>https://KTS-o7.github.io/bear/systems/connection_pool_exhaustion/</link>
       <pubDate>Sat, 06 Dec 2025 12:00:00 +0000</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
-      <guid>https://KTS-o7.github.io/bear/posts/connection_pool_exhaustion/</guid>
+      <guid>https://KTS-o7.github.io/bear/systems/connection_pool_exhaustion/</guid>
       <description>&lt;blockquote&gt;&#xA;&lt;p&gt;&lt;strong&gt;Why increasing maxPoolSize breaks your database.&lt;/strong&gt; A deep dive into MongoDB connection pooling, SDAM, WiredTiger tickets, and preventing transaction pinning.&lt;/p&gt;&#xA;&lt;/blockquote&gt;&#xA;&lt;h2 id=&#34;introduction&#34;&gt;Introduction&lt;/h2&gt;&#xA;&lt;p&gt;In the MongoDB ecosystem, the &amp;ldquo;connection pool&amp;rdquo; is often treated as a set-and-forget configuration within &lt;code&gt;MongoClient&lt;/code&gt;. However, when latency spikes or the database becomes unresponsive during high traffic, the pool is usually the first mechanism to break.&lt;/p&gt;&#xA;&lt;p&gt;Unlike relational databases that often sit behind proxies like PgBouncer, MongoDB drivers are &amp;ldquo;smart&amp;rdquo;—they maintain direct connections to multiple nodes in a Replica Set or Sharded Cluster. This complexity means exhaustion isn&amp;rsquo;t just about running out of sockets; it&amp;rsquo;s about topology monitoring, transaction pinning, and the brutal reality of the thread-per-connection model on the server side.&lt;/p&gt;</description>
       <content:encoded><![CDATA[<blockquote>
 <p><strong>Why increasing maxPoolSize breaks your database.</strong> A deep dive into MongoDB connection pooling, SDAM, WiredTiger tickets, and preventing transaction pinning.</p>
@@ -5295,9 +5295,9 @@ Monitor the rate of new connections (<code>connectionsCreated</code> per second)
     </item>
     <item>
       <title>Git</title>
-      <link>https://KTS-o7.github.io/bear/posts/git/</link>
+      <link>https://KTS-o7.github.io/bear/notes/git/</link>
       <pubDate>Thu, 04 Dec 2025 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
-      <guid>https://KTS-o7.github.io/bear/posts/git/</guid>
+      <guid>https://KTS-o7.github.io/bear/notes/git/</guid>
       <description>&lt;h2 id=&#34;git&#34;&gt;Git&lt;/h2&gt;&#xA;&lt;p&gt;Before we start, here&amp;rsquo;s a link to one of the best free books on Git: &lt;a href=&#34;https://git-scm.com/book/en/v2&#34;&gt;Pro Git Book&lt;/a&gt;&lt;/p&gt;&#xA;&lt;hr&gt;&#xA;&lt;h3 id=&#34;what-is-version-control&#34;&gt;What is Version Control?&lt;/h3&gt;&#xA;&lt;p&gt;When working on a project, we often need to keep track of changes made to the code. Version control systems help us track and reconcile changes across different versions of our codebase.&lt;/p&gt;&#xA;&lt;p&gt;Think of your codebase as a tree. Each change you make can create a new branch in the tree. It&amp;rsquo;s up to you to decide if your changes are good enough to become part of the main branch. But why a tree? Because we have a single source of truth (the &lt;code&gt;main&lt;/code&gt; branch) based on which we can reconcile all changes.&lt;/p&gt;</description>
       <content:encoded><![CDATA[<h2 id="git">Git</h2>
 <p>Before we start, here&rsquo;s a link to one of the best free books on Git: <a href="https://git-scm.com/book/en/v2">Pro Git Book</a></p>
@@ -5709,6 +5709,156 @@ $$G(n) = n \oplus (n >> 1)$$<h2 id="solution">Solution</h2>
 </span></span><span class="line"><span class="ln">21</span><span class="cl">    <span class="n">main</span><span class="p">()</span></span></span></code></pre></div>]]></content:encoded>
     </item>
     <item>
+      <title>Gray Code</title>
+      <link>https://KTS-o7.github.io/bear/notes/gray_code/</link>
+      <pubDate>Fri, 19 Sep 2025 23:03:51 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/notes/gray_code/</guid>
+      <description>&lt;p&gt;Link to the problem : &lt;a href=&#34;https://cses.fi/problemset/task/2205&#34;&gt;Gray Code&lt;/a&gt;&lt;/p&gt;&#xA;&lt;h2 id=&#34;intuition&#34;&gt;Intuition&lt;/h2&gt;&#xA;&lt;p&gt;The problem is asking us to generate the gray code for a given number n.&lt;/p&gt;&#xA;&lt;p&gt;Gray code is a binary numeral system where two successive values differ in only one bit.&#xA;This is similar to bit strings problem. But instead of printing the binary representation of the number, we need to print the gray code.&lt;/p&gt;&#xA;&lt;p&gt;The formula to generate the gray code for a given number n is:&#xA;&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>Link to the problem : <a href="https://cses.fi/problemset/task/2205">Gray Code</a></p>
+<h2 id="intuition">Intuition</h2>
+<p>The problem is asking us to generate the gray code for a given number n.</p>
+<p>Gray code is a binary numeral system where two successive values differ in only one bit.
+This is similar to bit strings problem. But instead of printing the binary representation of the number, we need to print the gray code.</p>
+<p>The formula to generate the gray code for a given number n is:
+</p>
+$$G(n) = n \oplus (n >> 1)$$<h2 id="solution">Solution</h2>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="ln">1</span><span class="cl"><span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+</span></span><span class="line"><span class="ln">2</span><span class="cl">    <span class="n">n</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">input</span><span class="p">())</span>
+</span></span><span class="line"><span class="ln">3</span><span class="cl">    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="o">**</span><span class="n">n</span><span class="p">):</span>   
+</span></span><span class="line"><span class="ln">4</span><span class="cl">        <span class="n">num</span> <span class="o">=</span> <span class="n">i</span><span class="o">^</span><span class="p">(</span><span class="n">i</span><span class="o">&gt;&gt;</span><span class="mi">1</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">5</span><span class="cl">        <span class="n">num_str</span> <span class="o">=</span> <span class="nb">bin</span><span class="p">(</span><span class="n">num</span><span class="p">)[</span><span class="mi">2</span><span class="p">:]</span><span class="o">.</span><span class="n">zfill</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">6</span><span class="cl">        <span class="nb">print</span><span class="p">(</span><span class="n">num_str</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s2">&#34;</span><span class="se">\n</span><span class="s2">&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">7</span><span class="cl">
+</span></span><span class="line"><span class="ln">8</span><span class="cl"><span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&#34;__main__&#34;</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">9</span><span class="cl">    <span class="n">main</span><span class="p">()</span></span></span></code></pre></div><h2 id="other-possible-solutions">Other possible solutions</h2>
+<h3 id="bit-by-bit-approach">Bit-by-Bit Approach</h3>
+<p>This approach constructs the Gray code by calculating each bit position individually using the property that the i-th bit of the Gray code is the XOR of the i-th and (i+1)-th bits of the binary representation.</p>
+<h4 id="dry-run-for-n--2">Dry Run for n = 2</h4>
+<p>For n = 2, we need to generate 4 Gray codes (2² = 4). Let&rsquo;s walk through each iteration:</p>
+<p><strong>Iteration 1: i = 0</strong></p>
+<ul>
+<li>Binary representation: 00</li>
+<li><strong>Bit position 0 (rightmost):</strong>
+<ul>
+<li>Current bit: (0 &raquo; 0) &amp; 1 = 0 &amp; 1 = 0</li>
+<li>Next bit: (0 &raquo; 1) &amp; 1 = 0 &amp; 1 = 0 (since bit position 1 &lt; n=2)</li>
+<li>Gray bit: 0 ⊕ 0 = 0</li>
+<li>Set bit: gray = 0 | (0 &laquo; 0) = 0</li>
+</ul>
+</li>
+<li><strong>Bit position 1:</strong>
+<ul>
+<li>Current bit: (0 &raquo; 1) &amp; 1 = 0 &amp; 1 = 0</li>
+<li>Next bit: 0 (since bit position 2 &gt;= n=2)</li>
+<li>Gray bit: 0 ⊕ 0 = 0</li>
+<li>Set bit: gray = 0 | (0 &laquo; 1) = 0</li>
+</ul>
+</li>
+<li>Result: 00</li>
+</ul>
+<p><strong>Iteration 2: i = 1</strong></p>
+<ul>
+<li>Binary representation: 01</li>
+<li><strong>Bit position 0:</strong>
+<ul>
+<li>Current bit: (1 &raquo; 0) &amp; 1 = 1 &amp; 1 = 1</li>
+<li>Next bit: (1 &raquo; 1) &amp; 1 = 0 &amp; 1 = 0</li>
+<li>Gray bit: 1 ⊕ 0 = 1</li>
+<li>Set bit: gray = 0 | (1 &laquo; 0) = 1</li>
+</ul>
+</li>
+<li><strong>Bit position 1:</strong>
+<ul>
+<li>Current bit: (1 &raquo; 1) &amp; 1 = 0 &amp; 1 = 0</li>
+<li>Next bit: 0 (since bit position 2 &gt;= n=2)</li>
+<li>Gray bit: 0 ⊕ 0 = 0</li>
+<li>Set bit: gray = 1 | (0 &laquo; 1) = 1</li>
+</ul>
+</li>
+<li>Result: 01</li>
+</ul>
+<p><strong>Iteration 3: i = 2</strong></p>
+<ul>
+<li>Binary representation: 10</li>
+<li><strong>Bit position 0:</strong>
+<ul>
+<li>Current bit: (2 &raquo; 0) &amp; 1 = 2 &amp; 1 = 0 (2 in binary is 10, rightmost bit is 0)</li>
+<li>Next bit: (2 &raquo; 1) &amp; 1 = 1 &amp; 1 = 1</li>
+<li>Gray bit: 0 ⊕ 1 = 1</li>
+<li>Set bit: gray = 0 | (1 &laquo; 0) = 1</li>
+</ul>
+</li>
+<li><strong>Bit position 1:</strong>
+<ul>
+<li>Current bit: (2 &raquo; 1) &amp; 1 = 1 &amp; 1 = 1</li>
+<li>Next bit: 0 (since bit position 2 &gt;= n=2)</li>
+<li>Gray bit: 1 ⊕ 0 = 1</li>
+<li>Set bit: gray = 1 | (1 &laquo; 1) = 1 | 2 = 3</li>
+</ul>
+</li>
+<li>Result: 11</li>
+</ul>
+<p><strong>Iteration 4: i = 3</strong></p>
+<ul>
+<li>Binary representation: 11</li>
+<li><strong>Bit position 0:</strong>
+<ul>
+<li>Current bit: (3 &raquo; 0) &amp; 1 = 3 &amp; 1 = 1 (3 in binary is 11, rightmost bit is 1)</li>
+<li>Next bit: (3 &raquo; 1) &amp; 1 = 1 &amp; 1 = 1</li>
+<li>Gray bit: 1 ⊕ 1 = 0</li>
+<li>Set bit: gray = 0 | (0 &laquo; 0) = 0</li>
+</ul>
+</li>
+<li><strong>Bit position 1:</strong>
+<ul>
+<li>Current bit: (3 &raquo; 1) &amp; 1 = 1 &amp; 1 = 1</li>
+<li>Next bit: 0 (since bit position 2 &gt;= n=2)</li>
+<li>Gray bit: 1 ⊕ 0 = 1</li>
+<li>Set bit: gray = 0 | (1 &laquo; 1) = 2</li>
+</ul>
+</li>
+<li>Result: 10</li>
+</ul>
+<p><strong>Final Gray Code Sequence:</strong> 00, 01, 11, 10</p>
+<p>Notice how each consecutive Gray code differs by only one bit:</p>
+<ul>
+<li>00 → 01 (bit 0 changes: 0→1)</li>
+<li>01 → 11 (bit 1 changes: 0→1)</li>
+<li>11 → 10 (bit 0 changes: 1→0)</li>
+</ul>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="k">def</span> <span class="nf">generate_gray_code_bitwise</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl">    <span class="n">result</span> <span class="o">=</span> <span class="p">[]</span>
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl">    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="o">**</span><span class="n">n</span><span class="p">):</span>
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl">        <span class="n">gray</span> <span class="o">=</span> <span class="mi">0</span>
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl">        <span class="k">for</span> <span class="n">bit</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">            <span class="c1"># Gray bit is XOR of current bit and next bit</span>
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl">            <span class="n">current_bit</span> <span class="o">=</span> <span class="p">(</span><span class="n">i</span> <span class="o">&gt;&gt;</span> <span class="n">bit</span><span class="p">)</span> <span class="o">&amp;</span> <span class="mi">1</span> <span class="c1"># this step get the current bit using bitwise shift and bitwise and</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl">            <span class="n">next_bit</span> <span class="o">=</span> <span class="p">(</span><span class="n">i</span> <span class="o">&gt;&gt;</span> <span class="p">(</span><span class="n">bit</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span> <span class="o">&amp;</span> <span class="mi">1</span> <span class="k">if</span> <span class="n">bit</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">&lt;</span> <span class="n">n</span> <span class="k">else</span> <span class="mi">0</span> <span class="c1"># this step get the next bit using bitwise shift and bitwise and</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">            <span class="n">gray_bit</span> <span class="o">=</span> <span class="n">current_bit</span> <span class="o">^</span> <span class="n">next_bit</span> <span class="c1"># this step get the gray bit using bitwise xor</span>
+</span></span><span class="line"><span class="ln">10</span><span class="cl">            <span class="n">gray</span> <span class="o">|=</span> <span class="p">(</span><span class="n">gray_bit</span> <span class="o">&lt;&lt;</span> <span class="n">bit</span><span class="p">)</span> <span class="c1"># this step set the gray bit using bitwise or</span>
+</span></span><span class="line"><span class="ln">11</span><span class="cl">        <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">bin</span><span class="p">(</span><span class="n">gray</span><span class="p">)[</span><span class="mi">2</span><span class="p">:]</span><span class="o">.</span><span class="n">zfill</span><span class="p">(</span><span class="n">n</span><span class="p">))</span>
+</span></span><span class="line"><span class="ln">12</span><span class="cl">    <span class="k">return</span> <span class="n">result</span>
+</span></span><span class="line"><span class="ln">13</span><span class="cl">
+</span></span><span class="line"><span class="ln">14</span><span class="cl"><span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+</span></span><span class="line"><span class="ln">15</span><span class="cl">    <span class="n">n</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">input</span><span class="p">())</span>
+</span></span><span class="line"><span class="ln">16</span><span class="cl">    <span class="n">gray_codes</span> <span class="o">=</span> <span class="n">generate_gray_code_bitwise</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">17</span><span class="cl">    <span class="k">for</span> <span class="n">code</span> <span class="ow">in</span> <span class="n">gray_codes</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">18</span><span class="cl">        <span class="nb">print</span><span class="p">(</span><span class="n">code</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">19</span><span class="cl">
+</span></span><span class="line"><span class="ln">20</span><span class="cl"><span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&#34;__main__&#34;</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">21</span><span class="cl">    <span class="n">main</span><span class="p">()</span></span></span></code></pre></div>]]></content:encoded>
+    </item>
+    <item>
       <title>Bit Strings</title>
       <link>https://KTS-o7.github.io/bear/cses.fi/bit_strings/</link>
       <pubDate>Fri, 19 Sep 2025 22:53:15 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
@@ -5751,10 +5901,216 @@ Basically its 2^n combinations.</p>
 </span></span><span class="line"><span class="ln">13</span><span class="cl"><span class="p">}</span></span></span></code></pre></div>]]></content:encoded>
     </item>
     <item>
+      <title>Bit Strings</title>
+      <link>https://KTS-o7.github.io/bear/notes/bit_strings/</link>
+      <pubDate>Fri, 19 Sep 2025 22:53:15 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/notes/bit_strings/</guid>
+      <description>&lt;p&gt;Link to the problem : &lt;a href=&#34;https://cses.fi/problemset/task/1617&#34;&gt;Bit Strings&lt;/a&gt;&lt;/p&gt;&#xA;&lt;h2 id=&#34;intuition&#34;&gt;Intuition&lt;/h2&gt;&#xA;&lt;p&gt;Problem is asking us to find the number of combinations of 0s and 1s of length n.&#xA;Basically its 2^n combinations.&lt;/p&gt;&#xA;&lt;h2 id=&#34;solution&#34;&gt;Solution&lt;/h2&gt;&#xA;&#xA;&#xA;&#xA;&#xA;&#xA;&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-python&#34; data-lang=&#34;python&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;ln&#34;&gt;1&lt;/span&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;k&#34;&gt;def&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;main&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;():&lt;/span&gt;&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;ln&#34;&gt;2&lt;/span&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;n&#34;&gt;n&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;nb&#34;&gt;int&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;input&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;())&lt;/span&gt;&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;ln&#34;&gt;3&lt;/span&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;nb&#34;&gt;print&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;2&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;**&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;n&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;%&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;1000000007&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;ln&#34;&gt;4&lt;/span&gt;&lt;span class=&#34;cl&#34;&gt;&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;ln&#34;&gt;5&lt;/span&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;vm&#34;&gt;__name__&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;==&lt;/span&gt; &lt;span class=&#34;s2&#34;&gt;&amp;#34;__main__&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;ln&#34;&gt;6&lt;/span&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;n&#34;&gt;main&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;In python it feels cheating to use the power operator **, but it is a valid way to solve the problem.&lt;/p&gt;&#xA;&lt;p&gt;In lower level languages like C, C++, Java, we need to use a loop to calculate the power of 2 and each time we take modulo 1e9+7.&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>Link to the problem : <a href="https://cses.fi/problemset/task/1617">Bit Strings</a></p>
+<h2 id="intuition">Intuition</h2>
+<p>Problem is asking us to find the number of combinations of 0s and 1s of length n.
+Basically its 2^n combinations.</p>
+<h2 id="solution">Solution</h2>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="ln">1</span><span class="cl"><span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+</span></span><span class="line"><span class="ln">2</span><span class="cl">    <span class="n">n</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">input</span><span class="p">())</span>
+</span></span><span class="line"><span class="ln">3</span><span class="cl">    <span class="nb">print</span><span class="p">(</span><span class="mi">2</span><span class="o">**</span><span class="n">n</span> <span class="o">%</span> <span class="mi">1000000007</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">4</span><span class="cl">
+</span></span><span class="line"><span class="ln">5</span><span class="cl"><span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&#34;__main__&#34;</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">6</span><span class="cl">    <span class="n">main</span><span class="p">()</span></span></span></code></pre></div><p>In python it feels cheating to use the power operator **, but it is a valid way to solve the problem.</p>
+<p>In lower level languages like C, C++, Java, we need to use a loop to calculate the power of 2 and each time we take modulo 1e9+7.</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;stdio.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="ln"> 2</span><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;stdlib.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="ln"> 3</span><span class="cl">
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl"><span class="kt">int</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl">    <span class="kt">int</span> <span class="n">n</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">    <span class="nf">scanf</span><span class="p">(</span><span class="s">&#34;%d&#34;</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">n</span><span class="p">);</span>
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl">    <span class="kt">long</span> <span class="kt">long</span> <span class="n">result</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl">    <span class="k">for</span><span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">n</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">        <span class="n">result</span> <span class="o">=</span> <span class="p">(</span><span class="n">result</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="o">%</span> <span class="mi">1000000007</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln">10</span><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="ln">11</span><span class="cl">    <span class="nf">printf</span><span class="p">(</span><span class="s">&#34;%lld</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span> <span class="n">result</span><span class="p">);</span>
+</span></span><span class="line"><span class="ln">12</span><span class="cl">    <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln">13</span><span class="cl"><span class="p">}</span></span></span></code></pre></div>]]></content:encoded>
+    </item>
+    <item>
       <title>Two Sets</title>
       <link>https://KTS-o7.github.io/bear/cses.fi/two_sets/</link>
       <pubDate>Fri, 19 Sep 2025 15:41:11 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
       <guid>https://KTS-o7.github.io/bear/cses.fi/two_sets/</guid>
+      <description>&lt;p&gt;Link to the problem : &lt;a href=&#34;https://cses.fi/problemset/task/1092&#34;&gt;Two Sets&lt;/a&gt;&lt;/p&gt;&#xA;&lt;h2 id=&#34;intuition&#34;&gt;Intuition&lt;/h2&gt;&#xA;&lt;p&gt;The problem asking us to partition the given set of numbers into two sets such that the sum of the numbers in the two sets are equal.&lt;/p&gt;&#xA;&lt;p&gt;For the sum of two sets to be equal the total sum of the numbers must be even.&#xA;That means sum(numbers) % 2 == 0.&#xA;by the forumla for the sum of the first n natural numbers, sum(numbers) = n * (n + 1) / 2.&#xA;So that means sum of each set must be n * (n + 1) / 4.&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>Link to the problem : <a href="https://cses.fi/problemset/task/1092">Two Sets</a></p>
+<h2 id="intuition">Intuition</h2>
+<p>The problem asking us to partition the given set of numbers into two sets such that the sum of the numbers in the two sets are equal.</p>
+<p>For the sum of two sets to be equal the total sum of the numbers must be even.
+That means sum(numbers) % 2 == 0.
+by the forumla for the sum of the first n natural numbers, sum(numbers) = n * (n + 1) / 2.
+So that means sum of each set must be n * (n + 1) / 4.</p>
+<p>Hence we got that n mod 4 is 0  or (n+1) mod 4 is 0, combining both we get n mod 4 must be 0 or 3 to be able to partition the numbers into two sets.
+So this becomes a necessary condition for the problem to be solvable.</p>
+<p>but this is not a sufficient condition.</p>
+<p>When
+n mod 4 = 0:
+Total sum is even, partition is possible.
+The set can be split so both subsets have the same number of elements (equal size).</p>
+<p>Example:
+n=8</p>
+<p>Pairs: (8,1), (7,2), (6,3), (5,4)</p>
+<p>Assign two pairs to one set, the other two pairs to the other set—both sum to 18.</p>
+<p>When n mod 4 = 3:
+Total sum is even, partition is possible.</p>
+<p>The sets will have different sizes (one will have one more element).
+Example:
+n=7</p>
+<p>Pairs: (7,1,6) sums to 14, rest (2,3,4,5) sum to 14.</p>
+<p>The sum of each smallest–largest pair is always n+1.</p>
+<p>For  n mod 4 = 0: you can split pairs alternately between the two sets.</p>
+<p>For n mod 4 = 3:  this is a tricky case
+Consider some integer k such that we have n = 4k+3. that means n mod 4 = 3.
+Now sum of n numbers is n * (n + 1) / 2 = (4k+3) * (4k+4) / 2 = (4k+3) * (2k+2)</p>
+<hr>
+<h3 id="mathematical-derivation">Mathematical Derivation</h3>
+<p>For n = 4k + 3, we assign:</p>
+<ul>
+<li><strong>Set 1</strong>: numbers where i ≡ 1 or 2 (mod 4)</li>
+<li><strong>Set 2</strong>: numbers where i ≡ 0 or 3 (mod 4)</li>
+</ul>
+<h4 id="count-of-numbers-in-each-residue-class">Count of numbers in each residue class:</h4>
+<ul>
+<li><strong>≡ 0 mod 4</strong>: k numbers (4, 8, &hellip;, 4k)</li>
+<li><strong>≡ 1 mod 4</strong>: k+1 numbers (1, 5, &hellip;, 4k+1)</li>
+<li><strong>≡ 2 mod 4</strong>: k+1 numbers (2, 6, &hellip;, 4k+2)</li>
+<li><strong>≡ 3 mod 4</strong>: k+1 numbers (3, 7, &hellip;, 4k+3)</li>
+</ul>
+<h4 id="sum-of-each-residue-class">Sum of each residue class:</h4>
+<p><strong>≡ 0 mod 4</strong>:</p>
+
+
+
+
+
+<pre tabindex="0"><code>4 + 8 + ... + 4k = 4(1 + 2 + ... + k) = 4 × k(k+1)/2 = 2k(k+1)</code></pre><p><strong>≡ 1 mod 4</strong>:</p>
+
+
+
+
+
+<pre tabindex="0"><code>1 + 5 + 9 + ... + (4k+1)</code></pre><p>Arithmetic series: first term = 1, last term = 4k+1, common difference = 4, terms = k+1</p>
+
+
+
+
+
+<pre tabindex="0"><code>Sum = (k+1) × (1 + 4k+1)/2 = (k+1) × (4k+2)/2 = (k+1) × 2(k+1) = 2(k+1)²</code></pre><p><strong>≡ 2 mod 4</strong>:</p>
+
+
+
+
+
+<pre tabindex="0"><code>2 + 6 + 10 + ... + (4k+2)</code></pre><p>Arithmetic series: first term = 2, last term = 4k+2, common difference = 4, terms = k+1</p>
+
+
+
+
+
+<pre tabindex="0"><code>Sum = (k+1) × (2 + 4k+2)/2 = (k+1) × (4k+4)/2 = (k+1) × 2(k+2) = 2(k+1)(k+2)</code></pre><p><strong>≡ 3 mod 4</strong>:</p>
+
+
+
+
+
+<pre tabindex="0"><code>3 + 7 + 11 + ... + (4k+3)</code></pre><p>Arithmetic series: first term = 3, last term = 4k+3, common difference = 4, terms = k+1</p>
+
+
+
+
+
+<pre tabindex="0"><code>Sum = (k+1) × (3 + 4k+3)/2 = (k+1) × (4k+6)/2 = (k+1) × 2(k+3) = 2(k+1)(k+3)</code></pre><h4 id="total-sum-verification">Total sum verification:</h4>
+
+
+
+
+
+<pre tabindex="0"><code>Total sum = 2k(k+1) + 2(k+1)² + 2(k+1)(k+2) + 2(k+1)(k+3)
+         = 2(k+1) × [k + (k+1) + (k+2) + (k+3)]
+         = 2(k+1) × (4k + 6)
+         = 2(k+1) × 2(2k + 3)
+         = 4(k+1)(2k + 3)</code></pre><p>Each set should sum to: <strong>2(k+1)(2k + 3)</strong></p>
+<h4 id="sum-of-each-set">Sum of each set:</h4>
+<p><strong>Set 1 (≡1 or ≡2 mod 4)</strong>:</p>
+
+
+
+
+
+<pre tabindex="0"><code>Sum = 2(k+1)² + 2(k+1)(k+2) = 2(k+1) × [(k+1) + (k+2)] = 2(k+1) × (2k + 3)</code></pre><p><strong>Set 2 (≡0 or ≡3 mod 4)</strong>:</p>
+
+
+
+
+
+<pre tabindex="0"><code>Sum = 2k(k+1) + 2(k+1)(k+3) = 2(k+1) × [k + (k+3)] = 2(k+1) × (2k + 3)</code></pre><p>Both sets sum to <strong>2(k+1)(2k + 3)</strong>, which is exactly half the total sum.</p>
+<hr>
+<h2 id="solution">Solution</h2>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl">    <span class="n">n</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">input</span><span class="p">())</span>
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl">    <span class="k">if</span> <span class="n">n</span> <span class="o">%</span> <span class="mi">4</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">):</span>
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl">        <span class="nb">print</span><span class="p">(</span><span class="s2">&#34;NO&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl">        <span class="k">return</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">    
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl">    <span class="n">set1</span> <span class="o">=</span> <span class="p">[]</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl">    <span class="n">set2</span> <span class="o">=</span> <span class="p">[]</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">    <span class="n">toggle</span> <span class="o">=</span> <span class="kc">True</span>
+</span></span><span class="line"><span class="ln">10</span><span class="cl">    
+</span></span><span class="line"><span class="ln">11</span><span class="cl">    <span class="k">if</span> <span class="n">n</span> <span class="o">%</span> <span class="mi">4</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">12</span><span class="cl">        <span class="n">low</span> <span class="o">=</span> <span class="mi">1</span>
+</span></span><span class="line"><span class="ln">13</span><span class="cl">        <span class="n">high</span> <span class="o">=</span> <span class="n">n</span>
+</span></span><span class="line"><span class="ln">14</span><span class="cl">        <span class="k">while</span> <span class="n">low</span> <span class="o">&lt;=</span> <span class="n">high</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">15</span><span class="cl">            <span class="k">if</span> <span class="n">toggle</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">16</span><span class="cl">                <span class="n">set1</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">low</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">17</span><span class="cl">                <span class="n">set1</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">high</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">18</span><span class="cl">            <span class="k">else</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">19</span><span class="cl">                <span class="n">set2</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">low</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">20</span><span class="cl">                <span class="n">set2</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">high</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">21</span><span class="cl">            <span class="n">low</span> <span class="o">+=</span> <span class="mi">1</span>
+</span></span><span class="line"><span class="ln">22</span><span class="cl">            <span class="n">high</span> <span class="o">-=</span> <span class="mi">1</span>
+</span></span><span class="line"><span class="ln">23</span><span class="cl">            <span class="n">toggle</span> <span class="o">=</span> <span class="ow">not</span> <span class="n">toggle</span>
+</span></span><span class="line"><span class="ln">24</span><span class="cl">    <span class="k">else</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">25</span><span class="cl">        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">n</span><span class="o">+</span><span class="mi">1</span><span class="p">):</span>
+</span></span><span class="line"><span class="ln">26</span><span class="cl">            <span class="k">if</span> <span class="n">i</span> <span class="o">%</span> <span class="mi">4</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">or</span> <span class="n">i</span> <span class="o">%</span> <span class="mi">4</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span> <span class="c1"># </span>
+</span></span><span class="line"><span class="ln">27</span><span class="cl">                <span class="n">set1</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">28</span><span class="cl">            <span class="k">else</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">29</span><span class="cl">                <span class="n">set2</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">30</span><span class="cl">    
+</span></span><span class="line"><span class="ln">31</span><span class="cl">    <span class="c1"># Output the result</span>
+</span></span><span class="line"><span class="ln">32</span><span class="cl">    <span class="nb">print</span><span class="p">(</span><span class="s2">&#34;YES&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">33</span><span class="cl">    <span class="nb">print</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">set1</span><span class="p">))</span>
+</span></span><span class="line"><span class="ln">34</span><span class="cl">    <span class="nb">print</span><span class="p">(</span><span class="s2">&#34; &#34;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">set1</span><span class="p">)))</span>
+</span></span><span class="line"><span class="ln">35</span><span class="cl">    <span class="nb">print</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">set2</span><span class="p">))</span>
+</span></span><span class="line"><span class="ln">36</span><span class="cl">    <span class="nb">print</span><span class="p">(</span><span class="s2">&#34; &#34;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">set2</span><span class="p">)))</span>
+</span></span><span class="line"><span class="ln">37</span><span class="cl">
+</span></span><span class="line"><span class="ln">38</span><span class="cl"><span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&#34;__main__&#34;</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">39</span><span class="cl">    <span class="n">main</span><span class="p">()</span></span></span></code></pre></div>]]></content:encoded>
+    </item>
+    <item>
+      <title>Two Sets</title>
+      <link>https://KTS-o7.github.io/bear/notes/two_sets/</link>
+      <pubDate>Fri, 19 Sep 2025 15:41:11 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/notes/two_sets/</guid>
       <description>&lt;p&gt;Link to the problem : &lt;a href=&#34;https://cses.fi/problemset/task/1092&#34;&gt;Two Sets&lt;/a&gt;&lt;/p&gt;&#xA;&lt;h2 id=&#34;intuition&#34;&gt;Intuition&lt;/h2&gt;&#xA;&lt;p&gt;The problem asking us to partition the given set of numbers into two sets such that the sum of the numbers in the two sets are equal.&lt;/p&gt;&#xA;&lt;p&gt;For the sum of two sets to be equal the total sum of the numbers must be even.&#xA;That means sum(numbers) % 2 == 0.&#xA;by the forumla for the sum of the first n natural numbers, sum(numbers) = n * (n + 1) / 2.&#xA;So that means sum of each set must be n * (n + 1) / 4.&lt;/p&gt;</description>
       <content:encoded><![CDATA[<p>Link to the problem : <a href="https://cses.fi/problemset/task/1092">Two Sets</a></p>
 <h2 id="intuition">Intuition</h2>
@@ -5962,10 +6318,135 @@ example
 ]]></content:encoded>
     </item>
     <item>
+      <title>Permutations</title>
+      <link>https://KTS-o7.github.io/bear/notes/permutations/</link>
+      <pubDate>Thu, 18 Sep 2025 22:49:10 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/notes/permutations/</guid>
+      <description>&lt;p&gt;Link to the problem : &lt;a href=&#34;https://cses.fi/problemset/task/1070&#34;&gt;Permutations&lt;/a&gt;&lt;/p&gt;&#xA;&lt;h2 id=&#34;intuition&#34;&gt;Intuition&lt;/h2&gt;&#xA;&lt;p&gt;The idea is to generate a permutation of the numbers from 1 to n such that the difference between any two consecutive elements is at least greater than 1.&lt;/p&gt;&#xA;&lt;p&gt;One way to do this is to first write all the even numbers between 1 and n in increasing order and then write all the odd numbers between 1 and n in increasing order.&lt;/p&gt;&#xA;&lt;p&gt;This is only one such solution. There are other solutions as well.&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>Link to the problem : <a href="https://cses.fi/problemset/task/1070">Permutations</a></p>
+<h2 id="intuition">Intuition</h2>
+<p>The idea is to generate a permutation of the numbers from 1 to n such that the difference between any two consecutive elements is at least greater than 1.</p>
+<p>One way to do this is to first write all the even numbers between 1 and n in increasing order and then write all the odd numbers between 1 and n in increasing order.</p>
+<p>This is only one such solution. There are other solutions as well.</p>
+<p>Edge case:</p>
+<ul>
+<li>If n is 1, print 1. this is  because there are no consecutive elements in the permutation, hence is a valid permutation.</li>
+<li>If n is less than 4, print &ldquo;NO SOLUTION&rdquo;.
+because for n &lt; 4, any permutation will have a difference between any two consecutive elements less than 1.
+example
+1 2 3 4, 1 3 2 4, 1 3 4 2, etc are not valid permutations.</li>
+</ul>
+<h2 id="solution">Solution</h2>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl">    <span class="n">n</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">input</span><span class="p">())</span>
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl">    <span class="k">if</span> <span class="n">n</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl">        <span class="nb">print</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl">        <span class="k">return</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">    <span class="k">if</span> <span class="n">n</span> <span class="o">&lt;</span> <span class="mi">4</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl">        <span class="nb">print</span><span class="p">(</span><span class="s2">&#34;NO SOLUTION&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl">        <span class="k">return</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span><span class="n">n</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">):</span>
+</span></span><span class="line"><span class="ln">10</span><span class="cl">        <span class="nb">print</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s2">&#34; &#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">11</span><span class="cl">    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="n">n</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">):</span>
+</span></span><span class="line"><span class="ln">12</span><span class="cl">        <span class="nb">print</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s2">&#34; &#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">13</span><span class="cl">
+</span></span><span class="line"><span class="ln">14</span><span class="cl"><span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&#34;__main__&#34;</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">15</span><span class="cl">    <span class="n">main</span><span class="p">()</span></span></span></code></pre></div><h3 id="other-possible-solutions">Other possible solutions</h3>
+<ul>
+<li>Write all the odd numbers between 1 and n in increasing order and then write all the even numbers between 1 and n in increasing order.</li>
+<li>Write all the odd numbers between 1 and n in decreasing order and then write all the even numbers between 1 and n in decreasing order.</li>
+<li>Write all the even numbers between 1 and n in increasing order and then write all the odd numbers between 1 and n in decreasing order.</li>
+</ul>
+]]></content:encoded>
+    </item>
+    <item>
       <title>Increasing Array</title>
       <link>https://KTS-o7.github.io/bear/cses.fi/increasing_array/</link>
       <pubDate>Thu, 18 Sep 2025 22:37:39 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
       <guid>https://KTS-o7.github.io/bear/cses.fi/increasing_array/</guid>
+      <description>&lt;p&gt;Link to the problem : &lt;a href=&#34;https://cses.fi/problemset/task/1094&#34;&gt;Increasing Array&lt;/a&gt;&lt;/p&gt;&#xA;&lt;h2 id=&#34;intuition&#34;&gt;Intuition&lt;/h2&gt;&#xA;&lt;p&gt;The idea is to make an array increasing by making the current element equal to or greater than the previous element.&#xA;and in each step we can increase the value of a single element by 1.&lt;/p&gt;&#xA;&lt;p&gt;That means for &lt;code&gt;i&lt;/code&gt;th element which is less than the &lt;code&gt;i-1&lt;/code&gt;th element, we need &lt;code&gt;elem[i-1] - elem[i]&lt;/code&gt; steps to make it equal to or greater than the &lt;code&gt;i-1&lt;/code&gt;th element.&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>Link to the problem : <a href="https://cses.fi/problemset/task/1094">Increasing Array</a></p>
+<h2 id="intuition">Intuition</h2>
+<p>The idea is to make an array increasing by making the current element equal to or greater than the previous element.
+and in each step we can increase the value of a single element by 1.</p>
+<p>That means for <code>i</code>th element which is less than the <code>i-1</code>th element, we need <code>elem[i-1] - elem[i]</code> steps to make it equal to or greater than the <code>i-1</code>th element.</p>
+<p>So we can come up with the following algorithm:</p>
+<ul>
+<li>Loop through the array</li>
+<li>If the current element is less than the previous element, we need to increase the current element to the previous element.</li>
+<li>Increment the count by the difference between the previous element and the current element.</li>
+<li>Update the current element to the previous element.</li>
+</ul>
+<p>At the end of the loop, we will have the minimum number of steps to make the array increasing.</p>
+<h2 id="solution">Solution</h2>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl">    <span class="n">n</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">input</span><span class="p">())</span>
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl">    <span class="n">nums</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">input</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">()))</span>
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl">    <span class="n">count</span> <span class="o">=</span> <span class="mi">0</span>
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl">    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="n">n</span><span class="o">-</span><span class="mi">1</span><span class="p">):</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">        <span class="k">if</span> <span class="n">nums</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">nums</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">]:</span>
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl">            <span class="n">count</span> <span class="o">+=</span> <span class="n">nums</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">-</span> <span class="n">nums</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl">            <span class="n">nums</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">nums</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">    <span class="nb">print</span><span class="p">(</span><span class="n">count</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">10</span><span class="cl">
+</span></span><span class="line"><span class="ln">11</span><span class="cl"><span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&#34;__main__&#34;</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">12</span><span class="cl">    <span class="n">main</span><span class="p">()</span></span></span></code></pre></div><h3 id="mathematical-proof">Mathematical Proof</h3>
+<p><strong>Theorem:</strong> The greedy algorithm that ensures each element is at least as large as its predecessor gives the minimum total cost to make the array non-decreasing.</p>
+<p><strong>Proof by Induction:</strong></p>
+<p><strong>Base Cases:</strong></p>
+<ul>
+<li>For an array of size 1: The cost is 0, which is trivially optimal.</li>
+<li>For an array of size 2: If <code>nums[0] ≤ nums[1]</code>, cost is 0. If <code>nums[0] &gt; nums[1]</code>, we must increment <code>nums[1]</code> by <code>nums[0] - nums[1]</code> to make it ≥ <code>nums[0]</code>. This is optimal since we must satisfy <code>nums[1] ≥ nums[0]</code>.</li>
+</ul>
+<p><strong>Inductive Hypothesis:</strong> Assume the greedy algorithm is optimal for arrays of size ≤ k.</p>
+<p><strong>Inductive Step:</strong> Consider an array of size k+1. Let the array be <code>a[0], a[1], ..., a[k]</code>.</p>
+<p>Apply the greedy algorithm:</p>
+<ol>
+<li>Process the first k elements optimally (by inductive hypothesis)</li>
+<li>For the last element <code>a[k]</code>, if <code>a[k-1] ≤ a[k]</code>, no change needed (cost 0)</li>
+<li>If <code>a[k-1] &gt; a[k]</code>, increment <code>a[k]</code> to <code>a[k-1]</code>, costing <code>a[k-1] - a[k]</code></li>
+</ol>
+<p><strong>Why this is optimal:</strong> Any optimal solution must satisfy <code>a'[i] ≥ a'[i-1]</code> for all i, where <code>a'</code> is the final array.</p>
+<p>For the prefix <code>a'[0] ... a'[k-1]</code>, the inductive hypothesis says our greedy choices give the minimum cost.</p>
+<p>For the last pair <code>a'[k-1]</code> and <code>a'[k]</code>:</p>
+<ul>
+<li>We must have <code>a'[k] ≥ a'[k-1]</code></li>
+<li>The minimum cost to achieve this is exactly <code>max(0, a'[k-1] - a'[k])</code></li>
+<li>Our greedy algorithm achieves exactly this minimum cost</li>
+</ul>
+<p><strong>Key insight:</strong> The greedy choice doesn&rsquo;t affect the optimality of the prefix because:</p>
+<ol>
+<li>The prefix constraints are already satisfied optimally</li>
+<li>Setting <code>a[k] = max(a[k], a[k-1])</code> only affects the relationship between a[k-1] and a[k]</li>
+<li>This choice is independent of future elements since there are none</li>
+</ol>
+<p><strong>Proof by Contradiction :</strong>
+Suppose there exists an optimal solution with lower total cost than the greedy algorithm.
+Let the greedy algorithm produce array <code>g</code> with cost <code>C_g</code>.
+Let the optimal solution produce array <code>o</code> with cost <code>C_o &lt; C_g</code>.</p>
+<p>Since both <code>g</code> and <code>o</code> must satisfy <code>g[i] ≥ g[i-1]</code> and <code>o[i] ≥ o[i-1]</code> for all i:</p>
+<ul>
+<li>At the first position where <code>g</code> and <code>o</code> differ, the optimal solution must have made a different choice</li>
+<li>But making a different choice would either violate the non-decreasing constraint or require more operations later, contradicting optimality</li>
+</ul>
+<p>Therefore, the greedy algorithm is optimal.</p>
+]]></content:encoded>
+    </item>
+    <item>
+      <title>Increasing Array</title>
+      <link>https://KTS-o7.github.io/bear/notes/increasing_array/</link>
+      <pubDate>Thu, 18 Sep 2025 22:37:39 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/notes/increasing_array/</guid>
       <description>&lt;p&gt;Link to the problem : &lt;a href=&#34;https://cses.fi/problemset/task/1094&#34;&gt;Increasing Array&lt;/a&gt;&lt;/p&gt;&#xA;&lt;h2 id=&#34;intuition&#34;&gt;Intuition&lt;/h2&gt;&#xA;&lt;p&gt;The idea is to make an array increasing by making the current element equal to or greater than the previous element.&#xA;and in each step we can increase the value of a single element by 1.&lt;/p&gt;&#xA;&lt;p&gt;That means for &lt;code&gt;i&lt;/code&gt;th element which is less than the &lt;code&gt;i-1&lt;/code&gt;th element, we need &lt;code&gt;elem[i-1] - elem[i]&lt;/code&gt; steps to make it equal to or greater than the &lt;code&gt;i-1&lt;/code&gt;th element.&lt;/p&gt;</description>
       <content:encoded><![CDATA[<p>Link to the problem : <a href="https://cses.fi/problemset/task/1094">Increasing Array</a></p>
 <h2 id="intuition">Intuition</h2>
@@ -6092,6 +6573,58 @@ A greedy approach is something that makes the best local choice at each step in 
 ]]></content:encoded>
     </item>
     <item>
+      <title>Repeatations</title>
+      <link>https://KTS-o7.github.io/bear/notes/repeatations/</link>
+      <pubDate>Thu, 18 Sep 2025 17:23:25 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/notes/repeatations/</guid>
+      <description>&lt;p&gt;Link to the problem : &lt;a href=&#34;https://cses.fi/problemset/task/1069&#34;&gt;Repeatations&lt;/a&gt;&lt;/p&gt;&#xA;&lt;h2 id=&#34;intuition&#34;&gt;Intuition&lt;/h2&gt;&#xA;&lt;p&gt;This problem wants us to find the longest substring of a string that has only 1 type of character.&#xA;input has A,G,C and T only.&lt;/p&gt;&#xA;&lt;p&gt;Edge case: if the string is empty, return 0.&lt;/p&gt;&#xA;&lt;p&gt;We need to keep track of the current length of the substring and the maximum length of the substring seen so far which satisfies the condition.&lt;/p&gt;&#xA;&lt;p&gt;Loop through the string and check if the current character is the same as the previous character.&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>Link to the problem : <a href="https://cses.fi/problemset/task/1069">Repeatations</a></p>
+<h2 id="intuition">Intuition</h2>
+<p>This problem wants us to find the longest substring of a string that has only 1 type of character.
+input has A,G,C and T only.</p>
+<p>Edge case: if the string is empty, return 0.</p>
+<p>We need to keep track of the current length of the substring and the maximum length of the substring seen so far which satisfies the condition.</p>
+<p>Loop through the string and check if the current character is the same as the previous character.</p>
+<ul>
+<li>If it is, increment the current length.
+Update the maximum length if the current length is greater than the maximum length.</li>
+<li>If it is not, reset the current length to 1.</li>
+</ul>
+<h2 id="solution">Solution</h2>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl">    <span class="n">string</span> <span class="o">=</span> <span class="nb">input</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl">    <span class="k">if</span> <span class="ow">not</span> <span class="n">string</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl">        <span class="nb">print</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl">        <span class="k">return</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">    
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl">    <span class="n">max_len</span> <span class="o">=</span> <span class="mi">1</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl">    <span class="n">current_len</span> <span class="o">=</span> <span class="mi">1</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">    
+</span></span><span class="line"><span class="ln">10</span><span class="cl">    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">string</span><span class="p">)):</span>
+</span></span><span class="line"><span class="ln">11</span><span class="cl">        <span class="k">if</span> <span class="n">string</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">==</span> <span class="n">string</span><span class="p">[</span><span class="n">i</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span>
+</span></span><span class="line"><span class="ln">12</span><span class="cl">            <span class="n">current_len</span> <span class="o">+=</span> <span class="mi">1</span>
+</span></span><span class="line"><span class="ln">13</span><span class="cl">            <span class="n">max_len</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">max_len</span><span class="p">,</span> <span class="n">current_len</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">14</span><span class="cl">        <span class="k">else</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">15</span><span class="cl">            <span class="n">current_len</span> <span class="o">=</span> <span class="mi">1</span>
+</span></span><span class="line"><span class="ln">16</span><span class="cl">    
+</span></span><span class="line"><span class="ln">17</span><span class="cl">    <span class="nb">print</span><span class="p">(</span><span class="n">max_len</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">18</span><span class="cl">
+</span></span><span class="line"><span class="ln">19</span><span class="cl"><span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&#34;__main__&#34;</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">20</span><span class="cl">    <span class="n">main</span><span class="p">()</span></span></span></code></pre></div><h3 id="time-complexity">Time complexity</h3>
+<p>O(n)</p>
+<h3 id="space-complexity">Space complexity</h3>
+<p>O(1)</p>
+<p>This is a greedy problem.
+A greedy approach is something that makes the best local choice at each step in the hope that this choice will lead to the global optimal solution.</p>
+<p>here the best local choice is to increment the current length if the current character is the same as the previous character.</p>
+]]></content:encoded>
+    </item>
+    <item>
       <title>Missing Number</title>
       <link>https://KTS-o7.github.io/bear/cses.fi/missing_number/</link>
       <pubDate>Thu, 18 Sep 2025 17:17:22 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
@@ -6142,10 +6675,97 @@ where <code>n</code> is the number of terms, <code>a</code> is the first term, a
 ]]></content:encoded>
     </item>
     <item>
+      <title>Missing Number</title>
+      <link>https://KTS-o7.github.io/bear/notes/missing_number/</link>
+      <pubDate>Thu, 18 Sep 2025 17:17:22 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/notes/missing_number/</guid>
+      <description>&lt;p&gt;Link to the problem : &lt;a href=&#34;https://cses.fi/problemset/task/1083&#34;&gt;Missing Number&lt;/a&gt;&lt;/p&gt;&#xA;&lt;h2 id=&#34;intuition&#34;&gt;Intuition&lt;/h2&gt;&#xA;&lt;p&gt;This problem wants us to find the missing number in a sequence of numbers from 1 to n.&#xA;The naive approach is to use a hash map to store the numbers and then find the missing number.&#xA;But this is not efficient.&lt;/p&gt;&#xA;&lt;p&gt;The idea is to use the formula for the sum of an arithmetic series.&#xA;The sum of an arithmetic series is given by the formula:&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>Link to the problem : <a href="https://cses.fi/problemset/task/1083">Missing Number</a></p>
+<h2 id="intuition">Intuition</h2>
+<p>This problem wants us to find the missing number in a sequence of numbers from 1 to n.
+The naive approach is to use a hash map to store the numbers and then find the missing number.
+But this is not efficient.</p>
+<p>The idea is to use the formula for the sum of an arithmetic series.
+The sum of an arithmetic series is given by the formula:</p>
+$$S = \frac{n}{2} (a + l)$$<p>
+where <code>n</code> is the number of terms, <code>a</code> is the first term, and <code>l</code> is the last term.
+In this problem, the first term is 1 and the last term is <code>n</code>.
+So the sum of the series is given by the formula:
+</p>
+$$S = \frac{n}{2} (1 + n)$$<p>now if we accumulate the sum of the numbers in the list, we can find the missing number by subtracting the sum of the numbers in the list from the sum of the series.
+Since only one number is missing, the sum of the numbers in the list will be less than the sum of the series and the difference will be the missing number.</p>
+<h2 id="solution">Solution</h2>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl">    <span class="n">n</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">input</span><span class="p">())</span>
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl">    <span class="n">nums_list</span> <span class="o">=</span> <span class="nb">input</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl">    <span class="n">nums</span> <span class="o">=</span> <span class="n">nums_list</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl">    <span class="n">total</span> <span class="o">=</span> <span class="mi">0</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">    <span class="k">for</span> <span class="n">num</span> <span class="ow">in</span> <span class="n">nums</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl">        <span class="n">total</span> <span class="o">+=</span> <span class="nb">int</span><span class="p">(</span><span class="n">num</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl">    <span class="n">tot</span> <span class="o">=</span> <span class="n">n</span> <span class="o">*</span> <span class="p">(</span><span class="n">n</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">    <span class="nb">print</span><span class="p">(</span><span class="n">tot</span> <span class="o">-</span> <span class="n">total</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">10</span><span class="cl">
+</span></span><span class="line"><span class="ln">11</span><span class="cl">
+</span></span><span class="line"><span class="ln">12</span><span class="cl"><span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&#34;__main__&#34;</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">13</span><span class="cl">    <span class="n">main</span><span class="p">()</span></span></span></code></pre></div><h2 id="some-formulae-for-arithmetic-series">Some formulae for arithmetic series</h2>
+<h3 id="nth-term">nth term</h3>
+$$a_n = a + (n-1)d$$<p>
+where <code>a</code> is the first term, <code>d</code> is the common difference, and <code>n</code> is the number of terms.</p>
+<h3 id="sum-of-the-first-n-terms">sum of the first n terms</h3>
+$$S = \frac{n}{2} (a + l)$$<p>
+where <code>n</code> is the number of terms, <code>a</code> is the first term, and <code>l</code> is the last term.</p>
+<h3 id="sum-of-the-first-n-terms-1">sum of the first n terms</h3>
+$$S = \frac{n}{2} (2a + (n-1)d)$$<p>
+where <code>n</code> is the number of terms, <code>a</code> is the first term, and <code>d</code> is the common difference.</p>
+]]></content:encoded>
+    </item>
+    <item>
       <title>Weird Algorithm</title>
       <link>https://KTS-o7.github.io/bear/cses.fi/weird_algorithm/</link>
       <pubDate>Thu, 18 Sep 2025 17:05:38 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
       <guid>https://KTS-o7.github.io/bear/cses.fi/weird_algorithm/</guid>
+      <description>&lt;p&gt;Link to the problem: &lt;a href=&#34;https://cses.fi/problemset/task/1068&#34;&gt;Weird Algorithm&lt;/a&gt;&lt;/p&gt;&#xA;&lt;h2 id=&#34;intuition&#34;&gt;Intuition&lt;/h2&gt;&#xA;&lt;p&gt;This problem is a direct implementation of the algorithm described in the problem statement.&lt;/p&gt;&#xA;&lt;p&gt;Given a number &lt;code&gt;n&lt;/code&gt;, we need to apply the following algorithm:&lt;/p&gt;&#xA;&lt;ol&gt;&#xA;&lt;li&gt;If &lt;code&gt;n&lt;/code&gt; is even, divide it by 2.&lt;/li&gt;&#xA;&lt;li&gt;If &lt;code&gt;n&lt;/code&gt; is odd, multiply it by 3 and add 1.&lt;/li&gt;&#xA;&lt;li&gt;Repeat the process until &lt;code&gt;n&lt;/code&gt; becomes 1.&lt;/li&gt;&#xA;&lt;/ol&gt;&#xA;&lt;h2 id=&#34;solution&#34;&gt;Solution&lt;/h2&gt;&#xA;&#xA;&#xA;&#xA;&#xA;&#xA;&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-python&#34; data-lang=&#34;python&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;ln&#34;&gt;1&lt;/span&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;k&#34;&gt;def&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;weird_algorithm&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;n&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;):&lt;/span&gt;&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;ln&#34;&gt;2&lt;/span&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;k&#34;&gt;while&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;n&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;!=&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;1&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;ln&#34;&gt;3&lt;/span&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;nb&#34;&gt;print&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;n&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;end&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;#34; &amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;ln&#34;&gt;4&lt;/span&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;n&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;%&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;2&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;==&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;ln&#34;&gt;5&lt;/span&gt;&lt;span class=&#34;cl&#34;&gt;            &lt;span class=&#34;n&#34;&gt;n&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;n&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;//&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;2&lt;/span&gt;&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;ln&#34;&gt;6&lt;/span&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;k&#34;&gt;else&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;ln&#34;&gt;7&lt;/span&gt;&lt;span class=&#34;cl&#34;&gt;            &lt;span class=&#34;n&#34;&gt;n&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;3&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;n&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;+&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;1&lt;/span&gt;&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;ln&#34;&gt;8&lt;/span&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;nb&#34;&gt;print&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;n&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h2 id=&#34;geek-fact&#34;&gt;Geek fact&lt;/h2&gt;&#xA;&lt;p&gt;This is a famous problem in the field math called the Collatz conjecture.&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>Link to the problem: <a href="https://cses.fi/problemset/task/1068">Weird Algorithm</a></p>
+<h2 id="intuition">Intuition</h2>
+<p>This problem is a direct implementation of the algorithm described in the problem statement.</p>
+<p>Given a number <code>n</code>, we need to apply the following algorithm:</p>
+<ol>
+<li>If <code>n</code> is even, divide it by 2.</li>
+<li>If <code>n</code> is odd, multiply it by 3 and add 1.</li>
+<li>Repeat the process until <code>n</code> becomes 1.</li>
+</ol>
+<h2 id="solution">Solution</h2>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="ln">1</span><span class="cl"><span class="k">def</span> <span class="nf">weird_algorithm</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
+</span></span><span class="line"><span class="ln">2</span><span class="cl">    <span class="k">while</span> <span class="n">n</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">3</span><span class="cl">        <span class="nb">print</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s2">&#34; &#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">4</span><span class="cl">        <span class="k">if</span> <span class="n">n</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">5</span><span class="cl">            <span class="n">n</span> <span class="o">=</span> <span class="n">n</span> <span class="o">//</span> <span class="mi">2</span>
+</span></span><span class="line"><span class="ln">6</span><span class="cl">        <span class="k">else</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">7</span><span class="cl">            <span class="n">n</span> <span class="o">=</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">n</span> <span class="o">+</span> <span class="mi">1</span>
+</span></span><span class="line"><span class="ln">8</span><span class="cl">    <span class="nb">print</span><span class="p">(</span><span class="n">n</span><span class="p">)</span></span></span></code></pre></div><h2 id="geek-fact">Geek fact</h2>
+<p>This is a famous problem in the field math called the Collatz conjecture.</p>
+<p>Collatz conjecture is a conjecture in mathematics that states that for any positive integer <code>n</code>, the sequence of numbers generated by the following algorithm will eventually reach 1.</p>
+<p>So far, the conjecture has been verified for all positive integers up to 2^68.</p>
+<blockquote>
+<p>Wikipedia link: <a href="https://en.wikipedia.org/wiki/Collatz_conjecture">Collatz conjecture</a></p>
+</blockquote>
+]]></content:encoded>
+    </item>
+    <item>
+      <title>Weird Algorithm</title>
+      <link>https://KTS-o7.github.io/bear/notes/weird_algorithm/</link>
+      <pubDate>Thu, 18 Sep 2025 17:05:38 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/notes/weird_algorithm/</guid>
       <description>&lt;p&gt;Link to the problem: &lt;a href=&#34;https://cses.fi/problemset/task/1068&#34;&gt;Weird Algorithm&lt;/a&gt;&lt;/p&gt;&#xA;&lt;h2 id=&#34;intuition&#34;&gt;Intuition&lt;/h2&gt;&#xA;&lt;p&gt;This problem is a direct implementation of the algorithm described in the problem statement.&lt;/p&gt;&#xA;&lt;p&gt;Given a number &lt;code&gt;n&lt;/code&gt;, we need to apply the following algorithm:&lt;/p&gt;&#xA;&lt;ol&gt;&#xA;&lt;li&gt;If &lt;code&gt;n&lt;/code&gt; is even, divide it by 2.&lt;/li&gt;&#xA;&lt;li&gt;If &lt;code&gt;n&lt;/code&gt; is odd, multiply it by 3 and add 1.&lt;/li&gt;&#xA;&lt;li&gt;Repeat the process until &lt;code&gt;n&lt;/code&gt; becomes 1.&lt;/li&gt;&#xA;&lt;/ol&gt;&#xA;&lt;h2 id=&#34;solution&#34;&gt;Solution&lt;/h2&gt;&#xA;&#xA;&#xA;&#xA;&#xA;&#xA;&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-python&#34; data-lang=&#34;python&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;ln&#34;&gt;1&lt;/span&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;k&#34;&gt;def&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;weird_algorithm&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;n&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;):&lt;/span&gt;&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;ln&#34;&gt;2&lt;/span&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;k&#34;&gt;while&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;n&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;!=&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;1&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;ln&#34;&gt;3&lt;/span&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;nb&#34;&gt;print&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;n&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;end&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;#34; &amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;ln&#34;&gt;4&lt;/span&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;n&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;%&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;2&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;==&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;ln&#34;&gt;5&lt;/span&gt;&lt;span class=&#34;cl&#34;&gt;            &lt;span class=&#34;n&#34;&gt;n&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;n&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;//&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;2&lt;/span&gt;&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;ln&#34;&gt;6&lt;/span&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;k&#34;&gt;else&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;ln&#34;&gt;7&lt;/span&gt;&lt;span class=&#34;cl&#34;&gt;            &lt;span class=&#34;n&#34;&gt;n&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;3&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;n&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;+&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;1&lt;/span&gt;&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;ln&#34;&gt;8&lt;/span&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;nb&#34;&gt;print&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;n&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h2 id=&#34;geek-fact&#34;&gt;Geek fact&lt;/h2&gt;&#xA;&lt;p&gt;This is a famous problem in the field math called the Collatz conjecture.&lt;/p&gt;</description>
       <content:encoded><![CDATA[<p>Link to the problem: <a href="https://cses.fi/problemset/task/1068">Weird Algorithm</a></p>
 <h2 id="intuition">Intuition</h2>
@@ -6333,9 +6953,9 @@ $$<h2 id="solution">Solution</h2>
     </item>
     <item>
       <title>Why MySQL is not CA</title>
-      <link>https://KTS-o7.github.io/bear/posts/why_mysql_is_not_ca/</link>
+      <link>https://KTS-o7.github.io/bear/systems/why_mysql_is_not_ca/</link>
       <pubDate>Fri, 05 Sep 2025 07:07:07 +0100</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
-      <guid>https://KTS-o7.github.io/bear/posts/why_mysql_is_not_ca/</guid>
+      <guid>https://KTS-o7.github.io/bear/systems/why_mysql_is_not_ca/</guid>
       <description>&lt;hr&gt;&#xA;&lt;h2 id=&#34;motivation&#34;&gt;motivation&lt;/h2&gt;&#xA;&lt;p&gt;I was recently discussing with my CTO about databases. There was one point where we were thinking about the &lt;code&gt;CAP&lt;/code&gt; theorem.&#xA;Then he randomly mentioned that MySQL is not CA. I was surprised because I always thought that MySQL is a CA database at its core.&lt;/p&gt;&#xA;&lt;p&gt;Now I had to search and understand why MySQL is not CA.&lt;/p&gt;&#xA;&lt;hr&gt;&#xA;&lt;h2 id=&#34;cap-theorem&#34;&gt;CAP theorem&lt;/h2&gt;&#xA;&lt;p&gt;&lt;img src=&#34;https://substackcdn.com/image/fetch/$s_!cOsx!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F869db2d6-6133-411e-96ad-cc1c52611778_800x472.png&#34; alt=&#34;CAP theorem&#34;&gt;&lt;/p&gt;&#xA;&lt;p&gt;We have always been taught in Engineering that CAP is one of the most important theorems in distributed systems and databases. We just accepted it. Time to question and learn ┏ʕ •ᴥ•ʔ┛&lt;/p&gt;</description>
       <content:encoded><![CDATA[<hr>
 <h2 id="motivation">motivation</h2>
@@ -6405,9 +7025,9 @@ A commit can be acknowledged only after replicas confirm the write (if you confi
     </item>
     <item>
       <title>markdown stuff</title>
-      <link>https://KTS-o7.github.io/bear/posts/markdown_stuff/</link>
+      <link>https://KTS-o7.github.io/bear/notes/markdown_stuff/</link>
       <pubDate>Sun, 14 Jan 2024 07:07:07 +0100</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
-      <guid>https://KTS-o7.github.io/bear/posts/markdown_stuff/</guid>
+      <guid>https://KTS-o7.github.io/bear/notes/markdown_stuff/</guid>
       <description>&lt;h2 id=&#34;introduction&#34;&gt;Introduction&lt;/h2&gt;&#xA;&lt;p&gt;This is &lt;strong&gt;bold&lt;/strong&gt; text, and this is &lt;em&gt;emphasized&lt;/em&gt; text.&lt;/p&gt;&#xA;&lt;p&gt;Visit the &lt;a href=&#34;https://gohugo.io&#34;&gt;Hugo&lt;/a&gt; website!&lt;/p&gt;&#xA;&lt;h2 id=&#34;mathematical-examples&#34;&gt;Mathematical Examples&lt;/h2&gt;&#xA;&lt;p&gt;Here are some mathematical expressions rendered using LaTeX:&lt;/p&gt;&#xA;&lt;h3 id=&#34;inline-math&#34;&gt;Inline Math&lt;/h3&gt;&#xA;&lt;p&gt;The quadratic formula is $x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}$.&lt;/p&gt;&#xA;&lt;h3 id=&#34;display-math&#34;&gt;Display Math&lt;/h3&gt;&#xA;&lt;p&gt;The Pythagorean theorem:&#xA;&lt;/p&gt;&#xA;$$&#xA;a^2 + b^2 = c^2&#xA;$$&lt;h3 id=&#34;more-complex-equations&#34;&gt;More Complex Equations&lt;/h3&gt;&#xA;&lt;p&gt;The area of a circle:&#xA;&lt;/p&gt;&#xA;$$&#xA;A = \pi r^2&#xA;$$&lt;p&gt;Integration by parts:&#xA;&lt;/p&gt;&#xA;$$&#xA;\int u \, dv = uv - \int v \, du&#xA;$$&lt;h3 id=&#34;matrices&#34;&gt;Matrices&lt;/h3&gt;&#xA;&lt;p&gt;A simple 2x2 matrix:&#xA;&lt;/p&gt;</description>
       <content:encoded><![CDATA[<h2 id="introduction">Introduction</h2>
 <p>This is <strong>bold</strong> text, and this is <em>emphasized</em> text.</p>

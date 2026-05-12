@@ -70,7 +70,12 @@ This is the consensus problem. Paxos is the foundational answer. It’s also not
 <body>
   <header><a class="skip-link" href="#main-content">Skip to main content</a>
 
-<a href="/bear/" class="title"><h1></h1></a>
+<div style="display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+  <a href="/bear/" class="title"><h1></h1></a>
+  <button id="theme-toggle" aria-label="Toggle light/dark mode" title="Toggle theme">
+    <span id="theme-toggle-label">○●</span>
+  </button>
+</div>
 <nav>
   <a href="/bear/">Home</a>
 
@@ -78,7 +83,7 @@ This is the consensus problem. Paxos is the foundational answer. It’s also not
 
   <a href="/bear/about/">About</a>
 
-  <a href="/bear/ml/">ML Stuff</a>
+  <a href="/bear/ml/">ML</a>
 
   <a href="/bear/cses.fi/">CSES.fi</a>
 
@@ -161,12 +166,23 @@ This is the consensus problem. Paxos is the foundational answer. It’s also not
 <p>Paxos is the theory. If you&rsquo;re building something new, you&rsquo;ll probably implement Raft instead &ndash; same guarantees, actually debuggable. But the mental model of quorum-based two-phase consensus is worth having regardless of which one you reach for.</p>
 
 </content>
-<p>
-  
-</p>
 
 
-  <p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  <p style="margin-top: 1.5rem; font-size: 0.875rem; color: var(--color-text-muted);">
     <a href='mailto:shentharkrishnatejaswi@gmail.com?subject=Reply%20to%20"Paxos%3a%20How%20Distributed%20Systems%20Agree%20on%20Anything"'>
       Reply to this post by email ↪
     </a>
@@ -180,6 +196,44 @@ This is the consensus problem. Paxos is the foundational answer. It’s also not
 </small></footer>
 
     
+<script>
+    (function() {
+      var STORAGE_KEY = 'theme';
+      var btn = document.getElementById('theme-toggle');
+      var label = document.getElementById('theme-toggle-label');
+
+      function getStored() { try { return localStorage.getItem(STORAGE_KEY); } catch(e) { return null; } }
+      function setStored(v) { try { localStorage.setItem(STORAGE_KEY, v); } catch(e) {} }
+
+      function getSystem() {
+        return window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+      }
+
+      function applyTheme(theme) {
+        document.documentElement.setAttribute('data-theme', theme);
+        if (label) label.textContent = theme === 'light' ? '●○' : '○●';
+      }
+
+      var stored = getStored();
+      applyTheme(stored || getSystem());
+
+      if (btn) {
+        btn.addEventListener('click', function() {
+          var current = document.documentElement.getAttribute('data-theme') || getSystem();
+          var next = current === 'dark' ? 'light' : 'dark';
+          setStored(next);
+          applyTheme(next);
+        });
+      }
+
+      
+      if (window.matchMedia) {
+        window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', function(e) {
+          if (!getStored()) applyTheme(e.matches ? 'light' : 'dark');
+        });
+      }
+    })();
+  </script>
 </body>
 
 </html>

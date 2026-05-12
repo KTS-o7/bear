@@ -99,14 +99,30 @@ This is only one such solution. There are other solutions as well.">
   document.addEventListener("DOMContentLoaded", function() {
     renderMathInElement(document.body, {
       delimiters: [
-        {left: '\\[', right: '\\]', display: true},   
-        {left: '$$', right: '$$', display: true},     
-        {left: '\\(', right: '\\)', display: false},  
+        {left: '\\[', right: '\\]', display: true},
+        {left: '$$', right: '$$', display: true},
+        {left: '\\(', right: '\\)', display: false},
       ],
       throwOnError: false
     });
   });
 </script>
+<style>
+   
+  .katex { color: inherit; }
+  .katex .katex-html { color: inherit; }
+  .katex-display {
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 0.25rem 0;
+    margin: 1.4rem 0 !important;
+  }
+   
+  @media (max-width: 600px) {
+    .katex-display > .katex { max-width: 100%; }
+    .katex-display > .katex > .katex-html { overflow-x: auto; overflow-y: hidden; }
+  }
+</style>
 
   
 </head>
@@ -114,15 +130,20 @@ This is only one such solution. There are other solutions as well.">
 <body>
   <header><a class="skip-link" href="#main-content">Skip to main content</a>
 
-<a href="/bear/" class="title"><h1></h1></a>
+<div style="display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+  <a href="/bear/" class="title"><h1></h1></a>
+  <button id="theme-toggle" aria-label="Toggle light/dark mode" title="Toggle theme">
+    <span id="theme-toggle-label">○●</span>
+  </button>
+</div>
 <nav>
   <a href="/bear/">Home</a>
 
-  <a href="/bear/posts/">Posts</a>
+  <a href="/bear/notes/">Notes</a>
 
   <a href="/bear/about/">About</a>
 
-  <a href="/bear/ml/">ML Stuff</a>
+  <a href="/bear/ml/">ML</a>
 
   <a href="/bear/cses.fi/">CSES.fi</a>
 
@@ -188,12 +209,23 @@ example
 </ul>
 
 </content>
-<p>
-  
-</p>
 
 
-  <p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  <p style="margin-top: 1.5rem; font-size: 0.875rem; color: var(--color-text-muted);">
     <a href='mailto:shentharkrishnatejaswi@gmail.com?subject=Reply%20to%20"Permutations"'>
       Reply to this post by email ↪
     </a>
@@ -207,6 +239,44 @@ example
 </small></footer>
 
     
+<script>
+    (function() {
+      var STORAGE_KEY = 'theme';
+      var btn = document.getElementById('theme-toggle');
+      var label = document.getElementById('theme-toggle-label');
+
+      function getStored() { try { return localStorage.getItem(STORAGE_KEY); } catch(e) { return null; } }
+      function setStored(v) { try { localStorage.setItem(STORAGE_KEY, v); } catch(e) {} }
+
+      function getSystem() {
+        return window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+      }
+
+      function applyTheme(theme) {
+        document.documentElement.setAttribute('data-theme', theme);
+        if (label) label.textContent = theme === 'light' ? '●○' : '○●';
+      }
+
+      var stored = getStored();
+      applyTheme(stored || getSystem());
+
+      if (btn) {
+        btn.addEventListener('click', function() {
+          var current = document.documentElement.getAttribute('data-theme') || getSystem();
+          var next = current === 'dark' ? 'light' : 'dark';
+          setStored(next);
+          applyTheme(next);
+        });
+      }
+
+      
+      if (window.matchMedia) {
+        window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', function(e) {
+          if (!getStored()) applyTheme(e.matches ? 'light' : 'dark');
+        });
+      }
+    })();
+  </script>
 </body>
 
 </html>

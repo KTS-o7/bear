@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en-us">
+
+<head>
+  <meta http-equiv="X-Clacks-Overhead" content="GNU Terry Pratchett" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="shortcut icon" href="https://KTS-o7.github.io/bear/images/favicon.png" />
+<title>Fixing Silent $0 Streaming Costs in AgentBudget: An OSS Contribution | </title>
+<meta name="title" content="Fixing Silent $0 Streaming Costs in AgentBudget: An OSS Contribution" />
+<meta name="description" content="AgentBudget patches the OpenAI and Anthropic SDKs to track the cost of every LLM call. Set a budget, get a hard limit. Simple premise.
+Except there was a gap. Every streaming call cost $0.00 in the ledger. Silently. No error, no warning &ndash; just wrong numbers.
+I found the gap, fixed it, and got the PR merged. This is the story of how streaming cost tracking actually works.
+What AgentBudget does
+AgentBudget is an open-source SDK that puts a hard dollar limit on AI agent sessions. Two lines, no infrastructure:" />
+<meta name="author" content="" />
+<meta name="keywords" content="" />
+
+
+
+
+
+
+  
+  <meta property="og:url" content="https://KTS-o7.github.io/bear/notes/agentbudget_ulimit_for_ai_agents/">
+  <meta property="og:title" content="Fixing Silent $0 Streaming Costs in AgentBudget: An OSS Contribution">
+  <meta property="og:description" content="AgentBudget patches the OpenAI and Anthropic SDKs to track the cost of every LLM call. Set a budget, get a hard limit. Simple premise.
+Except there was a gap. Every streaming call cost $0.00 in the ledger. Silently. No error, no warning – just wrong numbers.
+I found the gap, fixed it, and got the PR merged. This is the story of how streaming cost tracking actually works.
+What AgentBudget does AgentBudget is an open-source SDK that puts a hard dollar limit on AI agent sessions. Two lines, no infrastructure:">
+  <meta property="og:locale" content="en_us">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="notes">
+    <meta property="article:published_time" content="2026-04-16T00:00:00+05:30">
+    <meta property="article:modified_time" content="2026-04-16T00:00:00+05:30">
+    <meta property="og:image" content="https://KTS-o7.github.io/bear/images/share.webp">
+
+
+  
+  
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://KTS-o7.github.io/bear/images/share.webp">
+  <meta name="twitter:title" content="Fixing Silent $0 Streaming Costs in AgentBudget: An OSS Contribution">
+  <meta name="twitter:description" content="AgentBudget patches the OpenAI and Anthropic SDKs to track the cost of every LLM call. Set a budget, get a hard limit. Simple premise.
+Except there was a gap. Every streaming call cost $0.00 in the ledger. Silently. No error, no warning – just wrong numbers.
+I found the gap, fixed it, and got the PR merged. This is the story of how streaming cost tracking actually works.
+What AgentBudget does AgentBudget is an open-source SDK that puts a hard dollar limit on AI agent sessions. Two lines, no infrastructure:">
+
+
+  
+  
+  <meta itemprop="name" content="Fixing Silent $0 Streaming Costs in AgentBudget: An OSS Contribution">
+  <meta itemprop="description" content="AgentBudget patches the OpenAI and Anthropic SDKs to track the cost of every LLM call. Set a budget, get a hard limit. Simple premise.
+Except there was a gap. Every streaming call cost $0.00 in the ledger. Silently. No error, no warning – just wrong numbers.
+I found the gap, fixed it, and got the PR merged. This is the story of how streaming cost tracking actually works.
+What AgentBudget does AgentBudget is an open-source SDK that puts a hard dollar limit on AI agent sessions. Two lines, no infrastructure:">
+  <meta itemprop="datePublished" content="2026-04-16T00:00:00+05:30">
+  <meta itemprop="dateModified" content="2026-04-16T00:00:00+05:30">
+  <meta itemprop="wordCount" content="979">
+  <meta itemprop="image" content="https://KTS-o7.github.io/bear/images/share.webp">
+
+<meta name="referrer" content="no-referrer-when-downgrade" />
+
+  
+  <link href="/bear/herman.min.css" rel="stylesheet">
+
+  
+    
+    <link href="/bear/syntax.min.css" rel="stylesheet">
+  
+
+  
+
+  
+
+  
+</head>
+
+<body>
+  <header><a class="skip-link" href="#main-content">Skip to main content</a>
+
+<div style="display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+  <a href="/bear/" class="title"><h1></h1></a>
+  <button id="theme-toggle" aria-label="Toggle light/dark mode" title="Toggle theme">
+    <span id="theme-toggle-label">○●</span>
+  </button>
+</div>
+<nav>
+  <a href="/bear/">Home</a>
+
+  <a href="/bear/notes/">Notes</a>
+
+  <a href="/bear/about/">About</a>
+
+  <a href="/bear/ml/">ML</a>
+
+  <a href="/bear/cses.fi/">CSES.fi</a>
+
+<a href='https://KTS-o7.github.io/bear/index.xml'>RSS</a>
+
+
+
+
+
+
+
+</nav>
+</header>
+  <main id="main-content">
+
+<h1>Fixing Silent $0 Streaming Costs in AgentBudget: An OSS Contribution</h1>
+<p class="byline">
+  <time datetime='2026-04-16' pubdate>
+    2026-04-16
+  </time>
+  
+</p>
+
+<content>
+  <p>AgentBudget patches the OpenAI and Anthropic SDKs to track the cost of every LLM call. Set a budget, get a hard limit. Simple premise.</p>
+<p>Except there was a gap. Every streaming call cost $0.00 in the ledger. Silently. No error, no warning &ndash; just wrong numbers.</p>
+<p>I found the gap, fixed it, and got the PR merged. This is the story of how streaming cost tracking actually works.</p>
+<h2 id="what-agentbudget-does">What AgentBudget does</h2>
+<p>AgentBudget is an open-source SDK that puts a hard dollar limit on AI agent sessions. Two lines, no infrastructure:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="ln">1</span><span class="cl"><span class="kn">import</span> <span class="nn">agentbudget</span>
+</span></span><span class="line"><span class="ln">2</span><span class="cl"><span class="n">agentbudget</span><span class="o">.</span><span class="n">init</span><span class="p">(</span><span class="s2">&#34;$5.00&#34;</span><span class="p">)</span></span></span></code></pre></div><p>It works by monkey-patching <code>Completions.create</code> (OpenAI) and <code>Messages.create</code> (Anthropic) at init time. Every call goes through a wrapper that looks up the model cost, accumulates spend, and raises <code>BudgetExhausted</code> when the limit is hit.</p>
+<p>The non-streaming path worked fine. The streaming path did not.</p>
+<h2 id="the-bug">The bug</h2>
+<p>When <code>stream=True</code>, the patched method receives a <code>Stream</code> object back from the SDK &ndash; not a completed response with token counts. The original code had no handling for this case. It silently passed the stream through untracked.</p>
+<p>Every streaming call registered as $0.00 in the ledger. Any agent using streaming could blow past its budget with zero resistance. The circuit breaker was blind to half its traffic.</p>
+<h2 id="why-streaming-is-harder-to-cost">Why streaming is harder to cost</h2>
+<p>Non-streaming is straightforward: the response comes back with a <code>usage</code> object containing <code>prompt_tokens</code> and <code>completion_tokens</code>. Multiply by the per-token rate, done.</p>
+<p>Streaming returns a sequence of chunks. Token counts are not available upfront &ndash; they only appear after the stream is exhausted. For OpenAI specifically, usage data on the final chunk is opt-in: you need <code>stream_options={&quot;include_usage&quot;: True}</code> in the request, otherwise the final chunk carries no usage data and there is nothing to cost.</p>
+<p>Anthropic handles it differently. Usage data is always present, split across two events: <code>message_start</code> carries input tokens, <code>message_delta</code> carries output tokens at the end.</p>
+<h2 id="the-fix-transparent-wrapper-classes">The fix: transparent wrapper classes</h2>
+<p>The solution is four wrapper classes that intercept the stream, yield every chunk unchanged, and record cost after the iterator is exhausted:</p>
+<table>
+  <thead>
+      <tr>
+          <th>Class</th>
+          <th>Wraps</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><code>_OpenAIStreamWrapper</code></td>
+          <td><code>openai.Stream[ChatCompletionChunk]</code></td>
+      </tr>
+      <tr>
+          <td><code>_AsyncOpenAIStreamWrapper</code></td>
+          <td><code>openai.AsyncStream[ChatCompletionChunk]</code></td>
+      </tr>
+      <tr>
+          <td><code>_AnthropicStreamWrapper</code></td>
+          <td><code>anthropic.Stream[RawMessageStreamEvent]</code></td>
+      </tr>
+      <tr>
+          <td><code>_AsyncAnthropicStreamWrapper</code></td>
+          <td><code>anthropic.AsyncStream[RawMessageStreamEvent]</code></td>
+      </tr>
+  </tbody>
+</table>
+<p>Each wrapper is fully transparent to the caller. The existing code pattern &ndash; <code>for chunk in stream:</code> or <code>async for chunk in stream:</code> or <code>with client.stream(...) as stream:</code> &ndash; continues to work without any changes.</p>
+<p>The wrapper accumulates token counts as chunks arrive, then records the cost in the session ledger once the stream ends.</p>
+<p>For OpenAI:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="k">class</span> <span class="nc">_OpenAIStreamWrapper</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl">    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stream</span><span class="p">,</span> <span class="n">session</span><span class="p">,</span> <span class="n">model</span><span class="p">):</span>
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl">        <span class="bp">self</span><span class="o">.</span><span class="n">_stream</span> <span class="o">=</span> <span class="n">stream</span>
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl">        <span class="bp">self</span><span class="o">.</span><span class="n">_session</span> <span class="o">=</span> <span class="n">session</span>
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl">        <span class="bp">self</span><span class="o">.</span><span class="n">_model</span> <span class="o">=</span> <span class="n">model</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl">    <span class="k">def</span> <span class="fm">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl">        <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stream</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">            <span class="c1"># Track usage from the final chunk</span>
+</span></span><span class="line"><span class="ln">10</span><span class="cl">            <span class="k">if</span> <span class="n">chunk</span><span class="o">.</span><span class="n">usage</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">11</span><span class="cl">                <span class="n">cost</span> <span class="o">=</span> <span class="n">price</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_model</span><span class="p">,</span> <span class="n">chunk</span><span class="o">.</span><span class="n">usage</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">12</span><span class="cl">                <span class="bp">self</span><span class="o">.</span><span class="n">_session</span><span class="o">.</span><span class="n">record</span><span class="p">(</span><span class="n">cost</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">13</span><span class="cl">            <span class="k">yield</span> <span class="n">chunk</span>
+</span></span><span class="line"><span class="ln">14</span><span class="cl">
+</span></span><span class="line"><span class="ln">15</span><span class="cl">    <span class="c1"># Full protocol: __enter__, __exit__, close()</span></span></span></code></pre></div><p>For Anthropic, the accumulation spans two event types:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="k">class</span> <span class="nc">_AnthropicStreamWrapper</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl">    <span class="k">def</span> <span class="fm">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl">        <span class="n">input_tokens</span> <span class="o">=</span> <span class="mi">0</span>
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl">        <span class="n">output_tokens</span> <span class="o">=</span> <span class="mi">0</span>
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl">        <span class="k">for</span> <span class="n">event</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stream</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">            <span class="k">if</span> <span class="n">event</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="s2">&#34;message_start&#34;</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl">                <span class="n">input_tokens</span> <span class="o">=</span> <span class="n">event</span><span class="o">.</span><span class="n">message</span><span class="o">.</span><span class="n">usage</span><span class="o">.</span><span class="n">input_tokens</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl">            <span class="k">elif</span> <span class="n">event</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="s2">&#34;message_delta&#34;</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">                <span class="n">output_tokens</span> <span class="o">=</span> <span class="n">event</span><span class="o">.</span><span class="n">usage</span><span class="o">.</span><span class="n">output_tokens</span>
+</span></span><span class="line"><span class="ln">10</span><span class="cl">            <span class="k">yield</span> <span class="n">event</span>
+</span></span><span class="line"><span class="ln">11</span><span class="cl">        <span class="n">cost</span> <span class="o">=</span> <span class="n">price</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_model</span><span class="p">,</span> <span class="n">input_tokens</span><span class="p">,</span> <span class="n">output_tokens</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">12</span><span class="cl">        <span class="bp">self</span><span class="o">.</span><span class="n">_session</span><span class="o">.</span><span class="n">record</span><span class="p">(</span><span class="n">cost</span><span class="p">)</span></span></span></code></pre></div><p>The detection of whether a response is a stream happens via <code>isinstance</code> checks guarded by <code>ImportError</code>, so the wrapper degrades gracefully if only one SDK is installed.</p>
+<h2 id="implementing-the-full-protocol">Implementing the full protocol</h2>
+<p>The tricky part is not the cost tracking logic &ndash; it is making the wrapper implement the full stream protocol correctly.</p>
+<p>Python streams support multiple usage patterns: iterator (<code>for chunk in stream</code>), context manager (<code>with stream</code>), async iterator, async context manager, and explicit <code>close()</code>/<code>aclose()</code>. Missing any of these means certain callers will break with an <code>AttributeError</code> or a resource leak.</p>
+<p>The wrapper needs to implement all of them:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="c1"># Sync: iterator + context manager + close</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl"><span class="k">def</span> <span class="fm">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span> <span class="o">...</span>
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl"><span class="k">def</span> <span class="fm">__enter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span> <span class="k">return</span> <span class="bp">self</span>
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl"><span class="k">def</span> <span class="fm">__exit__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span> <span class="bp">self</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl"><span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stream</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl"><span class="c1"># Async: async iterator + async context manager + aclose</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl"><span class="k">async</span> <span class="k">def</span> <span class="fm">__aiter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span> <span class="o">...</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl"><span class="k">async</span> <span class="k">def</span> <span class="fm">__aenter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span> <span class="k">return</span> <span class="bp">self</span>
+</span></span><span class="line"><span class="ln">10</span><span class="cl"><span class="k">async</span> <span class="k">def</span> <span class="fm">__aexit__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">aclose</span><span class="p">()</span>
+</span></span><span class="line"><span class="ln">11</span><span class="cl"><span class="k">async</span> <span class="k">def</span> <span class="nf">aclose</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stream</span><span class="o">.</span><span class="n">aclose</span><span class="p">()</span></span></span></code></pre></div><p>Getting this wrong is invisible in unit tests with mocks but breaks immediately against real SDK objects.</p>
+<h2 id="tests">Tests</h2>
+<p>The PR added 19 tests covering:</p>
+<ul>
+<li>Cost recorded correctly after stream exhaustion</li>
+<li>Chunks with no usage data skipped without error</li>
+<li>Passthrough identity &ndash; every chunk the caller sees is unchanged</li>
+<li><code>BudgetExhausted</code> propagates correctly mid-stream</li>
+<li>Both <code>for chunk in stream:</code> and <code>with client.stream() as stream:</code> patterns</li>
+<li><code>close()</code> and <code>aclose()</code> delegation to the underlying stream</li>
+<li>Drop-in mode (<code>agentbudget.init()</code>) wrapping end-to-end</li>
+<li>No-session noop &ndash; if no budget session is active, streaming is fully transparent</li>
+</ul>
+<p>All 129 pre-existing tests continued to pass. 148 total passing at merge.</p>
+<h2 id="the-known-limitation">The known limitation</h2>
+<p>OpenAI streaming requires the caller to pass <code>stream_options={&quot;include_usage&quot;: True}</code>. Without it, the final chunk carries no usage data, and the cost is silently $0.</p>
+<p>This is OpenAI&rsquo;s API behaviour &ndash; usage data on streams is opt-in. The limitation is documented in the module docstring. A future improvement could auto-inject the option at the patch layer, but that requires modifying the outbound request, which is a bigger change than this PR intended to be.</p>
+<p>Anthropic has no equivalent limitation &ndash; usage is always present.</p>
+<h2 id="what-i-learned">What I learned</h2>
+<p><strong>Transparent wrappers need the full protocol.</strong> It is tempting to implement just <code>__iter__</code> and call it done. But real callers use context managers, explicit close, and async variants. Implementing the minimum breaks production code in ways that are hard to debug.</p>
+<p><strong>Streaming costs are provider-specific.</strong> OpenAI and Anthropic have different conventions for where usage data appears in the stream. Any SDK that claims to support both needs to handle both separately.</p>
+<p><strong>Test against real SDK objects, not just mocks.</strong> The <code>isinstance</code> detection and chunk structure only behave correctly against live SDK classes. Mock-based tests passed for the wrong reasons until I verified against an actual installed SDK.</p>
+<h2 id="links">Links</h2>
+<ul>
+<li><a href="https://github.com/AgentBudget/agentbudget/pull/6">PR #6 &ndash; feat: track costs for streaming OpenAI and Anthropic responses</a></li>
+<li><a href="https://github.com/AgentBudget/agentbudget">AgentBudget on GitHub</a></li>
+<li><a href="https://pypi.org/project/agentbudget/">PyPI</a></li>
+</ul>
+
+</content>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  <p style="margin-top: 1.5rem; font-size: 0.875rem; color: var(--color-text-muted);">
+    <a href='mailto:shentharkrishnatejaswi@gmail.com?subject=Reply%20to%20"Fixing%20Silent%20%240%20Streaming%20Costs%20in%20AgentBudget%3a%20An%20OSS%20Contribution"'>
+      Reply to this post by email ↪
+    </a>
+  </p>
+
+
+
+  </main>
+  <footer><small>
+  Krishnatejaswi S | Made with <a href="https://github.com/clente/hugo-bearcub">Bear Cub</a>
+</small></footer>
+
+    
+<script>
+    (function() {
+      var STORAGE_KEY = 'theme';
+      var btn = document.getElementById('theme-toggle');
+      var label = document.getElementById('theme-toggle-label');
+
+      function getStored() { try { return localStorage.getItem(STORAGE_KEY); } catch(e) { return null; } }
+      function setStored(v) { try { localStorage.setItem(STORAGE_KEY, v); } catch(e) {} }
+
+      function getSystem() {
+        return window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+      }
+
+      function applyTheme(theme) {
+        document.documentElement.setAttribute('data-theme', theme);
+        if (label) label.textContent = theme === 'light' ? '●○' : '○●';
+      }
+
+      var stored = getStored();
+      applyTheme(stored || getSystem());
+
+      if (btn) {
+        btn.addEventListener('click', function() {
+          var current = document.documentElement.getAttribute('data-theme') || getSystem();
+          var next = current === 'dark' ? 'light' : 'dark';
+          setStored(next);
+          applyTheme(next);
+        });
+      }
+
+      
+      if (window.matchMedia) {
+        window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', function(e) {
+          if (!getStored()) applyTheme(e.matches ? 'light' : 'dark');
+        });
+      }
+    })();
+  </script>
+</body>
+
+</html>

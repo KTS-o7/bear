@@ -70,7 +70,12 @@ Multi-Paxos is the optimization that makes Paxos practical as a replicated log. 
 <body>
   <header><a class="skip-link" href="#main-content">Skip to main content</a>
 
-<a href="/bear/" class="title"><h1></h1></a>
+<div style="display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+  <a href="/bear/" class="title"><h1></h1></a>
+  <button id="theme-toggle" aria-label="Toggle light/dark mode" title="Toggle theme">
+    <span id="theme-toggle-label">○●</span>
+  </button>
+</div>
 <nav>
   <a href="/bear/">Home</a>
 
@@ -78,7 +83,7 @@ Multi-Paxos is the optimization that makes Paxos practical as a replicated log. 
 
   <a href="/bear/about/">About</a>
 
-  <a href="/bear/ml/">ML Stuff</a>
+  <a href="/bear/ml/">ML</a>
 
   <a href="/bear/cses.fi/">CSES.fi</a>
 
@@ -178,12 +183,23 @@ Phase 2 (per slot):
 <p>Google&rsquo;s Chubby uses a Paxos variant internally. Google Spanner uses a Paxos variant per shard. In both cases Google built their own leader election and recovery logic on top of the basic protocol &ndash; which is exactly the work Raft was designed to eliminate.</p>
 
 </content>
-<p>
-  
-</p>
 
 
-  <p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  <p style="margin-top: 1.5rem; font-size: 0.875rem; color: var(--color-text-muted);">
     <a href='mailto:shentharkrishnatejaswi@gmail.com?subject=Reply%20to%20"Multi-Paxos%3a%20From%20Single%20Decree%20to%20a%20Replicated%20Log"'>
       Reply to this post by email ↪
     </a>
@@ -197,6 +213,44 @@ Phase 2 (per slot):
 </small></footer>
 
     
+<script>
+    (function() {
+      var STORAGE_KEY = 'theme';
+      var btn = document.getElementById('theme-toggle');
+      var label = document.getElementById('theme-toggle-label');
+
+      function getStored() { try { return localStorage.getItem(STORAGE_KEY); } catch(e) { return null; } }
+      function setStored(v) { try { localStorage.setItem(STORAGE_KEY, v); } catch(e) {} }
+
+      function getSystem() {
+        return window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+      }
+
+      function applyTheme(theme) {
+        document.documentElement.setAttribute('data-theme', theme);
+        if (label) label.textContent = theme === 'light' ? '●○' : '○●';
+      }
+
+      var stored = getStored();
+      applyTheme(stored || getSystem());
+
+      if (btn) {
+        btn.addEventListener('click', function() {
+          var current = document.documentElement.getAttribute('data-theme') || getSystem();
+          var next = current === 'dark' ? 'light' : 'dark';
+          setStored(next);
+          applyTheme(next);
+        });
+      }
+
+      
+      if (window.matchMedia) {
+        window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', function(e) {
+          if (!getStored()) applyTheme(e.matches ? 'light' : 'dark');
+        });
+      }
+    })();
+  </script>
 </body>
 
 </html>

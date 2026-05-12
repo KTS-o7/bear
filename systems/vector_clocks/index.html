@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en-us">
+
+<head>
+  <meta http-equiv="X-Clacks-Overhead" content="GNU Terry Pratchett" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="shortcut icon" href="https://KTS-o7.github.io/bear/images/favicon.png" />
+<title>Vector Clocks: Causality Without a Shared Clock | </title>
+<meta name="title" content="Vector Clocks: Causality Without a Shared Clock" />
+<meta name="description" content="In a distributed system there&rsquo;s no shared clock. Two nodes can&rsquo;t agree on what time it is &ndash; network latency is variable, clocks drift, and NTP only gets you so far. So you can&rsquo;t use timestamps to order events across nodes in any meaningful way.
+The question is: can you still tell whether one event caused another?
+Vector clocks answer that question. They don&rsquo;t give you wall-clock time. They give you something more useful: a precise definition of &ldquo;happened before.&rdquo;" />
+<meta name="author" content="" />
+<meta name="keywords" content="" />
+
+
+
+
+
+
+  
+  <meta property="og:url" content="https://KTS-o7.github.io/bear/systems/vector_clocks/">
+  <meta property="og:title" content="Vector Clocks: Causality Without a Shared Clock">
+  <meta property="og:description" content="In a distributed system there’s no shared clock. Two nodes can’t agree on what time it is – network latency is variable, clocks drift, and NTP only gets you so far. So you can’t use timestamps to order events across nodes in any meaningful way.
+The question is: can you still tell whether one event caused another?
+Vector clocks answer that question. They don’t give you wall-clock time. They give you something more useful: a precise definition of “happened before.”">
+  <meta property="og:locale" content="en_us">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="systems">
+    <meta property="article:published_time" content="2026-05-02T00:00:00+05:30">
+    <meta property="article:modified_time" content="2026-05-02T00:00:00+05:30">
+    <meta property="og:image" content="https://KTS-o7.github.io/bear/images/share.webp">
+
+
+  
+  
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://KTS-o7.github.io/bear/images/share.webp">
+  <meta name="twitter:title" content="Vector Clocks: Causality Without a Shared Clock">
+  <meta name="twitter:description" content="In a distributed system there’s no shared clock. Two nodes can’t agree on what time it is – network latency is variable, clocks drift, and NTP only gets you so far. So you can’t use timestamps to order events across nodes in any meaningful way.
+The question is: can you still tell whether one event caused another?
+Vector clocks answer that question. They don’t give you wall-clock time. They give you something more useful: a precise definition of “happened before.”">
+
+
+  
+  
+  <meta itemprop="name" content="Vector Clocks: Causality Without a Shared Clock">
+  <meta itemprop="description" content="In a distributed system there’s no shared clock. Two nodes can’t agree on what time it is – network latency is variable, clocks drift, and NTP only gets you so far. So you can’t use timestamps to order events across nodes in any meaningful way.
+The question is: can you still tell whether one event caused another?
+Vector clocks answer that question. They don’t give you wall-clock time. They give you something more useful: a precise definition of “happened before.”">
+  <meta itemprop="datePublished" content="2026-05-02T00:00:00+05:30">
+  <meta itemprop="dateModified" content="2026-05-02T00:00:00+05:30">
+  <meta itemprop="wordCount" content="499">
+  <meta itemprop="image" content="https://KTS-o7.github.io/bear/images/share.webp">
+
+<meta name="referrer" content="no-referrer-when-downgrade" />
+
+  
+  <link href="/bear/herman.min.css" rel="stylesheet">
+
+  
+    
+    <link href="/bear/syntax.min.css" rel="stylesheet">
+  
+
+  
+
+  
+
+  
+</head>
+
+<body>
+  <header><a class="skip-link" href="#main-content">Skip to main content</a>
+
+<div style="display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+  <a href="/bear/" class="title"><h1></h1></a>
+  <button id="theme-toggle" aria-label="Toggle light/dark mode" title="Toggle theme">
+    <span id="theme-toggle-label">○●</span>
+  </button>
+</div>
+<nav>
+  <a href="/bear/">Home</a>
+
+  <a href="/bear/notes/">Notes</a>
+
+  <a href="/bear/about/">About</a>
+
+  <a href="/bear/ml/">ML</a>
+
+  <a href="/bear/cses.fi/">CSES.fi</a>
+
+<a href='https://KTS-o7.github.io/bear/index.xml'>RSS</a>
+
+
+
+
+
+
+
+</nav>
+</header>
+  <main id="main-content">
+
+<h1>Vector Clocks: Causality Without a Shared Clock</h1>
+<p class="byline">
+  <time datetime='2026-05-02' pubdate>
+    2026-05-02
+  </time>
+  
+</p>
+
+<content>
+  <p>In a distributed system there&rsquo;s no shared clock. Two nodes can&rsquo;t agree on what time it is &ndash; network latency is variable, clocks drift, and NTP only gets you so far. So you can&rsquo;t use timestamps to order events across nodes in any meaningful way.</p>
+<p>The question is: can you still tell whether one event caused another?</p>
+<p>Vector clocks answer that question. They don&rsquo;t give you wall-clock time. They give you something more useful: a precise definition of &ldquo;happened before.&rdquo;</p>
+<h2 id="how-they-work">How They Work</h2>
+<p>Each node maintains a vector of counters, one slot per node in the system. Call them <code>[A, B, C]</code> for a three-node cluster.</p>
+<p>Three rules:</p>
+<ol>
+<li><strong>Local event</strong> &ndash; increment your own counter</li>
+<li><strong>Send a message</strong> &ndash; attach the current vector to the message</li>
+<li><strong>Receive a message</strong> &ndash; merge by taking the element-wise max of your vector and the received vector, then increment your own counter</li>
+</ol>
+<p>A concrete trace:</p>
+
+
+
+
+
+<pre tabindex="0"><code>Node A starts:  [A:0, B:0, C:0]
+Node A event:   [A:1, B:0, C:0]
+Node A sends to B, attaches [A:1, B:0, C:0]
+
+Node B receives, merges: max([A:0,B:0,C:0], [A:1,B:0,C:0]) = [A:1,B:0,C:0]
+Node B increments own:   [A:1, B:1, C:0]
+Node B event:            [A:1, B:2, C:0]</code></pre><h2 id="what-you-can-determine">What You Can Determine</h2>
+<p>Given two events with vectors <code>V1</code> and <code>V2</code>, exactly one of three things is true:</p>
+<table>
+  <thead>
+      <tr>
+          <th>Result</th>
+          <th>Condition</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>V1 happened-before V2</td>
+          <td>V1[i] &lt;= V2[i] for every i, and strict for at least one</td>
+      </tr>
+      <tr>
+          <td>V2 happened-before V1</td>
+          <td>V2[i] &lt;= V1[i] for every i, and strict for at least one</td>
+      </tr>
+      <tr>
+          <td><strong>Concurrent</strong></td>
+          <td>Neither vector dominates</td>
+      </tr>
+  </tbody>
+</table>
+<p>The concurrent case is the important one. When neither vector dominates, the events genuinely have no causal relationship &ndash; they happened independently on different nodes without either one knowing about the other. No ordering can be inferred because no ordering exists.</p>
+<h2 id="why-this-matters">Why This Matters</h2>
+<p>The alternative is last-write-wins: when two writes conflict, pick the one with the later timestamp and discard the other. This is simple to implement and silently destroys data. If two users edit the same document concurrently, you lose one of their changes without telling anyone.</p>
+<p>Vector clocks let you detect that conflict honestly. DynamoDB and Riak use them (or variants) to surface conflicting writes to the application rather than silently resolving them. The application &ndash; or the user &ndash; can then merge the two versions intelligently.</p>
+<p>&ldquo;Happened-before&rdquo; is a relationship you earn through the causal structure of the system, not one you assume from timestamps.</p>
+<h2 id="the-tradeoff">The Tradeoff</h2>
+<p>Vector size grows O(N) with the number of nodes. In a cluster with hundreds of nodes, attaching a full vector to every message gets expensive.</p>
+<p><strong>Dotted version vectors</strong> are a modern fix: they compress the vector by pruning entries that are causally dominated. Same core semantics, better space efficiency for large clusters.</p>
+<p>Lamport clocks are the scalar predecessor &ndash; a single counter instead of a vector. They give you a consistent ordering (if A happened-before B, A&rsquo;s timestamp is lower), but they don&rsquo;t detect concurrency. Two events with different Lamport timestamps might still be concurrent. Vector clocks are strictly more informative.</p>
+
+</content>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  <p style="margin-top: 1.5rem; font-size: 0.875rem; color: var(--color-text-muted);">
+    <a href='mailto:shentharkrishnatejaswi@gmail.com?subject=Reply%20to%20"Vector%20Clocks%3a%20Causality%20Without%20a%20Shared%20Clock"'>
+      Reply to this post by email ↪
+    </a>
+  </p>
+
+
+
+  </main>
+  <footer><small>
+  Krishnatejaswi S | Made with <a href="https://github.com/clente/hugo-bearcub">Bear Cub</a>
+</small></footer>
+
+    
+<script>
+    (function() {
+      var STORAGE_KEY = 'theme';
+      var btn = document.getElementById('theme-toggle');
+      var label = document.getElementById('theme-toggle-label');
+
+      function getStored() { try { return localStorage.getItem(STORAGE_KEY); } catch(e) { return null; } }
+      function setStored(v) { try { localStorage.setItem(STORAGE_KEY, v); } catch(e) {} }
+
+      function getSystem() {
+        return window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+      }
+
+      function applyTheme(theme) {
+        document.documentElement.setAttribute('data-theme', theme);
+        if (label) label.textContent = theme === 'light' ? '●○' : '○●';
+      }
+
+      var stored = getStored();
+      applyTheme(stored || getSystem());
+
+      if (btn) {
+        btn.addEventListener('click', function() {
+          var current = document.documentElement.getAttribute('data-theme') || getSystem();
+          var next = current === 'dark' ? 'light' : 'dark';
+          setStored(next);
+          applyTheme(next);
+        });
+      }
+
+      
+      if (window.matchMedia) {
+        window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', function(e) {
+          if (!getStored()) applyTheme(e.matches ? 'light' : 'dark');
+        });
+      }
+    })();
+  </script>
+</body>
+
+</html>

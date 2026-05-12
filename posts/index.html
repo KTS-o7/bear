@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html lang="en-us">
 
-<head>
+<head><script src="/bear/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=bear/livereload" data-no-instant defer></script>
   <meta http-equiv="X-Clacks-Overhead" content="GNU Terry Pratchett" />
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<link rel="shortcut icon" href="https://KTS-o7.github.io/bear/images/favicon.png" />
+<link rel="shortcut icon" href="http://localhost:1313/bear/images/favicon.png" />
 <title>Posts | </title>
 <meta name="title" content="Posts" />
-<meta name="description" content="" />
+<meta name="description" content="Engineering deep-dives — distributed systems, AI infrastructure, and implementation notes." />
 <meta name="author" content="" />
 <meta name="keywords" content="" />
 
@@ -18,36 +18,27 @@
 
 
   
-  <meta property="og:url" content="https://KTS-o7.github.io/bear/posts/">
+  <meta property="og:url" content="http://localhost:1313/bear/posts/">
   <meta property="og:title" content="Posts">
-  <meta property="og:description" content="Posts This is where I share my thoughts, experiences, and insights on various topics that interest me.
-Feel free to explore the posts section to see what I’ve been writing about
-ʕง•ᴥ•ʔง Lets goooo !">
+  <meta property="og:description" content="Engineering deep-dives — distributed systems, AI infrastructure, and implementation notes.">
   <meta property="og:locale" content="en_us">
   <meta property="og:type" content="website">
-    <meta property="og:image" content="https://KTS-o7.github.io/bear/images/share.webp">
+    <meta property="og:image" content="http://localhost:1313/bear/images/share.webp">
 
 
   
   
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:image" content="https://KTS-o7.github.io/bear/images/share.webp">
+  <meta name="twitter:image" content="http://localhost:1313/bear/images/share.webp">
   <meta name="twitter:title" content="Posts">
-  <meta name="twitter:description" content="Posts This is where I share my thoughts, experiences, and insights on various topics that interest me.
-Feel free to explore the posts section to see what I’ve been writing about
-ʕง•ᴥ•ʔง Lets goooo !">
+  <meta name="twitter:description" content="Engineering deep-dives — distributed systems, AI infrastructure, and implementation notes.">
 
 
   
   
   <meta itemprop="name" content="Posts">
-  <meta itemprop="description" content="Posts This is where I share my thoughts, experiences, and insights on various topics that interest me.
-Feel free to explore the posts section to see what I’ve been writing about
-ʕง•ᴥ•ʔง Lets goooo !">
-  <meta itemprop="datePublished" content="2026-05-03T00:00:00+05:30">
-  <meta itemprop="dateModified" content="2026-05-03T00:00:00+05:30">
-  <meta itemprop="wordCount" content="35">
-  <meta itemprop="image" content="https://KTS-o7.github.io/bear/images/share.webp">
+  <meta itemprop="description" content="Engineering deep-dives — distributed systems, AI infrastructure, and implementation notes.">
+  <meta itemprop="image" content="http://localhost:1313/bear/images/share.webp">
 
 <meta name="referrer" content="no-referrer-when-downgrade" />
 
@@ -58,7 +49,7 @@ Feel free to explore the posts section to see what I’ve been writing about
 
   
 
-  <link rel="alternate" type="application/rss+xml" href="https://KTS-o7.github.io/bear/posts/index.xml" title="" />
+  <link rel="alternate" type="application/rss+xml" href="http://localhost:1313/bear/posts/index.xml" title="" />
   
 
   
@@ -87,14 +78,30 @@ Feel free to explore the posts section to see what I’ve been writing about
   document.addEventListener("DOMContentLoaded", function() {
     renderMathInElement(document.body, {
       delimiters: [
-        {left: '\\[', right: '\\]', display: true},   
-        {left: '$$', right: '$$', display: true},     
-        {left: '\\(', right: '\\)', display: false},  
+        {left: '\\[', right: '\\]', display: true},
+        {left: '$$', right: '$$', display: true},
+        {left: '\\(', right: '\\)', display: false},
       ],
       throwOnError: false
     });
   });
 </script>
+<style>
+   
+  .katex { color: inherit; }
+  .katex .katex-html { color: inherit; }
+  .katex-display {
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 0.25rem 0;
+    margin: 1.4rem 0 !important;
+  }
+   
+  @media (max-width: 600px) {
+    .katex-display > .katex { max-width: 100%; }
+    .katex-display > .katex > .katex-html { overflow-x: auto; overflow-y: hidden; }
+  }
+</style>
 
   
 </head>
@@ -102,19 +109,26 @@ Feel free to explore the posts section to see what I’ve been writing about
 <body>
   <header><a class="skip-link" href="#main-content">Skip to main content</a>
 
-<a href="/bear/" class="title"><h1></h1></a>
+<div style="display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+  <a href="/bear/" class="title"><h1></h1></a>
+  <button id="theme-toggle" aria-label="Toggle light/dark mode" title="Toggle theme">
+    <span id="theme-toggle-label">○●</span>
+  </button>
+</div>
 <nav>
   <a href="/bear/">Home</a>
+
+  <a href="/bear/notes/">Notes</a>
 
   <a href="/bear/posts/">Posts</a>
 
   <a href="/bear/about/">About</a>
 
-  <a href="/bear/ml/">ML Stuff</a>
+  <a href="/bear/ml/">ML</a>
 
   <a href="/bear/cses.fi/">CSES.fi</a>
 
-<a href='https://KTS-o7.github.io/bear/index.xml'>RSS</a>
+<a href='http://localhost:1313/bear/index.xml'>RSS</a>
 
 
 
@@ -130,432 +144,7 @@ Feel free to explore the posts section to see what I’ve been writing about
   <ul class="blog-posts">
     
     <li>
-      <span>
-        <i>
-          <time datetime='2026-05-03' pubdate>
-            2026-05-03
-          </time>
-        </i>
-      </span>
-      
-        <a href="/bear/posts/crdts/">CRDTs: Conflict-Free Replicated Data Types</a>
-      
-    </li>
-    
-    <li>
-      <span>
-        <i>
-          <time datetime='2026-05-03' pubdate>
-            2026-05-03
-          </time>
-        </i>
-      </span>
-      
-        <a href="/bear/posts/spanner_distributed_transactions/">How Spanner Does Distributed Transactions Without Classic 2PC</a>
-      
-    </li>
-    
-    <li>
-      <span>
-        <i>
-          <time datetime='2026-05-03' pubdate>
-            2026-05-03
-          </time>
-        </i>
-      </span>
-      
-        <a href="/bear/posts/kv_cache_paged_attention/">KV Cache and PagedAttention: Why vLLM Actually Works</a>
-      
-    </li>
-    
-    <li>
-      <span>
-        <i>
-          <time datetime='2026-05-03' pubdate>
-            2026-05-03
-          </time>
-        </i>
-      </span>
-      
-        <a href="/bear/posts/multi_paxos/">Multi-Paxos: From Single Decree to a Replicated Log</a>
-      
-    </li>
-    
-    <li>
-      <span>
-        <i>
-          <time datetime='2026-05-03' pubdate>
-            2026-05-03
-          </time>
-        </i>
-      </span>
-      
-        <a href="/bear/posts/raft_log_compaction/">Raft Log Compaction: Keeping the Log from Growing Forever</a>
-      
-    </li>
-    
-    <li>
-      <span>
-        <i>
-          <time datetime='2026-05-03' pubdate>
-            2026-05-03
-          </time>
-        </i>
-      </span>
-      
-        <a href="/bear/posts/bulkhead_pattern/">The Bulkhead Pattern: Isolating Failures Before They Spread</a>
-      
-    </li>
-    
-    <li>
-      <span>
-        <i>
-          <time datetime='2026-05-03' pubdate>
-            2026-05-03
-          </time>
-        </i>
-      </span>
-      
-        <a href="/bear/posts/saga_outbox_pattern/">The Saga Outbox Pattern: Reliable Event Delivery Without Two-Phase Commit</a>
-      
-    </li>
-    
-    <li>
-      <span>
-        <i>
-          <time datetime='2026-05-02' pubdate>
-            2026-05-02
-          </time>
-        </i>
-      </span>
-      
-        <a href="/bear/posts/vps_self_hosting/">A $22/Year VPS Running Three Self-Hosted Services</a>
-      
-    </li>
-    
-    <li>
-      <span>
-        <i>
-          <time datetime='2026-05-02' pubdate>
-            2026-05-02
-          </time>
-        </i>
-      </span>
-      
-        <a href="/bear/posts/circuit_breakers_distributed_systems/">Circuit Breakers: The Pattern That Stops Cascading Failures</a>
-      
-    </li>
-    
-    <li>
-      <span>
-        <i>
-          <time datetime='2026-05-02' pubdate>
-            2026-05-02
-          </time>
-        </i>
-      </span>
-      
-        <a href="/bear/posts/consistent_hashing/">Consistent Hashing: Scaling a Cluster Without Reshuffling the World</a>
-      
-    </li>
-    
-    <li>
-      <span>
-        <i>
-          <time datetime='2026-05-02' pubdate>
-            2026-05-02
-          </time>
-        </i>
-      </span>
-      
-        <a href="/bear/posts/llm_inference_optimization/">LLM Inference Optimization: Stop Paying for Idle Silicon</a>
-      
-    </li>
-    
-    <li>
-      <span>
-        <i>
-          <time datetime='2026-05-02' pubdate>
-            2026-05-02
-          </time>
-        </i>
-      </span>
-      
-        <a href="/bear/posts/paxos_consensus/">Paxos: How Distributed Systems Agree on Anything</a>
-      
-    </li>
-    
-    <li>
-      <span>
-        <i>
-          <time datetime='2026-05-02' pubdate>
-            2026-05-02
-          </time>
-        </i>
-      </span>
-      
-        <a href="/bear/posts/raft_consensus/">Raft: Consensus for the Rest of Us</a>
-      
-    </li>
-    
-    <li>
-      <span>
-        <i>
-          <time datetime='2026-05-02' pubdate>
-            2026-05-02
-          </time>
-        </i>
-      </span>
-      
-        <a href="/bear/posts/teaching_myself_cs/">Teaching Myself CS: The Plan</a>
-      
-    </li>
-    
-    <li>
-      <span>
-        <i>
-          <time datetime='2026-05-02' pubdate>
-            2026-05-02
-          </time>
-        </i>
-      </span>
-      
-        <a href="/bear/posts/saga_pattern/">The Saga Pattern: Distributed Transactions Without the Lock</a>
-      
-    </li>
-    
-    <li>
-      <span>
-        <i>
-          <time datetime='2026-05-02' pubdate>
-            2026-05-02
-          </time>
-        </i>
-      </span>
-      
-        <a href="/bear/posts/two_phase_commit/">Two-Phase Commit: Distributed Atomicity and Its Fatal Flaw</a>
-      
-    </li>
-    
-    <li>
-      <span>
-        <i>
-          <time datetime='2026-05-02' pubdate>
-            2026-05-02
-          </time>
-        </i>
-      </span>
-      
-        <a href="/bear/posts/vector_clocks/">Vector Clocks: Causality Without a Shared Clock</a>
-      
-    </li>
-    
-    <li>
-      <span>
-        <i>
-          <time datetime='2026-04-26' pubdate>
-            2026-04-26
-          </time>
-        </i>
-      </span>
-      
-        <a href="/bear/posts/paxos/">Paxos</a>
-      
-    </li>
-    
-    <li>
-      <span>
-        <i>
-          <time datetime='2026-04-22' pubdate>
-            2026-04-22
-          </time>
-        </i>
-      </span>
-      
-        <a href="/bear/posts/vps_self_hosting_stack/">Three Useful Services on a $22/Year VPS</a>
-      
-    </li>
-    
-    <li>
-      <span>
-        <i>
-          <time datetime='2026-04-21' pubdate>
-            2026-04-21
-          </time>
-        </i>
-      </span>
-      
-        <a href="/bear/posts/obsidian_second_brain/">Building a Second Brain with Obsidian, Zettelkasten, and an AI Agent</a>
-      
-    </li>
-    
-    <li>
-      <span>
-        <i>
-          <time datetime='2026-04-16' pubdate>
-            2026-04-16
-          </time>
-        </i>
-      </span>
-      
-        <a href="/bear/posts/agentbudget_ulimit_for_ai_agents/">Fixing Silent $0 Streaming Costs in AgentBudget: An OSS Contribution</a>
-      
-    </li>
-    
-    <li>
-      <span>
-        <i>
-          <time datetime='2026-04-15' pubdate>
-            2026-04-15
-          </time>
-        </i>
-      </span>
-      
-        <a href="/bear/posts/hermes_local_ai_stack/">Building a Local AI Stack: Hermes, Bifrost, Telegram, and Camoufox</a>
-      
-    </li>
-    
-    <li>
-      <span>
-        <i>
-          <time datetime='2026-03-14' pubdate>
-            2026-03-14
-          </time>
-        </i>
-      </span>
-      
-        <a href="/bear/posts/freeseek_proxy/">Freeseek: Turning DeepSeek&#39;s Web Chat into an OpenAI-Compatible API</a>
-      
-    </li>
-    
-    <li>
-      <span>
-        <i>
-          <time datetime='2026-03-02' pubdate>
-            2026-03-02
-          </time>
-        </i>
-      </span>
-      
-        <a href="/bear/posts/bifrost_parallel_tool_call_fix/">Fixing Parallel Tool Call Streaming in Bifrost: An OSS Bug Hunt</a>
-      
-    </li>
-    
-    <li>
-      <span>
-        <i>
-          <time datetime='2026-02-19' pubdate>
-            2026-02-19
-          </time>
-        </i>
-      </span>
-      
-        <a href="/bear/posts/codex_worktrees_adventure/">Many Small Tasks, One Deadline: Running Parallel AI Agents with Git Worktrees</a>
-      
-    </li>
-    
-    <li>
-      <span>
-        <i>
-          <time datetime='2026-02-17' pubdate>
-            2026-02-17
-          </time>
-        </i>
-      </span>
-      
-        <a href="/bear/posts/cicd_docker_buildx_sha_deploys/">From Manual Deploys to SHA-Tagged Containers: CI/CD for a K8s Platform</a>
-      
-    </li>
-    
-    <li>
-      <span>
-        <i>
-          <time datetime='2026-02-16' pubdate>
-            2026-02-16
-          </time>
-        </i>
-      </span>
-      
-        <a href="/bear/posts/kubernetes_oom_memory_leaks/">Hunting OOMKilled in Kubernetes: Four Memory Leaks That Almost Took Down Our Platform</a>
-      
-    </li>
-    
-    <li>
-      <span>
-        <i>
-          <time datetime='2026-01-23' pubdate>
-            2026-01-23
-          </time>
-        </i>
-      </span>
-      
-        <a href="/bear/posts/sse_disconnect_handling/">SSE in FastAPI: The Tab Closed and My “Done” Code Never Ran</a>
-      
-    </li>
-    
-    <li>
-      <span>
-        <i>
-          <time datetime='2025-12-27' pubdate>
-            2025-12-27
-          </time>
-        </i>
-      </span>
-      
-        <a href="/bear/posts/reverse_proxy/">End-to-End HTTPS with Cloudflare Origin Certificates and Nginx</a>
-      
-    </li>
-    
-    <li>
-      <span>
-        <i>
-          <time datetime='2025-12-06' pubdate>
-            2025-12-06
-          </time>
-        </i>
-      </span>
-      
-        <a href="/bear/posts/connection_pool_exhaustion/">MongoDB Connection Pool Exhaustion: Diagnosis, Fixes, and SDAM</a>
-      
-    </li>
-    
-    <li>
-      <span>
-        <i>
-          <time datetime='2025-12-04' pubdate>
-            2025-12-04
-          </time>
-        </i>
-      </span>
-      
-        <a href="/bear/posts/git/">Git</a>
-      
-    </li>
-    
-    <li>
-      <span>
-        <i>
-          <time datetime='2025-09-05' pubdate>
-            2025-09-05
-          </time>
-        </i>
-      </span>
-      
-        <a href="/bear/posts/why_mysql_is_not_ca/">Why MySQL is not CA</a>
-      
-    </li>
-    
-    <li>
-      <span>
-        <i>
-          <time datetime='2024-01-14' pubdate>
-            2024-01-14
-          </time>
-        </i>
-      </span>
-      
-        <a href="/bear/posts/markdown_stuff/">markdown stuff</a>
-      
+      No posts yet
     </li>
     
   </ul>
@@ -572,6 +161,44 @@ Feel free to explore the posts section to see what I’ve been writing about
 </small></footer>
 
     
+<script>
+    (function() {
+      var STORAGE_KEY = 'theme';
+      var btn = document.getElementById('theme-toggle');
+      var label = document.getElementById('theme-toggle-label');
+
+      function getStored() { try { return localStorage.getItem(STORAGE_KEY); } catch(e) { return null; } }
+      function setStored(v) { try { localStorage.setItem(STORAGE_KEY, v); } catch(e) {} }
+
+      function getSystem() {
+        return window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+      }
+
+      function applyTheme(theme) {
+        document.documentElement.setAttribute('data-theme', theme);
+        if (label) label.textContent = theme === 'light' ? '●○' : '○●';
+      }
+
+      var stored = getStored();
+      applyTheme(stored || getSystem());
+
+      if (btn) {
+        btn.addEventListener('click', function() {
+          var current = document.documentElement.getAttribute('data-theme') || getSystem();
+          var next = current === 'dark' ? 'light' : 'dark';
+          setStored(next);
+          applyTheme(next);
+        });
+      }
+
+      
+      if (window.matchMedia) {
+        window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', function(e) {
+          if (!getStored()) applyTheme(e.matches ? 'light' : 'dark');
+        });
+      }
+    })();
+  </script>
 </body>
 
 </html>
