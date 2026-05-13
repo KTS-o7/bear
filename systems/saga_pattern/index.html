@@ -6,11 +6,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <link rel="shortcut icon" href="https://KTS-o7.github.io/bear/images/favicon.png" />
-<title>The Saga Pattern: Distributed Transactions Without the Lock | </title>
+<title>The Saga Pattern: Distributed Transactions Without the Lock | Krishnatejaswi S</title>
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
 <meta name="title" content="The Saga Pattern: Distributed Transactions Without the Lock" />
-<meta name="description" content="Two-phase commit gives you distributed atomicity. It also gives you a coordinator that can stall your entire system if it crashes at the wrong moment, and locks held across multiple services for however long the transaction takes. For short, internal transactions that&rsquo;s manageable. For a trip booking flow that touches a flight service, a hotel service, and a payment service &ndash; each owned by a different team, each potentially slow &ndash; it&rsquo;s not." />
-<meta name="author" content="" />
-<meta name="keywords" content="" />
+<meta name="description" content="The Saga pattern manages distributed transactions across microservices without 2PC — a sequence of local transactions with compensating actions for rollback when a step fails." />
+<meta name="author" content="Krishnatejaswi S" />
+<meta name="keywords" content="distributed-systems,patterns,saga,microservices," />
 
 
 
@@ -19,36 +20,68 @@
 
   
   <meta property="og:url" content="https://KTS-o7.github.io/bear/systems/saga_pattern/">
+  <meta property="og:site_name" content="Krishnatejaswi S">
   <meta property="og:title" content="The Saga Pattern: Distributed Transactions Without the Lock">
-  <meta property="og:description" content="Two-phase commit gives you distributed atomicity. It also gives you a coordinator that can stall your entire system if it crashes at the wrong moment, and locks held across multiple services for however long the transaction takes. For short, internal transactions that’s manageable. For a trip booking flow that touches a flight service, a hotel service, and a payment service – each owned by a different team, each potentially slow – it’s not.">
+  <meta property="og:description" content="The Saga pattern manages distributed transactions across microservices without 2PC — a sequence of local transactions with compensating actions for rollback when a step fails.">
   <meta property="og:locale" content="en_us">
   <meta property="og:type" content="article">
     <meta property="article:section" content="systems">
     <meta property="article:published_time" content="2026-05-02T00:00:00+05:30">
     <meta property="article:modified_time" content="2026-05-02T00:00:00+05:30">
+    <meta property="article:tag" content="Distributed-Systems">
+    <meta property="article:tag" content="Patterns">
+    <meta property="article:tag" content="Saga">
+    <meta property="article:tag" content="Microservices">
     <meta property="og:image" content="https://KTS-o7.github.io/bear/images/share.webp">
 
+  
+  <meta property="og:site_name" content="Krishnatejaswi S" />
 
   
   
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:image" content="https://KTS-o7.github.io/bear/images/share.webp">
   <meta name="twitter:title" content="The Saga Pattern: Distributed Transactions Without the Lock">
-  <meta name="twitter:description" content="Two-phase commit gives you distributed atomicity. It also gives you a coordinator that can stall your entire system if it crashes at the wrong moment, and locks held across multiple services for however long the transaction takes. For short, internal transactions that’s manageable. For a trip booking flow that touches a flight service, a hotel service, and a payment service – each owned by a different team, each potentially slow – it’s not.">
+  <meta name="twitter:description" content="The Saga pattern manages distributed transactions across microservices without 2PC — a sequence of local transactions with compensating actions for rollback when a step fails.">
 
+  <meta name="twitter:site" content="@KTS_o7" />
 
   
   
   <meta itemprop="name" content="The Saga Pattern: Distributed Transactions Without the Lock">
-  <meta itemprop="description" content="Two-phase commit gives you distributed atomicity. It also gives you a coordinator that can stall your entire system if it crashes at the wrong moment, and locks held across multiple services for however long the transaction takes. For short, internal transactions that’s manageable. For a trip booking flow that touches a flight service, a hotel service, and a payment service – each owned by a different team, each potentially slow – it’s not.">
+  <meta itemprop="description" content="The Saga pattern manages distributed transactions across microservices without 2PC — a sequence of local transactions with compensating actions for rollback when a step fails.">
   <meta itemprop="datePublished" content="2026-05-02T00:00:00+05:30">
   <meta itemprop="dateModified" content="2026-05-02T00:00:00+05:30">
   <meta itemprop="wordCount" content="565">
   <meta itemprop="image" content="https://KTS-o7.github.io/bear/images/share.webp">
+  <meta itemprop="keywords" content="Distributed-Systems,Patterns,Saga,Microservices">
 
-<meta name="referrer" content="no-referrer-when-downgrade" />
-
-  
+<link rel="canonical" href="https://KTS-o7.github.io/bear/systems/saga_pattern/" />
+  <meta name="referrer" content="no-referrer-when-downgrade" /><script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https:\/\/KTS-o7.github.io\/bear\/systems\/saga_pattern\/"
+  },
+  "headline": "The Saga Pattern: Distributed Transactions Without the Lock",
+  "description": "The Saga pattern manages distributed transactions across microservices without 2PC — a sequence of local transactions with compensating actions for rollback when a step fails.",
+  "datePublished": "2026-05-02",
+  "dateModified": "2026-05-02",
+  "author": {
+    "@type": "Person",
+    "name": "Krishnatejaswi S",
+    "url": "https:\/\/KTS-o7.github.io\/bear\/"
+  },
+  "publisher": {
+    "@type": "Person",
+    "name": "Krishnatejaswi S"
+  },
+  "url": "https:\/\/KTS-o7.github.io\/bear\/systems\/saga_pattern\/",
+  "keywords": ["distributed-systems", "patterns", "saga", "microservices"]
+}
+</script>
   <link href="/bear/herman.min.css" rel="stylesheet">
 
   
@@ -67,7 +100,7 @@
   <header><a class="skip-link" href="#main-content">Skip to main content</a>
 
 <div style="display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
-  <a href="/bear/" class="title"><h1></h1></a>
+  <a href="/bear/" class="title"><h1>Krishnatejaswi S</h1></a>
   <button id="theme-toggle" aria-label="Toggle light/dark mode" title="Toggle theme">
     <span id="theme-toggle-label">○●</span>
   </button>
@@ -100,7 +133,7 @@
   <time datetime='2026-05-02' pubdate>
     2026-05-02
   </time>
-  
+  · Krishnatejaswi S
 </p>
 
 <content>
@@ -179,6 +212,17 @@ ROLLBACK:              ← [Cancel Hotel] ← [Cancel Flight]</code></pre><p>No 
 
 
 
+<p style="margin-top: 1.5rem;">
+  
+    <a class="blog-tags" href="/bear/tags/distributed-systems/">#distributed-systems</a>
+  
+    <a class="blog-tags" href="/bear/tags/patterns/">#patterns</a>
+  
+    <a class="blog-tags" href="/bear/tags/saga/">#saga</a>
+  
+    <a class="blog-tags" href="/bear/tags/microservices/">#microservices</a>
+  
+</p>
 
 
 
@@ -186,6 +230,36 @@ ROLLBACK:              ← [Cancel Hotel] ← [Cancel Flight]</code></pre><p>No 
 
 
 
+
+
+
+
+<div class="related-notes">
+  <h4>Related Notes</h4>
+  <ul>
+    
+    <li>
+      <a href="/bear/systems/saga_outbox_pattern/">The Saga Outbox Pattern: Reliable Event Delivery Without Two-Phase Commit</a>
+      <span class="note-date">2026-05-03</span>
+    </li>
+    
+    <li>
+      <a href="/bear/systems/bulkhead_pattern/">The Bulkhead Pattern: Isolating Failures Before They Spread</a>
+      <span class="note-date">2026-05-03</span>
+    </li>
+    
+    <li>
+      <a href="/bear/systems/circuit_breakers_distributed_systems/">Circuit Breakers: The Pattern That Stops Cascading Failures</a>
+      <span class="note-date">2026-05-02</span>
+    </li>
+    
+    <li>
+      <a href="/bear/systems/crdts/">CRDTs: Conflict-Free Replicated Data Types</a>
+      <span class="note-date">2026-05-03</span>
+    </li>
+    
+  </ul>
+</div>
 
 
 

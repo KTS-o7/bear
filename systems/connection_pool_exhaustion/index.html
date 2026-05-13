@@ -6,16 +6,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <link rel="shortcut icon" href="https://KTS-o7.github.io/bear/images/favicon.png" />
-<title>MongoDB Connection Pool Exhaustion: Diagnosis, Fixes, and SDAM | </title>
+<title>MongoDB Connection Pool Exhaustion: Diagnosis, Fixes, and SDAM | Krishnatejaswi S</title>
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
 <meta name="title" content="MongoDB Connection Pool Exhaustion: Diagnosis, Fixes, and SDAM" />
-<meta name="description" content="
-Why increasing maxPoolSize breaks your database. A deep dive into MongoDB connection pooling, SDAM, WiredTiger tickets, and preventing transaction pinning.
-
-Introduction
-In the MongoDB ecosystem, the &ldquo;connection pool&rdquo; is often treated as a set-and-forget configuration within MongoClient. However, when latency spikes or the database becomes unresponsive during high traffic, the pool is usually the first mechanism to break.
-Unlike relational databases that often sit behind proxies like PgBouncer, MongoDB drivers are &ldquo;smart&rdquo;—they maintain direct connections to multiple nodes in a Replica Set or Sharded Cluster. This complexity means exhaustion isn&rsquo;t just about running out of sockets; it&rsquo;s about topology monitoring, transaction pinning, and the brutal reality of the thread-per-connection model on the server side." />
-<meta name="author" content="" />
-<meta name="keywords" content="" />
+<meta name="description" content="Diagnosing and fixing MongoDB connection pool exhaustion: SDAM monitoring, pool sizing, async leak patterns, and how to read the driver&#39;s topology events." />
+<meta name="author" content="Krishnatejaswi S" />
+<meta name="keywords" content="distributed-systems,mongodb,databases,debugging,infra," />
 
 
 
@@ -24,42 +20,69 @@ Unlike relational databases that often sit behind proxies like PgBouncer, MongoD
 
   
   <meta property="og:url" content="https://KTS-o7.github.io/bear/systems/connection_pool_exhaustion/">
+  <meta property="og:site_name" content="Krishnatejaswi S">
   <meta property="og:title" content="MongoDB Connection Pool Exhaustion: Diagnosis, Fixes, and SDAM">
-  <meta property="og:description" content="Why increasing maxPoolSize breaks your database. A deep dive into MongoDB connection pooling, SDAM, WiredTiger tickets, and preventing transaction pinning.
-Introduction In the MongoDB ecosystem, the “connection pool” is often treated as a set-and-forget configuration within MongoClient. However, when latency spikes or the database becomes unresponsive during high traffic, the pool is usually the first mechanism to break.
-Unlike relational databases that often sit behind proxies like PgBouncer, MongoDB drivers are “smart”—they maintain direct connections to multiple nodes in a Replica Set or Sharded Cluster. This complexity means exhaustion isn’t just about running out of sockets; it’s about topology monitoring, transaction pinning, and the brutal reality of the thread-per-connection model on the server side.">
+  <meta property="og:description" content="Diagnosing and fixing MongoDB connection pool exhaustion: SDAM monitoring, pool sizing, async leak patterns, and how to read the driver&#39;s topology events.">
   <meta property="og:locale" content="en_us">
   <meta property="og:type" content="article">
     <meta property="article:section" content="systems">
     <meta property="article:published_time" content="2025-12-06T12:00:00+00:00">
     <meta property="article:modified_time" content="2025-12-06T12:00:00+00:00">
+    <meta property="article:tag" content="Distributed-Systems">
+    <meta property="article:tag" content="Mongodb">
+    <meta property="article:tag" content="Databases">
+    <meta property="article:tag" content="Debugging">
+    <meta property="article:tag" content="Infra">
     <meta property="og:image" content="https://KTS-o7.github.io/bear/images/share.webp">
 
+  
+  <meta property="og:site_name" content="Krishnatejaswi S" />
 
   
   
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:image" content="https://KTS-o7.github.io/bear/images/share.webp">
   <meta name="twitter:title" content="MongoDB Connection Pool Exhaustion: Diagnosis, Fixes, and SDAM">
-  <meta name="twitter:description" content="Why increasing maxPoolSize breaks your database. A deep dive into MongoDB connection pooling, SDAM, WiredTiger tickets, and preventing transaction pinning.
-Introduction In the MongoDB ecosystem, the “connection pool” is often treated as a set-and-forget configuration within MongoClient. However, when latency spikes or the database becomes unresponsive during high traffic, the pool is usually the first mechanism to break.
-Unlike relational databases that often sit behind proxies like PgBouncer, MongoDB drivers are “smart”—they maintain direct connections to multiple nodes in a Replica Set or Sharded Cluster. This complexity means exhaustion isn’t just about running out of sockets; it’s about topology monitoring, transaction pinning, and the brutal reality of the thread-per-connection model on the server side.">
+  <meta name="twitter:description" content="Diagnosing and fixing MongoDB connection pool exhaustion: SDAM monitoring, pool sizing, async leak patterns, and how to read the driver&#39;s topology events.">
 
+  <meta name="twitter:site" content="@KTS_o7" />
 
   
   
   <meta itemprop="name" content="MongoDB Connection Pool Exhaustion: Diagnosis, Fixes, and SDAM">
-  <meta itemprop="description" content="Why increasing maxPoolSize breaks your database. A deep dive into MongoDB connection pooling, SDAM, WiredTiger tickets, and preventing transaction pinning.
-Introduction In the MongoDB ecosystem, the “connection pool” is often treated as a set-and-forget configuration within MongoClient. However, when latency spikes or the database becomes unresponsive during high traffic, the pool is usually the first mechanism to break.
-Unlike relational databases that often sit behind proxies like PgBouncer, MongoDB drivers are “smart”—they maintain direct connections to multiple nodes in a Replica Set or Sharded Cluster. This complexity means exhaustion isn’t just about running out of sockets; it’s about topology monitoring, transaction pinning, and the brutal reality of the thread-per-connection model on the server side.">
+  <meta itemprop="description" content="Diagnosing and fixing MongoDB connection pool exhaustion: SDAM monitoring, pool sizing, async leak patterns, and how to read the driver&#39;s topology events.">
   <meta itemprop="datePublished" content="2025-12-06T12:00:00+00:00">
   <meta itemprop="dateModified" content="2025-12-06T12:00:00+00:00">
   <meta itemprop="wordCount" content="3292">
   <meta itemprop="image" content="https://KTS-o7.github.io/bear/images/share.webp">
+  <meta itemprop="keywords" content="Distributed-Systems,Mongodb,Databases,Debugging,Infra">
 
-<meta name="referrer" content="no-referrer-when-downgrade" />
-
-  
+<link rel="canonical" href="https://KTS-o7.github.io/bear/systems/connection_pool_exhaustion/" />
+  <meta name="referrer" content="no-referrer-when-downgrade" /><script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https:\/\/KTS-o7.github.io\/bear\/systems\/connection_pool_exhaustion\/"
+  },
+  "headline": "MongoDB Connection Pool Exhaustion: Diagnosis, Fixes, and SDAM",
+  "description": "Diagnosing and fixing MongoDB connection pool exhaustion: SDAM monitoring, pool sizing, async leak patterns, and how to read the driver\u0027s topology events.",
+  "datePublished": "2025-12-06",
+  "dateModified": "2025-12-06",
+  "author": {
+    "@type": "Person",
+    "name": "Krishnatejaswi S",
+    "url": "https:\/\/KTS-o7.github.io\/bear\/"
+  },
+  "publisher": {
+    "@type": "Person",
+    "name": "Krishnatejaswi S"
+  },
+  "url": "https:\/\/KTS-o7.github.io\/bear\/systems\/connection_pool_exhaustion\/",
+  "keywords": ["distributed-systems", "mongodb", "databases", "debugging", "infra"]
+}
+</script>
   <link href="/bear/herman.min.css" rel="stylesheet">
 
   
@@ -129,7 +152,7 @@ Unlike relational databases that often sit behind proxies like PgBouncer, MongoD
   <header><a class="skip-link" href="#main-content">Skip to main content</a>
 
 <div style="display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
-  <a href="/bear/" class="title"><h1></h1></a>
+  <a href="/bear/" class="title"><h1>Krishnatejaswi S</h1></a>
   <button id="theme-toggle" aria-label="Toggle light/dark mode" title="Toggle theme">
     <span id="theme-toggle-label">○●</span>
   </button>
@@ -162,7 +185,7 @@ Unlike relational databases that often sit behind proxies like PgBouncer, MongoD
   <time datetime='2025-12-06' pubdate>
     2025-12-06
   </time>
-  
+  · Krishnatejaswi S
 </p>
 
 <content>
@@ -672,6 +695,19 @@ Monitor the rate of new connections (<code>connectionsCreated</code> per second)
 
 
 
+<p style="margin-top: 1.5rem;">
+  
+    <a class="blog-tags" href="/bear/tags/distributed-systems/">#distributed-systems</a>
+  
+    <a class="blog-tags" href="/bear/tags/mongodb/">#mongodb</a>
+  
+    <a class="blog-tags" href="/bear/tags/databases/">#databases</a>
+  
+    <a class="blog-tags" href="/bear/tags/debugging/">#debugging</a>
+  
+    <a class="blog-tags" href="/bear/tags/infra/">#infra</a>
+  
+</p>
 
 
 
@@ -679,6 +715,36 @@ Monitor the rate of new connections (<code>connectionsCreated</code> per second)
 
 
 
+
+
+
+
+<div class="related-notes">
+  <h4>Related Notes</h4>
+  <ul>
+    
+    <li>
+      <a href="/bear/systems/why_mysql_is_not_ca/">Why MySQL is not CA</a>
+      <span class="note-date">2025-09-05</span>
+    </li>
+    
+    <li>
+      <a href="/bear/systems/spanner_distributed_transactions/">How Spanner Does Distributed Transactions Without Classic 2PC</a>
+      <span class="note-date">2026-05-03</span>
+    </li>
+    
+    <li>
+      <a href="/bear/systems/saga_outbox_pattern/">The Saga Outbox Pattern: Reliable Event Delivery Without Two-Phase Commit</a>
+      <span class="note-date">2026-05-03</span>
+    </li>
+    
+    <li>
+      <a href="/bear/systems/consistent_hashing/">Consistent Hashing: Scaling a Cluster Without Reshuffling the World</a>
+      <span class="note-date">2026-05-02</span>
+    </li>
+    
+  </ul>
+</div>
 
 
 

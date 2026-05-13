@@ -1,0 +1,1197 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>Debugging on Krishnatejaswi S</title>
+    <link>https://KTS-o7.github.io/bear/tags/debugging/</link>
+    <description>Recent content in Debugging on Krishnatejaswi S</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <managingEditor>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</managingEditor>
+    <webMaster>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</webMaster>
+    <copyright>Krishnatejaswi S</copyright>
+    <lastBuildDate>Mon, 02 Mar 2026 00:00:00 +0000</lastBuildDate>
+    <atom:link href="https://KTS-o7.github.io/bear/tags/debugging/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Fixing Parallel Tool Call Streaming in Bifrost: An OSS Bug Hunt</title>
+      <link>https://KTS-o7.github.io/bear/notes/bifrost_parallel_tool_call_fix/</link>
+      <pubDate>Mon, 02 Mar 2026 00:00:00 +0000</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/notes/bifrost_parallel_tool_call_fix/</guid>
+      <description>&lt;p&gt;An AI agent calls three tools in parallel. The LLM streams back interleaved deltas — a few bytes of &lt;code&gt;search_documents&lt;/code&gt; arguments, then a few bytes of &lt;code&gt;get_user&lt;/code&gt;, then more &lt;code&gt;search_documents&lt;/code&gt;. On the other end, the gateway reassembles these fragments into complete tool calls.&lt;/p&gt;&#xA;&lt;p&gt;Except it doesn&amp;rsquo;t. It concatenates them all into one call: &lt;code&gt;search_documentsget_usersearch_documents&lt;/code&gt;. The agent hallucinates, retries, and loops. I stared at the telemetry for twenty minutes before I realized the bug wasn&amp;rsquo;t in the agent — it was in the gateway&amp;rsquo;s streaming accumulator.&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>An AI agent calls three tools in parallel. The LLM streams back interleaved deltas — a few bytes of <code>search_documents</code> arguments, then a few bytes of <code>get_user</code>, then more <code>search_documents</code>. On the other end, the gateway reassembles these fragments into complete tool calls.</p>
+<p>Except it doesn&rsquo;t. It concatenates them all into one call: <code>search_documentsget_usersearch_documents</code>. The agent hallucinates, retries, and loops. I stared at the telemetry for twenty minutes before I realized the bug wasn&rsquo;t in the agent — it was in the gateway&rsquo;s streaming accumulator.</p>
+<p>This is the story of how I found and fixed a parallel tool call merging bug in <a href="https://github.com/maximhq/bifrost">Bifrost</a>, a 2.6k-star open-source AI gateway.</p>
+<h2 id="what-is-bifrost">What is Bifrost?</h2>
+<p>Bifrost is a high-performance AI gateway written in Go. It sits between your application and LLM providers (OpenAI, Anthropic, Bedrock, Vertex, etc.), providing a unified OpenAI-compatible API with automatic failover, load balancing, semantic caching, and streaming support. Think of it as an intelligent reverse proxy for AI — one API, fifteen providers, ~11µs overhead at 5k RPS.</p>
+<p>The relevant piece here is the <strong>streaming accumulator</strong>. When you make a streaming chat completion request, the LLM sends back a sequence of Server-Sent Events (SSE), each containing a small delta — a few tokens of text, or a fragment of a tool call&rsquo;s arguments. The accumulator&rsquo;s job is to reassemble these deltas into complete messages.</p>
+<h2 id="the-bug-recency-based-routing">The bug: recency-based routing</h2>
+<p>Here&rsquo;s the scenario. You ask Claude or GPT to call two tools in parallel:</p>
+
+
+
+
+
+<pre tabindex="0"><code>User: &#34;Search for compliance circulars about RBI and also get the user&#39;s profile&#34;</code></pre><p>The model decides to call both <code>search_circulars</code> and <code>get_user_profile</code> simultaneously. During streaming, the provider sends interleaved deltas:</p>
+
+
+
+
+
+<pre tabindex="0"><code>Delta 1: tool_call[0] name=&#34;search&#34; (index=0, id=call_abc)
+Delta 2: tool_call[1] name=&#34;get_us&#34; (index=1, id=call_xyz)
+Delta 3: tool_call[0] args=&#39;{&#34;query&#34;: &#34;RBI&#39;   (index=0)
+Delta 4: tool_call[1] args=&#39;{&#34;user_id&#34;: &#34;u&#39;   (index=1)
+Delta 5: tool_call[0] args=&#39; circulars&#34;}&#39;      (index=0)
+Delta 6: tool_call[1] args=&#39;123&#34;}&#39;             (index=1)</code></pre><p>Each delta carries an <code>index</code> (and optionally an <code>id</code>) that identifies which tool call it belongs to. The expected behavior: two distinct tool calls with their own names and arguments.</p>
+<p>The actual behavior in Bifrost&rsquo;s accumulator before the fix:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="ln">1</span><span class="cl"><span class="c1">// Old logic (simplified)</span><span class="w">
+</span></span></span><span class="line"><span class="ln">2</span><span class="cl"><span class="k">if</span><span class="w"> </span><span class="nx">deltaToolCall</span><span class="p">.</span><span class="nx">Function</span><span class="p">.</span><span class="nx">Name</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln">3</span><span class="cl"><span class="w">    </span><span class="c1">// New tool call — create it</span><span class="w">
+</span></span></span><span class="line"><span class="ln">4</span><span class="cl"><span class="w">    </span><span class="nx">existingToolCalls</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nb">append</span><span class="p">(</span><span class="nx">existingToolCalls</span><span class="p">,</span><span class="w"> </span><span class="nx">newToolCall</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="ln">5</span><span class="cl"><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln">6</span><span class="cl"><span class="w">    </span><span class="c1">// Argument delta — append to the LAST tool call</span><span class="w">
+</span></span></span><span class="line"><span class="ln">7</span><span class="cl"><span class="w">    </span><span class="nx">toolCallToModify</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="o">&amp;</span><span class="nx">existingToolCalls</span><span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="nx">existingToolCalls</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="w">
+</span></span></span><span class="line"><span class="ln">8</span><span class="cl"><span class="w">    </span><span class="nx">toolCallToModify</span><span class="p">.</span><span class="nx">Function</span><span class="p">.</span><span class="nx">Arguments</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="nx">deltaToolCall</span><span class="p">.</span><span class="nx">Function</span><span class="p">.</span><span class="nx">Arguments</span><span class="w">
+</span></span></span><span class="line"><span class="ln">9</span><span class="cl"><span class="p">}</span></span></span></code></pre></div><p>The routing logic was based on <strong>recency</strong>: if a delta has a <code>Name</code>, it&rsquo;s a new tool call; otherwise, append arguments to the most recent one. This works perfectly when tool calls arrive sequentially. It breaks completely when they&rsquo;re interleaved.</p>
+<p>With the deltas above:</p>
+<ul>
+<li>Delta 3 (index=0 args) arrives → appended to the <strong>last</strong> tool call, which is <code>get_user_profile</code> (index=1). Wrong target.</li>
+<li>Delta 5 (index=0 args) arrives → again appended to <code>get_user_profile</code>. Now <code>get_user_profile</code> has arguments from two different calls mashed together.</li>
+</ul>
+<p>The result: concatenated tool names, merged arguments, and an agent stuck in a retry loop trying to invoke <code>search_circularsget_user_profile</code> — a tool that doesn&rsquo;t exist.</p>
+<h2 id="finding-the-bug">Finding the bug</h2>
+<p>I hit this in production. Our compliance platform uses an AI agent that calls multiple tools in parallel — searching circulars, fetching regulatory data, looking up user context. The agent kept failing with tool resolution errors, and the telemetry showed impossible tool names:</p>
+
+
+
+
+
+<pre tabindex="0"><code>search_circularsearch_circularsearch_circular</code></pre><p>At first I suspected the agent&rsquo;s tool-calling logic. Then I looked at the raw SSE stream from the provider — the deltas were correct. Each one had the right <code>index</code> and <code>id</code>. The corruption was happening between the provider response and the final accumulated message.</p>
+<p>I traced it to <code>accumulateToolCallsInMessage</code> in <code>framework/streaming/accumulator.go</code>. The function had no concept of tool call identity. It used the presence of a <code>Name</code> field as a heuristic for &ldquo;new vs. continuation,&rdquo; which is fragile and incorrect when deltas arrive out of order.</p>
+<h2 id="the-fix">The fix</h2>
+<p>The fix is conceptually simple: <strong>route deltas by identity, not by recency.</strong></p>
+<p>Each tool call delta carries two potential identifiers:</p>
+<ol>
+<li><code>tool_call.id</code> — a string like <code>call_abc123</code> (set by OpenAI/Anthropic)</li>
+<li><code>tool_call.index</code> — an integer position (0, 1, 2, &hellip;)</li>
+</ol>
+<p>The new logic builds lookup maps on existing tool calls and uses them to route each incoming delta to the correct target:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="ln">1</span><span class="cl"><span class="c1">// Build lookup maps for identity-based routing</span><span class="w">
+</span></span></span><span class="line"><span class="ln">2</span><span class="cl"><span class="nx">idToIndex</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nb">make</span><span class="p">(</span><span class="kd">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="kt">int</span><span class="p">,</span><span class="w"> </span><span class="nb">len</span><span class="p">(</span><span class="nx">existingToolCalls</span><span class="p">))</span><span class="w">
+</span></span></span><span class="line"><span class="ln">3</span><span class="cl"><span class="nx">indexToIndex</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nb">make</span><span class="p">(</span><span class="kd">map</span><span class="p">[</span><span class="kt">uint16</span><span class="p">]</span><span class="kt">int</span><span class="p">,</span><span class="w"> </span><span class="nb">len</span><span class="p">(</span><span class="nx">existingToolCalls</span><span class="p">))</span><span class="w">
+</span></span></span><span class="line"><span class="ln">4</span><span class="cl"><span class="k">for</span><span class="w"> </span><span class="nx">i</span><span class="p">,</span><span class="w"> </span><span class="nx">toolCall</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="k">range</span><span class="w"> </span><span class="nx">existingToolCalls</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln">5</span><span class="cl"><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">toolCall</span><span class="p">.</span><span class="nx">ID</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="o">*</span><span class="nx">toolCall</span><span class="p">.</span><span class="nx">ID</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="s">&#34;&#34;</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln">6</span><span class="cl"><span class="w">        </span><span class="nx">idToIndex</span><span class="p">[</span><span class="o">*</span><span class="nx">toolCall</span><span class="p">.</span><span class="nx">ID</span><span class="p">]</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nx">i</span><span class="w">
+</span></span></span><span class="line"><span class="ln">7</span><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="ln">8</span><span class="cl"><span class="w">    </span><span class="nx">indexToIndex</span><span class="p">[</span><span class="nx">toolCall</span><span class="p">.</span><span class="nx">Index</span><span class="p">]</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nx">i</span><span class="w">
+</span></span></span><span class="line"><span class="ln">9</span><span class="cl"><span class="p">}</span></span></span></code></pre></div><p>For each incoming delta, routing follows a priority chain:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="k">for</span><span class="w"> </span><span class="nx">_</span><span class="p">,</span><span class="w"> </span><span class="nx">deltaToolCall</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="k">range</span><span class="w"> </span><span class="nx">deltaToolCalls</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 2</span><span class="cl"><span class="w">    </span><span class="nx">index</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 3</span><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="ln"> 4</span><span class="cl"><span class="w">    </span><span class="c1">// Priority 1: match by tool_call.id</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 5</span><span class="cl"><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">deltaToolCall</span><span class="p">.</span><span class="nx">ID</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="o">*</span><span class="nx">deltaToolCall</span><span class="p">.</span><span class="nx">ID</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="s">&#34;&#34;</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 6</span><span class="cl"><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="nx">existingIndex</span><span class="p">,</span><span class="w"> </span><span class="nx">ok</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">idToIndex</span><span class="p">[</span><span class="o">*</span><span class="nx">deltaToolCall</span><span class="p">.</span><span class="nx">ID</span><span class="p">];</span><span class="w"> </span><span class="nx">ok</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 7</span><span class="cl"><span class="w">            </span><span class="nx">index</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nx">existingIndex</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 8</span><span class="cl"><span class="w">        </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 9</span><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="ln">10</span><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="ln">11</span><span class="cl"><span class="w">    </span><span class="c1">// Priority 2: match by tool_call.index</span><span class="w">
+</span></span></span><span class="line"><span class="ln">12</span><span class="cl"><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">index</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln">13</span><span class="cl"><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="nx">existingIndex</span><span class="p">,</span><span class="w"> </span><span class="nx">ok</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">indexToIndex</span><span class="p">[</span><span class="nx">deltaToolCall</span><span class="p">.</span><span class="nx">Index</span><span class="p">];</span><span class="w"> </span><span class="nx">ok</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln">14</span><span class="cl"><span class="w">            </span><span class="nx">index</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nx">existingIndex</span><span class="w">
+</span></span></span><span class="line"><span class="ln">15</span><span class="cl"><span class="w">        </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="ln">16</span><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="ln">17</span><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="ln">18</span><span class="cl"><span class="w">    </span><span class="c1">// Priority 3: no match → create new tool call (if name present)</span><span class="w">
+</span></span></span><span class="line"><span class="ln">19</span><span class="cl"><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">index</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln">20</span><span class="cl"><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="nx">deltaToolCall</span><span class="p">.</span><span class="nx">Function</span><span class="p">.</span><span class="nx">Name</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln">21</span><span class="cl"><span class="w">            </span><span class="c1">// Can&#39;t create a tool call without a name</span><span class="w">
+</span></span></span><span class="line"><span class="ln">22</span><span class="cl"><span class="w">            </span><span class="k">continue</span><span class="w">
+</span></span></span><span class="line"><span class="ln">23</span><span class="cl"><span class="w">        </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="ln">24</span><span class="cl"><span class="w">        </span><span class="nx">newToolCall</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">schemas</span><span class="p">.</span><span class="nx">ChatAssistantMessageToolCall</span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln">25</span><span class="cl"><span class="w">            </span><span class="nx">Index</span><span class="p">:</span><span class="w">    </span><span class="nx">deltaToolCall</span><span class="p">.</span><span class="nx">Index</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="ln">26</span><span class="cl"><span class="w">            </span><span class="nx">ID</span><span class="p">:</span><span class="w">       </span><span class="nx">deltaToolCall</span><span class="p">.</span><span class="nx">ID</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="ln">27</span><span class="cl"><span class="w">            </span><span class="nx">Function</span><span class="p">:</span><span class="w"> </span><span class="cm">/* ... */</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="ln">28</span><span class="cl"><span class="w">        </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="ln">29</span><span class="cl"><span class="w">        </span><span class="nx">existingToolCalls</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nb">append</span><span class="p">(</span><span class="nx">existingToolCalls</span><span class="p">,</span><span class="w"> </span><span class="nx">newToolCall</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="ln">30</span><span class="cl"><span class="w">        </span><span class="c1">// Update maps for future deltas</span><span class="w">
+</span></span></span><span class="line"><span class="ln">31</span><span class="cl"><span class="w">        </span><span class="nx">indexToIndex</span><span class="p">[</span><span class="nx">newToolCall</span><span class="p">.</span><span class="nx">Index</span><span class="p">]</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nb">len</span><span class="p">(</span><span class="nx">existingToolCalls</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="w">
+</span></span></span><span class="line"><span class="ln">32</span><span class="cl"><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="nx">newToolCall</span><span class="p">.</span><span class="nx">ID</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln">33</span><span class="cl"><span class="w">            </span><span class="nx">idToIndex</span><span class="p">[</span><span class="o">*</span><span class="nx">newToolCall</span><span class="p">.</span><span class="nx">ID</span><span class="p">]</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nb">len</span><span class="p">(</span><span class="nx">existingToolCalls</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="w">
+</span></span></span><span class="line"><span class="ln">34</span><span class="cl"><span class="w">        </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="ln">35</span><span class="cl"><span class="w">        </span><span class="k">continue</span><span class="w">
+</span></span></span><span class="line"><span class="ln">36</span><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="ln">37</span><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="ln">38</span><span class="cl"><span class="w">    </span><span class="c1">// Append arguments to the correct tool call</span><span class="w">
+</span></span></span><span class="line"><span class="ln">39</span><span class="cl"><span class="w">    </span><span class="nx">existingToolCalls</span><span class="p">[</span><span class="nx">index</span><span class="p">].</span><span class="nx">Function</span><span class="p">.</span><span class="nx">Arguments</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="nx">deltaToolCall</span><span class="p">.</span><span class="nx">Function</span><span class="p">.</span><span class="nx">Arguments</span><span class="w">
+</span></span></span><span class="line"><span class="ln">40</span><span class="cl"><span class="p">}</span></span></span></code></pre></div><p>The key insight is that the maps are updated as new tool calls are created, so subsequent deltas for the same call always find their target — even if they arrive many chunks later.</p>
+<h2 id="the-same-bug-twice">The same bug, twice</h2>
+<p>During code review, a reviewer (<a href="https://github.com/Pratham-Mishra04">Pratham-Mishra04</a>) pointed out that the same recency-based routing existed in a second code path: the <strong>Responses API streaming</strong> handler in <code>responses.go</code>.</p>
+<p>The Responses API is OpenAI&rsquo;s newer streaming format (the <code>/v1/responses</code> endpoint). It uses <code>ItemID</code> instead of <code>tool_call.index</code>, but the accumulation logic had the same flaw — <code>FunctionCallArgumentsDelta</code> events were always appended to the last message:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="ln">1</span><span class="cl"><span class="c1">// Old responses.go logic</span><span class="w">
+</span></span></span><span class="line"><span class="ln">2</span><span class="cl"><span class="k">if</span><span class="w"> </span><span class="nx">resp</span><span class="p">.</span><span class="nx">Delta</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">len</span><span class="p">(</span><span class="nx">messages</span><span class="p">)</span><span class="w"> </span><span class="p">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln">3</span><span class="cl"><span class="w">    </span><span class="c1">// Always targets the last message — wrong for parallel calls</span><span class="w">
+</span></span></span><span class="line"><span class="ln">4</span><span class="cl"><span class="w">    </span><span class="nx">a</span><span class="p">.</span><span class="nf">appendFunctionArgumentsDeltaToResponsesMessage</span><span class="p">(</span><span class="w">
+</span></span></span><span class="line"><span class="ln">5</span><span class="cl"><span class="w">        </span><span class="o">&amp;</span><span class="nx">messages</span><span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="nx">messages</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span><span class="w"> </span><span class="o">*</span><span class="nx">resp</span><span class="p">.</span><span class="nx">Delta</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="ln">6</span><span class="cl"><span class="p">}</span></span></span></code></pre></div><p>The fix follows the same pattern: search for a message matching <code>resp.ItemID</code>, and only fall back to the last message when no <code>ItemID</code> is present. If an <code>ItemID</code> exists but no message matches, create a stub message to hold the delta rather than merging it into the wrong call:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="k">if</span><span class="w"> </span><span class="nx">resp</span><span class="p">.</span><span class="nx">Delta</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">len</span><span class="p">(</span><span class="nx">messages</span><span class="p">)</span><span class="w"> </span><span class="p">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 2</span><span class="cl"><span class="w">    </span><span class="nx">targetIdx</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nb">len</span><span class="p">(</span><span class="nx">messages</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 3</span><span class="cl"><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">resp</span><span class="p">.</span><span class="nx">ItemID</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 4</span><span class="cl"><span class="w">        </span><span class="nx">targetIdx</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 5</span><span class="cl"><span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nb">len</span><span class="p">(</span><span class="nx">messages</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="nx">i</span><span class="o">--</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 6</span><span class="cl"><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="nx">messages</span><span class="p">[</span><span class="nx">i</span><span class="p">].</span><span class="nx">ID</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="o">*</span><span class="nx">messages</span><span class="p">[</span><span class="nx">i</span><span class="p">].</span><span class="nx">ID</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="o">*</span><span class="nx">resp</span><span class="p">.</span><span class="nx">ItemID</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 7</span><span class="cl"><span class="w">                </span><span class="nx">targetIdx</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nx">i</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 8</span><span class="cl"><span class="w">                </span><span class="k">break</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 9</span><span class="cl"><span class="w">            </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="ln">10</span><span class="cl"><span class="w">        </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="ln">11</span><span class="cl"><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="nx">targetIdx</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln">12</span><span class="cl"><span class="w">            </span><span class="c1">// Create stub to avoid merging into wrong message</span><span class="w">
+</span></span></span><span class="line"><span class="ln">13</span><span class="cl"><span class="w">            </span><span class="nx">id</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="o">*</span><span class="nx">resp</span><span class="p">.</span><span class="nx">ItemID</span><span class="w">
+</span></span></span><span class="line"><span class="ln">14</span><span class="cl"><span class="w">            </span><span class="nx">messages</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nb">append</span><span class="p">(</span><span class="nx">messages</span><span class="p">,</span><span class="w"> </span><span class="nx">schemas</span><span class="p">.</span><span class="nx">ResponsesMessage</span><span class="p">{</span><span class="nx">ID</span><span class="p">:</span><span class="w"> </span><span class="o">&amp;</span><span class="nx">id</span><span class="p">})</span><span class="w">
+</span></span></span><span class="line"><span class="ln">15</span><span class="cl"><span class="w">            </span><span class="nx">targetIdx</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nb">len</span><span class="p">(</span><span class="nx">messages</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="w">
+</span></span></span><span class="line"><span class="ln">16</span><span class="cl"><span class="w">        </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="ln">17</span><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="ln">18</span><span class="cl"><span class="w">    </span><span class="nx">a</span><span class="p">.</span><span class="nf">appendFunctionArgumentsDeltaToResponsesMessage</span><span class="p">(</span><span class="w">
+</span></span></span><span class="line"><span class="ln">19</span><span class="cl"><span class="w">        </span><span class="o">&amp;</span><span class="nx">messages</span><span class="p">[</span><span class="nx">targetIdx</span><span class="p">],</span><span class="w"> </span><span class="o">*</span><span class="nx">resp</span><span class="p">.</span><span class="nx">Delta</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="ln">20</span><span class="cl"><span class="p">}</span></span></span></code></pre></div><h2 id="testing-parallel-accumulation">Testing parallel accumulation</h2>
+<p>The regression test simulates the exact interleaving pattern that triggers the bug:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="kd">func</span><span class="w"> </span><span class="nf">TestAccumulateToolCallsInterleavedParallel</span><span class="p">(</span><span class="nx">t</span><span class="w"> </span><span class="o">*</span><span class="nx">testing</span><span class="p">.</span><span class="nx">T</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 2</span><span class="cl"><span class="w">    </span><span class="c1">// ...</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 3</span><span class="cl"><span class="w">    </span><span class="nx">toolCallID0</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="s">&#34;call_0&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 4</span><span class="cl"><span class="w">    </span><span class="nx">toolCallID1</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="s">&#34;call_1&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 5</span><span class="cl"><span class="w">    </span><span class="nx">toolNameAdd</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="s">&#34;add&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 6</span><span class="cl"><span class="w">    </span><span class="nx">toolNameMultiply</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="s">&#34;multiply&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 7</span><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="ln"> 8</span><span class="cl"><span class="w">    </span><span class="c1">// Simulate interleaved deltas</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 9</span><span class="cl"><span class="w">    </span><span class="nf">accumulate</span><span class="p">(</span><span class="nf">makeDelta</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="nx">toolCallID0</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="nx">toolNameAdd</span><span class="p">,</span><span class="w"> </span><span class="s">&#34;&#34;</span><span class="p">))</span><span class="w">       </span><span class="c1">// create call 0</span><span class="w">
+</span></span></span><span class="line"><span class="ln">10</span><span class="cl"><span class="w">    </span><span class="nf">accumulate</span><span class="p">(</span><span class="nf">makeDelta</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="nx">toolCallID1</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="nx">toolNameMultiply</span><span class="p">,</span><span class="w"> </span><span class="s">&#34;&#34;</span><span class="p">))</span><span class="w">  </span><span class="c1">// create call 1</span><span class="w">
+</span></span></span><span class="line"><span class="ln">11</span><span class="cl"><span class="w">    </span><span class="nf">accumulate</span><span class="p">(</span><span class="nf">makeDelta</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="kc">nil</span><span class="p">,</span><span class="w"> </span><span class="kc">nil</span><span class="p">,</span><span class="w"> </span><span class="s">`{&#34;a&#34;: 1`</span><span class="p">))</span><span class="w">                  </span><span class="c1">// args for call 0</span><span class="w">
+</span></span></span><span class="line"><span class="ln">12</span><span class="cl"><span class="w">    </span><span class="nf">accumulate</span><span class="p">(</span><span class="nf">makeDelta</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="kc">nil</span><span class="p">,</span><span class="w"> </span><span class="kc">nil</span><span class="p">,</span><span class="w"> </span><span class="s">`{&#34;a&#34;: 2`</span><span class="p">))</span><span class="w">                  </span><span class="c1">// args for call 1</span><span class="w">
+</span></span></span><span class="line"><span class="ln">13</span><span class="cl"><span class="w">    </span><span class="nf">accumulate</span><span class="p">(</span><span class="nf">makeDelta</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="kc">nil</span><span class="p">,</span><span class="w"> </span><span class="kc">nil</span><span class="p">,</span><span class="w"> </span><span class="s">`, &#34;b&#34;: 3}`</span><span class="p">))</span><span class="w">                </span><span class="c1">// more args for call 0</span><span class="w">
+</span></span></span><span class="line"><span class="ln">14</span><span class="cl"><span class="w">    </span><span class="nf">accumulate</span><span class="p">(</span><span class="nf">makeDelta</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="kc">nil</span><span class="p">,</span><span class="w"> </span><span class="kc">nil</span><span class="p">,</span><span class="w"> </span><span class="s">`, &#34;b&#34;: 4}`</span><span class="p">))</span><span class="w">                </span><span class="c1">// more args for call 1</span><span class="w">
+</span></span></span><span class="line"><span class="ln">15</span><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="ln">16</span><span class="cl"><span class="w">    </span><span class="c1">// Assert: two distinct tool calls with correct arguments</span><span class="w">
+</span></span></span><span class="line"><span class="ln">17</span><span class="cl"><span class="w">    </span><span class="nf">assert</span><span class="p">(</span><span class="nx">addCall</span><span class="p">.</span><span class="nx">Arguments</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s">`{&#34;a&#34;: 1, &#34;b&#34;: 3}`</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="ln">18</span><span class="cl"><span class="w">    </span><span class="nf">assert</span><span class="p">(</span><span class="nx">multiplyCall</span><span class="p">.</span><span class="nx">Arguments</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s">`{&#34;a&#34;: 2, &#34;b&#34;: 4}`</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="ln">19</span><span class="cl"><span class="p">}</span></span></span></code></pre></div><p>Without the fix, <code>add</code> would end up with <code>multiply</code>&rsquo;s arguments concatenated in. With the fix, each call accumulates only its own deltas.</p>
+<p>A second test covers the Responses API path with <code>ItemID</code>-based routing, using the same interleaving pattern but with <code>OutputItemAdded</code> + <code>FunctionCallArgumentsDelta</code> events.</p>
+<h2 id="the-pr-lifecycle">The PR lifecycle</h2>
+<p>I filed <a href="https://github.com/maximhq/bifrost/issues/1829">Issue #1829</a> with reproduction details from production telemetry, then opened <a href="https://github.com/maximhq/bifrost/pull/1830">PR #1830</a> with the fix and tests.</p>
+<p>The review process was smooth:</p>
+<ol>
+<li>First commit: fix the Chat Completions accumulator + regression test</li>
+<li>Reviewer feedback: same bug exists in Responses API — please fix there too + add changelog entries</li>
+<li>Second commit: fix Responses API routing + regression test + changelogs</li>
+<li>Merged by <a href="https://github.com/akshaydeo">akshaydeo</a> (Bifrost maintainer)</li>
+</ol>
+<p>Total: 3 commits, ~280 lines of Go across 5 files. Same-day turnaround from issue to merge.</p>
+<h2 id="what-i-learned">What I learned</h2>
+<h3 id="1-recency-is-not-identity">1. Recency is not identity</h3>
+<p>The original code used position (last element) as a proxy for identity. This is a common pattern in sequential streaming — and it works, until the stream isn&rsquo;t sequential. The fix is to use the actual identity field that the protocol already provides.</p>
+<p>This is a general principle: <strong>if the protocol gives you an ID field, use it.</strong> Don&rsquo;t rely on ordering assumptions that hold today but break when concurrency enters.</p>
+<h3 id="2-the-same-bug-pattern-repeats-across-api-surfaces">2. The same bug pattern repeats across API surfaces</h3>
+<p>Bifrost supports two streaming formats: Chat Completions (the classic <code>tool_calls</code> array) and Responses API (the newer <code>ItemID</code>-based format). Both had the same routing flaw because the accumulation logic was duplicated rather than shared. The reviewer catching this in a different file was the most valuable part of the review.</p>
+<h3 id="3-oss-contributions-are-about-context-not-complexity">3. OSS contributions are about context, not complexity</h3>
+<p>The fix itself is straightforward — build a map, use it for lookup. The hard part was:</p>
+<ul>
+<li><strong>Finding</strong> the bug in a codebase I&rsquo;d never seen before</li>
+<li><strong>Understanding</strong> why the existing approach was wrong</li>
+<li><strong>Testing</strong> with realistic interleaved deltas</li>
+<li><strong>Responding</strong> to review feedback about a parallel code path I hadn&rsquo;t initially noticed</li>
+</ul>
+<p>The code change was ~100 lines. The context-building was hours.</p>
+<h3 id="4-production-telemetry-is-the-best-bug-report">4. Production telemetry is the best bug report</h3>
+<p>The issue report included the exact malformed tool name from production: <code>search_circularsearch_circularsearch_circular</code>. That single string made the bug immediately reproducible and the fix trivially verifiable. If you&rsquo;re filing a bug, include the malformed output — it&rsquo;s worth more than a paragraph of description.</p>
+<h2 id="links">Links</h2>
+<ul>
+<li><strong>PR</strong>: <a href="https://github.com/maximhq/bifrost/pull/1830">fix: preserve parallel tool call deltas — #1830</a></li>
+<li><strong>Issue</strong>: <a href="https://github.com/maximhq/bifrost/issues/1829">Streaming tool call deltas merge in parallel tool calling — #1829</a></li>
+<li><strong>Project</strong>: <a href="https://github.com/maximhq/bifrost">Bifrost AI Gateway</a> — 2.6k ⭐, fastest enterprise AI gateway</li>
+</ul>
+]]></content:encoded>
+    </item>
+    <item>
+      <title>Hunting OOMKilled in Kubernetes: Four Memory Leaks That Almost Took Down Our Platform</title>
+      <link>https://KTS-o7.github.io/bear/infra/kubernetes_oom_memory_leaks/</link>
+      <pubDate>Mon, 16 Feb 2026 00:00:00 +0000</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/infra/kubernetes_oom_memory_leaks/</guid>
+      <description>&lt;p&gt;A pod restarts at 3 AM. Then again at 3:14. By 3:30 it&amp;rsquo;s in a &lt;code&gt;CrashLoopBackOff&lt;/code&gt;. The dashboard shows memory climbing in a clean line - no spikes, no sudden jumps - just a slow, relentless climb until the OOM killer steps in.&lt;/p&gt;&#xA;&lt;p&gt;This is the story of how I tracked down four distinct memory leaks across two Python services running on Kubernetes. Each one was a different flavor of &amp;ldquo;silent accumulation,&amp;rdquo; and each one taught me something about how easy it is to bleed memory in async Python without any obvious errors.&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>A pod restarts at 3 AM. Then again at 3:14. By 3:30 it&rsquo;s in a <code>CrashLoopBackOff</code>. The dashboard shows memory climbing in a clean line - no spikes, no sudden jumps - just a slow, relentless climb until the OOM killer steps in.</p>
+<p>This is the story of how I tracked down four distinct memory leaks across two Python services running on Kubernetes. Each one was a different flavor of &ldquo;silent accumulation,&rdquo; and each one taught me something about how easy it is to bleed memory in async Python without any obvious errors.</p>
+<p>No names. No product details. Just the bugs, the fixes, and the lessons.</p>
+<h2 id="the-setup">The setup</h2>
+<p>We had a multi-service platform running on Kubernetes. Two services are relevant here:</p>
+<ul>
+<li>
+<p><strong>Service A</strong>: A document management service. It handled CRUD operations, search indexing, audit logging, and authorization precomputation. Built with FastAPI and async Python, backed by MongoDB and a vector store.</p>
+</li>
+<li>
+<p><strong>Service B</strong>: A PDF processing service. It parsed documents, extracted text via OCR, and broke content into structured clauses. Heavy on PyMuPDF (fitz) for PDF rendering and Tesseract for OCR.</p>
+</li>
+</ul>
+<p>Both services ran as single-container pods with resource limits. Service A had a 2Gi memory limit. Service B had 4Gi.</p>
+<p>Both were getting OOMKilled. Regularly.</p>
+<h2 id="the-symptoms">The symptoms</h2>
+<p>Service A&rsquo;s memory graph looked like this:</p>
+
+
+
+
+
+<pre tabindex="0"><code>Memory (MB)
+2048 |                                              ╱ OOMKilled
+     |                                           ╱
+1536 |                                        ╱
+     |                                     ╱
+1024 |                                  ╱
+     |                               ╱
+ 512 |                            ╱
+     |                         ╱
+   0 |________________________╱
+     0h        6h        12h        18h        24h</code></pre><p>A steady climb at roughly 200MB per hour. No spikes. No correlation with traffic. Just a ramp.</p>
+<p>Service B was different - it&rsquo;d spike during document processing batches and never come back down:</p>
+
+
+
+
+
+<pre tabindex="0"><code>Memory (MB)
+4096 |          ╱╲        ╱╲
+     |        ╱   ╲     ╱   ╲    ╱ OOMKilled
+3072 |      ╱      ╲  ╱      ╲ ╱
+     |    ╱         ╲╱        ╱
+2048 |  ╱                   ╱
+     |╱                   ╱
+1024 |                  ╱
+     |               ╱
+   0 |______________╱
+     0h     2h     4h     6h     8h     10h</code></pre><p>Every batch pushed memory up. It came down a little, but never to baseline. Classic leak with GC partially reclaiming some objects but not the real offender.</p>
+<h2 id="leak-1-the-coroutines-that-never-ran">Leak #1: The coroutines that never ran</h2>
+<p>This was the most insidious one. It looked like perfectly normal Python code:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="k">class</span> <span class="nc">BaseDoc</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl">    <span class="k">def</span> <span class="nf">_write_audit_log</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">action</span><span class="p">,</span> <span class="n">old_data</span><span class="p">,</span> <span class="n">new_data</span><span class="p">):</span>
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl">        <span class="n">enqueue_audit_create</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">action</span><span class="p">,</span> <span class="n">old_data</span><span class="p">,</span> <span class="n">new_data</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl">
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl">    <span class="k">async</span> <span class="k">def</span> <span class="nf">save</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">        <span class="n">old</span> <span class="o">=</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl">        <span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl">        <span class="bp">self</span><span class="o">.</span><span class="n">_write_audit_log</span><span class="p">(</span><span class="s2">&#34;update&#34;</span><span class="p">,</span> <span class="n">old</span><span class="p">,</span> <span class="n">result</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">        <span class="k">await</span> <span class="n">create_snapshots</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">10</span><span class="cl">        <span class="k">await</span> <span class="n">insert_versions_docs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">11</span><span class="cl">        <span class="k">return</span> <span class="n">result</span></span></span></code></pre></div><p>Spot the bug?</p>
+<p><code>_write_audit_log</code> calls <code>enqueue_audit_create()</code>, which is an <strong>async function</strong>. But <code>_write_audit_log</code> is not async, and it doesn&rsquo;t <code>await</code> the call. It just calls it.</p>
+<p>When you call an async function without <code>await</code>, Python creates a coroutine object but never schedules it. The coroutine sits in memory, holding references to all its arguments - in this case, entire document objects with <code>old_data</code> and <code>new_data</code>.</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-text" data-lang="text"><span class="line"><span class="ln">1</span><span class="cl">Coroutine Object (0x7f...)
+</span></span><span class="line"><span class="ln">2</span><span class="cl">  ├── State: CREATED (never scheduled)
+</span></span><span class="line"><span class="ln">3</span><span class="cl">  └── Frame Object
+</span></span><span class="line"><span class="ln">4</span><span class="cl">       ├── Arg: self (BaseDoc instance, 2KB)
+</span></span><span class="line"><span class="ln">5</span><span class="cl">       ├── Arg: old_data (Dict, 5MB)  &lt;-- LEAKED
+</span></span><span class="line"><span class="ln">6</span><span class="cl">       └── Arg: new_data (Dict, 5MB)  &lt;-- LEAKED
+</span></span><span class="line"><span class="ln">7</span><span class="cl">       └── Local Vars: (captured closure scope)</span></span></code></pre></div><p>Python will eventually warn you about this (<code>RuntimeWarning: coroutine was never awaited</code>), but only if you have warnings enabled and you&rsquo;re looking at the right log. In a noisy production service running dozens of requests per second, these warnings get buried.</p>
+<p>The same pattern appeared elsewhere:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="c1"># In the CRUD endpoints</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl"><span class="k">async</span> <span class="k">def</span> <span class="nf">create_document</span><span class="p">(</span><span class="n">request</span><span class="p">):</span>
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl">    <span class="n">doc</span> <span class="o">=</span> <span class="k">await</span> <span class="n">Document</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl">    <span class="n">enqueue_audit_create</span><span class="p">(</span><span class="n">doc</span><span class="p">)</span>       <span class="c1"># ← async, not awaited</span>
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl">    <span class="n">qdrant_upserts</span><span class="p">(</span><span class="n">doc</span><span class="p">)</span>             <span class="c1"># ← async, not awaited</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">    <span class="k">return</span> <span class="n">doc</span>
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl">
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl"><span class="k">async</span> <span class="k">def</span> <span class="nf">update_document</span><span class="p">(</span><span class="n">request</span><span class="p">):</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">    <span class="n">doc</span> <span class="o">=</span> <span class="k">await</span> <span class="n">Document</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">10</span><span class="cl">    <span class="n">enqueue_audit_update</span><span class="p">(</span><span class="n">doc</span><span class="p">)</span>       <span class="c1"># ← async, not awaited</span>
+</span></span><span class="line"><span class="ln">11</span><span class="cl">    <span class="n">qdrant_upserts</span><span class="p">(</span><span class="n">doc</span><span class="p">)</span>             <span class="c1"># ← async, not awaited</span>
+</span></span><span class="line"><span class="ln">12</span><span class="cl">    <span class="k">return</span> <span class="n">doc</span></span></span></code></pre></div><p>Each unawaited call created a coroutine holding the full document. For a service processing hundreds of documents per hour, that&rsquo;s hundreds of document-sized objects pinned in memory with no way to be garbage collected.</p>
+<h3 id="the-fix">The fix</h3>
+<p>Straightforward once you see it:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="k">class</span> <span class="nc">BaseDoc</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl">    <span class="k">async</span> <span class="k">def</span> <span class="nf">_write_audit_log</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">action</span><span class="p">,</span> <span class="n">old_data</span><span class="p">,</span> <span class="n">new_data</span><span class="p">):</span>
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl">        <span class="k">await</span> <span class="n">enqueue_audit_create</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">action</span><span class="p">,</span> <span class="n">old_data</span><span class="p">,</span> <span class="n">new_data</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl">
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl">    <span class="k">async</span> <span class="k">def</span> <span class="nf">save</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">        <span class="n">old</span> <span class="o">=</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl">        <span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl">        <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_write_audit_log</span><span class="p">(</span><span class="s2">&#34;update&#34;</span><span class="p">,</span> <span class="n">old</span><span class="p">,</span> <span class="n">result</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">        <span class="k">await</span> <span class="n">create_snapshots</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">10</span><span class="cl">        <span class="k">await</span> <span class="n">insert_versions_docs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">11</span><span class="cl">        <span class="k">return</span> <span class="n">result</span></span></span></code></pre></div><p>And in the CRUD endpoints:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="ln">1</span><span class="cl"><span class="k">async</span> <span class="k">def</span> <span class="nf">create_document</span><span class="p">(</span><span class="n">request</span><span class="p">):</span>
+</span></span><span class="line"><span class="ln">2</span><span class="cl">    <span class="n">doc</span> <span class="o">=</span> <span class="k">await</span> <span class="n">Document</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">3</span><span class="cl">    <span class="k">await</span> <span class="n">enqueue_audit_create</span><span class="p">(</span><span class="n">doc</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">4</span><span class="cl">    <span class="k">await</span> <span class="n">qdrant_upserts</span><span class="p">(</span><span class="n">doc</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">5</span><span class="cl">    <span class="k">return</span> <span class="n">doc</span></span></span></code></pre></div><h3 id="the-lesson">The lesson</h3>
+<p><strong>Unawaited coroutines are silent memory leaks.</strong> They don&rsquo;t crash. They don&rsquo;t raise. They just accumulate. And because they hold references to their arguments, they can keep large objects alive long after the request that created them is done.</p>
+<p>If you&rsquo;re running async Python, add this to your linting:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="ln">1</span><span class="cl"><span class="c1"># In your pytest conftest.py or startup</span>
+</span></span><span class="line"><span class="ln">2</span><span class="cl"><span class="kn">import</span> <span class="nn">warnings</span>
+</span></span><span class="line"><span class="ln">3</span><span class="cl"><span class="n">warnings</span><span class="o">.</span><span class="n">filterwarnings</span><span class="p">(</span><span class="s2">&#34;error&#34;</span><span class="p">,</span> <span class="n">category</span><span class="o">=</span><span class="ne">RuntimeWarning</span><span class="p">,</span> <span class="n">message</span><span class="o">=</span><span class="s2">&#34;coroutine.*was never awaited&#34;</span><span class="p">)</span></span></span></code></pre></div><p>This turns the warning into an exception, which makes it impossible to miss.</p>
+<h2 id="leak-2-creating-a-new-mongoclient-on-every-authorization-check">Leak #2: Creating a new MongoClient on every authorization check</h2>
+<p>The authorization layer needed to precompute user access contexts. To do this, it queried MongoDB directly (not through the async ODM) using PyMongo&rsquo;s synchronous <code>MongoClient</code>.</p>
+<p>The code looked like this:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="k">class</span> <span class="nc">AuthorizationPrecompute</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl">    <span class="k">def</span> <span class="nf">get_user_permissions</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">user_id</span><span class="p">):</span>
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl">        <span class="n">client</span> <span class="o">=</span> <span class="n">MongoClient</span><span class="p">(</span><span class="n">MONGO_URI</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl">        <span class="n">db</span> <span class="o">=</span> <span class="n">client</span><span class="p">[</span><span class="s2">&#34;main_db&#34;</span><span class="p">]</span>
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl">        <span class="n">permissions</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">db</span><span class="o">.</span><span class="n">permissions</span><span class="o">.</span><span class="n">find</span><span class="p">({</span><span class="s2">&#34;user&#34;</span><span class="p">:</span> <span class="n">user_id</span><span class="p">}))</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">        <span class="n">client</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl">        <span class="k">return</span> <span class="n">permissions</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl">
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">    <span class="k">def</span> <span class="nf">get_role_policies</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">role_id</span><span class="p">):</span>
+</span></span><span class="line"><span class="ln">10</span><span class="cl">        <span class="n">client</span> <span class="o">=</span> <span class="n">MongoClient</span><span class="p">(</span><span class="n">MONGO_URI</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">11</span><span class="cl">        <span class="n">db</span> <span class="o">=</span> <span class="n">client</span><span class="p">[</span><span class="s2">&#34;main_db&#34;</span><span class="p">]</span>
+</span></span><span class="line"><span class="ln">12</span><span class="cl">        <span class="n">policies</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">db</span><span class="o">.</span><span class="n">policies</span><span class="o">.</span><span class="n">find</span><span class="p">({</span><span class="s2">&#34;role&#34;</span><span class="p">:</span> <span class="n">role_id</span><span class="p">}))</span>
+</span></span><span class="line"><span class="ln">13</span><span class="cl">        <span class="n">client</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</span></span><span class="line"><span class="ln">14</span><span class="cl">        <span class="k">return</span> <span class="n">policies</span>
+</span></span><span class="line"><span class="ln">15</span><span class="cl">
+</span></span><span class="line"><span class="ln">16</span><span class="cl">    <span class="k">def</span> <span class="nf">get_org_settings</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">org_id</span><span class="p">):</span>
+</span></span><span class="line"><span class="ln">17</span><span class="cl">        <span class="n">client</span> <span class="o">=</span> <span class="n">MongoClient</span><span class="p">(</span><span class="n">MONGO_URI</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">18</span><span class="cl">        <span class="n">db</span> <span class="o">=</span> <span class="n">client</span><span class="p">[</span><span class="s2">&#34;main_db&#34;</span><span class="p">]</span>
+</span></span><span class="line"><span class="ln">19</span><span class="cl">        <span class="n">settings</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">find_one</span><span class="p">({</span><span class="s2">&#34;org&#34;</span><span class="p">:</span> <span class="n">org_id</span><span class="p">})</span>
+</span></span><span class="line"><span class="ln">20</span><span class="cl">        <span class="n">client</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</span></span><span class="line"><span class="ln">21</span><span class="cl">        <span class="k">return</span> <span class="n">settings</span>
+</span></span><span class="line"><span class="ln">22</span><span class="cl">
+</span></span><span class="line"><span class="ln">23</span><span class="cl">    <span class="c1"># ... 10 more methods, each creating its own MongoClient</span></span></span></code></pre></div><p>Thirteen methods. Thirteen <code>MongoClient()</code> instantiations per authorization check.</p>
+<p>Each <code>MongoClient</code> creates a connection pool, background SDAM monitoring threads, and internal caches. Even with <code>client.close()</code>, the cleanup isn&rsquo;t instant - Python&rsquo;s garbage collector has to reclaim the thread stacks, socket buffers, and internal data structures.</p>
+<p>And if an exception happens between <code>MongoClient()</code> and <code>client.close()</code>, the client never gets closed at all. The connection pool lives on, holding threads and sockets until the GC eventually (maybe) collects them.</p>
+<p>At 50 requests/second, each triggering an auth check, we were creating <strong>650 MongoClient instances per second</strong>. Most were closed, but the transient memory pressure and leaked exceptions meant we were always carrying a few hundred orphaned connection pools.</p>
+<h3 id="the-fix-1">The fix</h3>
+<p>One shared client with a connection pool:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="k">class</span> <span class="nc">AuthorizationPrecompute</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl">    <span class="n">_client</span> <span class="o">=</span> <span class="kc">None</span>
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl">
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl">    <span class="nd">@classmethod</span>
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl">    <span class="k">def</span> <span class="nf">_get_client</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">        <span class="k">if</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_client</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl">            <span class="bp">cls</span><span class="o">.</span><span class="n">_client</span> <span class="o">=</span> <span class="n">MongoClient</span><span class="p">(</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl">                <span class="n">MONGO_URI</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">                <span class="n">maxPoolSize</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln">10</span><span class="cl">                <span class="n">serverSelectionTimeoutMS</span><span class="o">=</span><span class="mi">5000</span>
+</span></span><span class="line"><span class="ln">11</span><span class="cl">            <span class="p">)</span>
+</span></span><span class="line"><span class="ln">12</span><span class="cl">        <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_client</span>
+</span></span><span class="line"><span class="ln">13</span><span class="cl">
+</span></span><span class="line"><span class="ln">14</span><span class="cl">    <span class="k">def</span> <span class="nf">get_user_permissions</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">user_id</span><span class="p">):</span>
+</span></span><span class="line"><span class="ln">15</span><span class="cl">        <span class="n">db</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_client</span><span class="p">()[</span><span class="s2">&#34;main_db&#34;</span><span class="p">]</span>
+</span></span><span class="line"><span class="ln">16</span><span class="cl">        <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="n">db</span><span class="o">.</span><span class="n">permissions</span><span class="o">.</span><span class="n">find</span><span class="p">({</span><span class="s2">&#34;user&#34;</span><span class="p">:</span> <span class="n">user_id</span><span class="p">}))</span>
+</span></span><span class="line"><span class="ln">17</span><span class="cl">
+</span></span><span class="line"><span class="ln">18</span><span class="cl">    <span class="k">def</span> <span class="nf">get_role_policies</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">role_id</span><span class="p">):</span>
+</span></span><span class="line"><span class="ln">19</span><span class="cl">        <span class="n">db</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_client</span><span class="p">()[</span><span class="s2">&#34;main_db&#34;</span><span class="p">]</span>
+</span></span><span class="line"><span class="ln">20</span><span class="cl">        <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="n">db</span><span class="o">.</span><span class="n">policies</span><span class="o">.</span><span class="n">find</span><span class="p">({</span><span class="s2">&#34;role&#34;</span><span class="p">:</span> <span class="n">role_id</span><span class="p">}))</span></span></span></code></pre></div><p>Connection overhead went from ~50ms per call (TCP handshake + auth each time) to ~5ms (reused connection from pool).</p>
+<h3 id="the-lesson-1">The lesson</h3>
+<p><strong>Each <code>MongoClient</code> is an entire connection pool, not a single connection.</strong> Creating one per function call is like starting a new database server for every query. Always share a single client instance (or at most one per thread/worker). And if you can&rsquo;t guarantee <code>close()</code> will be called (i.e., exceptions exist), you definitely need a shared instance.</p>
+<h2 id="leak-3-cache-entries-that-never-expire">Leak #3: Cache entries that never expire</h2>
+<p>The authorization layer also had an in-memory cache for user access contexts:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="k">class</span> <span class="nc">UserAccessContextCache</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl">    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ttl_seconds</span><span class="o">=</span><span class="mi">300</span><span class="p">):</span>
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl">        <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span> <span class="o">=</span> <span class="p">{}</span>
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl">        <span class="bp">self</span><span class="o">.</span><span class="n">_ttl</span> <span class="o">=</span> <span class="n">ttl_seconds</span>
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl">
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl">        <span class="n">entry</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl">        <span class="k">if</span> <span class="n">entry</span> <span class="ow">and</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">entry</span><span class="p">[</span><span class="s2">&#34;created&#34;</span><span class="p">]</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ttl</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">            <span class="k">return</span> <span class="n">entry</span><span class="p">[</span><span class="s2">&#34;value&#34;</span><span class="p">]</span>
+</span></span><span class="line"><span class="ln">10</span><span class="cl">        <span class="k">return</span> <span class="kc">None</span>
+</span></span><span class="line"><span class="ln">11</span><span class="cl">
+</span></span><span class="line"><span class="ln">12</span><span class="cl">    <span class="k">def</span> <span class="nf">set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+</span></span><span class="line"><span class="ln">13</span><span class="cl">        <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+</span></span><span class="line"><span class="ln">14</span><span class="cl">            <span class="s2">&#34;value&#34;</span><span class="p">:</span> <span class="n">value</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln">15</span><span class="cl">            <span class="s2">&#34;created&#34;</span><span class="p">:</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+</span></span><span class="line"><span class="ln">16</span><span class="cl">        <span class="p">}</span></span></span></code></pre></div><p>See the problem?</p>
+<p>When <code>get()</code> finds an expired entry, it just returns <code>None</code>. It doesn&rsquo;t delete the entry. The stale data sits in the dict forever.</p>
+<p>And <code>set()</code> only adds entries. Nothing ever removes them.</p>
+<p>Over time, this cache grows without bound. Every unique user who hits the service gets a cache entry that is never cleaned up. The access context objects themselves can be large - they contain permission trees, role hierarchies, and org settings.</p>
+<p>With 200MB of stale cache entries after a day of operation, this was a significant contributor to the memory ramp.</p>
+<h3 id="the-fix-2">The fix</h3>
+<p>Add proactive cleanup:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="k">class</span> <span class="nc">UserAccessContextCache</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl">    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ttl_seconds</span><span class="o">=</span><span class="mi">300</span><span class="p">,</span> <span class="n">cleanup_interval</span><span class="o">=</span><span class="mi">60</span><span class="p">):</span>
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl">        <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span> <span class="o">=</span> <span class="p">{}</span>
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl">        <span class="bp">self</span><span class="o">.</span><span class="n">_ttl</span> <span class="o">=</span> <span class="n">ttl_seconds</span>
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl">        <span class="bp">self</span><span class="o">.</span><span class="n">_cleanup_interval</span> <span class="o">=</span> <span class="n">cleanup_interval</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">        <span class="bp">self</span><span class="o">.</span><span class="n">_last_cleanup</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl">
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl">    <span class="k">def</span> <span class="nf">_cleanup_expired</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">        <span class="n">now</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+</span></span><span class="line"><span class="ln">10</span><span class="cl">        <span class="k">if</span> <span class="n">now</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_last_cleanup</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cleanup_interval</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">11</span><span class="cl">            <span class="k">return</span>
+</span></span><span class="line"><span class="ln">12</span><span class="cl">        <span class="bp">self</span><span class="o">.</span><span class="n">_last_cleanup</span> <span class="o">=</span> <span class="n">now</span>
+</span></span><span class="line"><span class="ln">13</span><span class="cl">        <span class="n">expired_keys</span> <span class="o">=</span> <span class="p">[</span>
+</span></span><span class="line"><span class="ln">14</span><span class="cl">            <span class="n">k</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+</span></span><span class="line"><span class="ln">15</span><span class="cl">            <span class="k">if</span> <span class="n">now</span> <span class="o">-</span> <span class="n">v</span><span class="p">[</span><span class="s2">&#34;created&#34;</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ttl</span>
+</span></span><span class="line"><span class="ln">16</span><span class="cl">        <span class="p">]</span>
+</span></span><span class="line"><span class="ln">17</span><span class="cl">        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">expired_keys</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">18</span><span class="cl">            <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+</span></span><span class="line"><span class="ln">19</span><span class="cl">
+</span></span><span class="line"><span class="ln">20</span><span class="cl">    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+</span></span><span class="line"><span class="ln">21</span><span class="cl">        <span class="bp">self</span><span class="o">.</span><span class="n">_cleanup_expired</span><span class="p">()</span>
+</span></span><span class="line"><span class="ln">22</span><span class="cl">        <span class="n">entry</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">23</span><span class="cl">        <span class="k">if</span> <span class="n">entry</span> <span class="ow">and</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">entry</span><span class="p">[</span><span class="s2">&#34;created&#34;</span><span class="p">]</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ttl</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">24</span><span class="cl">            <span class="k">return</span> <span class="n">entry</span><span class="p">[</span><span class="s2">&#34;value&#34;</span><span class="p">]</span>
+</span></span><span class="line"><span class="ln">25</span><span class="cl">        <span class="c1"># Delete on read if expired</span>
+</span></span><span class="line"><span class="ln">26</span><span class="cl">        <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">27</span><span class="cl">            <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+</span></span><span class="line"><span class="ln">28</span><span class="cl">        <span class="k">return</span> <span class="kc">None</span>
+</span></span><span class="line"><span class="ln">29</span><span class="cl">
+</span></span><span class="line"><span class="ln">30</span><span class="cl">    <span class="k">def</span> <span class="nf">set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+</span></span><span class="line"><span class="ln">31</span><span class="cl">        <span class="bp">self</span><span class="o">.</span><span class="n">_cleanup_expired</span><span class="p">()</span>
+</span></span><span class="line"><span class="ln">32</span><span class="cl">        <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+</span></span><span class="line"><span class="ln">33</span><span class="cl">            <span class="s2">&#34;value&#34;</span><span class="p">:</span> <span class="n">value</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln">34</span><span class="cl">            <span class="s2">&#34;created&#34;</span><span class="p">:</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+</span></span><span class="line"><span class="ln">35</span><span class="cl">        <span class="p">}</span></span></span></code></pre></div><p>Cleanup runs at most once per minute and removes all entries older than TTL.</p>
+<h3 id="the-lesson-2">The lesson</h3>
+<p><strong>Every in-memory cache needs an eviction strategy.</strong> If there&rsquo;s no mechanism to remove old entries, you have a memory leak with extra steps. &ldquo;TTL on read&rdquo; is not enough - if users stop requesting a key, that entry stays forever.</p>
+<p>Use <code>cachetools.TTLCache</code> or similar if you don&rsquo;t want to roll your own. Better yet, if the cache is big enough to matter, put it in Redis where you can set <code>EXPIRE</code> and forget about it.</p>
+<h2 id="leak-4-pymupdf-documents-that-never-closed">Leak #4: PyMuPDF documents that never closed</h2>
+<p>Service B was the PDF processing service. It used PyMuPDF (<code>fitz</code>) to render pages and extract text. The endpoints looked like this:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="nd">@app.post</span><span class="p">(</span><span class="s2">&#34;/parse_pdf&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl"><span class="k">async</span> <span class="k">def</span> <span class="nf">parse_pdf</span><span class="p">(</span><span class="n">file</span><span class="p">:</span> <span class="n">UploadFile</span><span class="p">):</span>
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl">    <span class="n">content</span> <span class="o">=</span> <span class="k">await</span> <span class="n">file</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl">    <span class="n">doc</span> <span class="o">=</span> <span class="n">fitz</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">stream</span><span class="o">=</span><span class="n">content</span><span class="p">,</span> <span class="n">filetype</span><span class="o">=</span><span class="s2">&#34;pdf&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl">
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">    <span class="n">pages</span> <span class="o">=</span> <span class="p">[]</span>
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl">    <span class="k">for</span> <span class="n">page_num</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">doc</span><span class="p">)):</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl">        <span class="n">page</span> <span class="o">=</span> <span class="n">doc</span><span class="p">[</span><span class="n">page_num</span><span class="p">]</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">        <span class="n">text</span> <span class="o">=</span> <span class="n">page</span><span class="o">.</span><span class="n">get_text</span><span class="p">()</span>
+</span></span><span class="line"><span class="ln">10</span><span class="cl">        <span class="n">pix</span> <span class="o">=</span> <span class="n">page</span><span class="o">.</span><span class="n">get_pixmap</span><span class="p">(</span><span class="n">dpi</span><span class="o">=</span><span class="mi">300</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">11</span><span class="cl">        <span class="n">image</span> <span class="o">=</span> <span class="n">pix</span><span class="o">.</span><span class="n">tobytes</span><span class="p">(</span><span class="s2">&#34;png&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">12</span><span class="cl">        <span class="n">pages</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s2">&#34;text&#34;</span><span class="p">:</span> <span class="n">text</span><span class="p">,</span> <span class="s2">&#34;image&#34;</span><span class="p">:</span> <span class="n">image</span><span class="p">})</span>
+</span></span><span class="line"><span class="ln">13</span><span class="cl">
+</span></span><span class="line"><span class="ln">14</span><span class="cl">    <span class="k">return</span> <span class="p">{</span><span class="s2">&#34;pages&#34;</span><span class="p">:</span> <span class="n">pages</span><span class="p">}</span></span></span></code></pre></div><p>No <code>doc.close()</code>. No context manager. No <code>try/finally</code>.</p>
+<p>PyMuPDF is a C library wrapper. When you call <code>fitz.open()</code>, it allocates memory in C-land for the document structure, page data, fonts, images, and rendering buffers. Python&rsquo;s garbage collector can eventually reclaim the Python wrapper object, but the C-side memory is only freed when <code>doc.close()</code> is explicitly called.</p>
+<p>While the wrapper theoretically has a <code>__del__</code> method, relying on it in a high-throughput async loop is dangerous. Python&rsquo;s GC is lazy and may not run fast enough to keep up with the rate of C-memory allocation, leading to OOMs before the GC even realizes it needs to clean up.</p>
+<p>For a 50-page PDF at 300 DPI, the pixmap rendering alone can consume 200–500MB of memory. If an exception occurs mid-processing (corrupt page, unsupported font), the doc handle leaks entirely.</p>
+<h3 id="the-fix-3">The fix</h3>
+<p>Two changes: proper resource cleanup, and parallel OCR with controlled concurrency.</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="nd">@app.post</span><span class="p">(</span><span class="s2">&#34;/parse_pdf&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl"><span class="k">async</span> <span class="k">def</span> <span class="nf">parse_pdf</span><span class="p">(</span><span class="n">file</span><span class="p">:</span> <span class="n">UploadFile</span><span class="p">):</span>
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl">    <span class="n">content</span> <span class="o">=</span> <span class="k">await</span> <span class="n">file</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl">    <span class="n">doc</span> <span class="o">=</span> <span class="n">fitz</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">stream</span><span class="o">=</span><span class="n">content</span><span class="p">,</span> <span class="n">filetype</span><span class="o">=</span><span class="s2">&#34;pdf&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl">    <span class="k">try</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">        <span class="n">pages</span> <span class="o">=</span> <span class="p">[]</span>
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl">        <span class="k">for</span> <span class="n">page_num</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">doc</span><span class="p">)):</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl">            <span class="n">page</span> <span class="o">=</span> <span class="n">doc</span><span class="p">[</span><span class="n">page_num</span><span class="p">]</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">            <span class="n">text</span> <span class="o">=</span> <span class="n">page</span><span class="o">.</span><span class="n">get_text</span><span class="p">()</span>
+</span></span><span class="line"><span class="ln">10</span><span class="cl">            <span class="n">pix</span> <span class="o">=</span> <span class="n">page</span><span class="o">.</span><span class="n">get_pixmap</span><span class="p">(</span><span class="n">dpi</span><span class="o">=</span><span class="mi">300</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">11</span><span class="cl">            <span class="n">image</span> <span class="o">=</span> <span class="n">pix</span><span class="o">.</span><span class="n">tobytes</span><span class="p">(</span><span class="s2">&#34;png&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">12</span><span class="cl">            <span class="c1"># Explicitly free the pixmap</span>
+</span></span><span class="line"><span class="ln">13</span><span class="cl">            <span class="n">pix</span> <span class="o">=</span> <span class="kc">None</span>
+</span></span><span class="line"><span class="ln">14</span><span class="cl">            <span class="n">pages</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s2">&#34;text&#34;</span><span class="p">:</span> <span class="n">text</span><span class="p">,</span> <span class="s2">&#34;image&#34;</span><span class="p">:</span> <span class="n">image</span><span class="p">})</span>
+</span></span><span class="line"><span class="ln">15</span><span class="cl">        <span class="k">return</span> <span class="p">{</span><span class="s2">&#34;pages&#34;</span><span class="p">:</span> <span class="n">pages</span><span class="p">}</span>
+</span></span><span class="line"><span class="ln">16</span><span class="cl">    <span class="k">finally</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">17</span><span class="cl">        <span class="n">doc</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></span></span></code></pre></div><p>This was applied to all four endpoints in the service: <code>/parse_pdf</code>, <code>/process_clauses</code>, <code>/process_clauses_sync</code>, and <code>/extract_links</code>.</p>
+<p>We also added parallel strip processing for OCR (controlled by feature flags):</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="kn">import</span> <span class="nn">os</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl"><span class="kn">from</span> <span class="nn">concurrent.futures</span> <span class="kn">import</span> <span class="n">ThreadPoolExecutor</span>
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl">
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl"><span class="n">ENABLE_PARALLEL_OCR</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&#34;ENABLE_PARALLEL_OCR&#34;</span><span class="p">,</span> <span class="s2">&#34;false&#34;</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&#34;true&#34;</span>
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl"><span class="n">STRIP_OCR_WORKERS</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&#34;STRIP_OCR_WORKERS&#34;</span><span class="p">,</span> <span class="s2">&#34;8&#34;</span><span class="p">))</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl"><span class="k">def</span> <span class="nf">process_page_strips</span><span class="p">(</span><span class="n">page</span><span class="p">,</span> <span class="n">strips</span><span class="p">):</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl">    <span class="k">if</span> <span class="ow">not</span> <span class="n">ENABLE_PARALLEL_OCR</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">        <span class="k">return</span> <span class="p">[</span><span class="n">ocr_strip</span><span class="p">(</span><span class="n">page</span><span class="p">,</span> <span class="n">s</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">strips</span><span class="p">]</span>
+</span></span><span class="line"><span class="ln">10</span><span class="cl">
+</span></span><span class="line"><span class="ln">11</span><span class="cl">    <span class="k">with</span> <span class="n">ThreadPoolExecutor</span><span class="p">(</span><span class="n">max_workers</span><span class="o">=</span><span class="n">STRIP_OCR_WORKERS</span><span class="p">)</span> <span class="k">as</span> <span class="n">pool</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">12</span><span class="cl">        <span class="n">futures</span> <span class="o">=</span> <span class="p">[</span><span class="n">pool</span><span class="o">.</span><span class="n">submit</span><span class="p">(</span><span class="n">ocr_strip</span><span class="p">,</span> <span class="n">page</span><span class="p">,</span> <span class="n">s</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">strips</span><span class="p">]</span>
+</span></span><span class="line"><span class="ln">13</span><span class="cl">        <span class="k">return</span> <span class="p">[</span><span class="n">f</span><span class="o">.</span><span class="n">result</span><span class="p">()</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">futures</span><span class="p">]</span></span></span></code></pre></div><h3 id="the-deployment">The deployment</h3>
+<p>We didn&rsquo;t flip everything on at once:</p>
+<ol>
+<li>Deploy with <code>ENABLE_PARALLEL_OCR=false</code> - just the <code>doc.close()</code> fixes</li>
+<li>Monitor memory for 24 hours to confirm the leak is fixed</li>
+<li>Bump resource limits from <code>4Gi</code> to <code>6Gi</code> to accommodate parallel processing headroom</li>
+<li>Enable parallel OCR: <code>ENABLE_PARALLEL_OCR=true</code></li>
+</ol>
+<p>Memory dropped from a steady 4GB to a stable 1.8GB. That&rsquo;s a 55% reduction from just closing document handles properly.</p>
+<h3 id="the-lesson-3">The lesson</h3>
+<p><strong>C extension libraries manage their own memory.</strong> Python&rsquo;s GC has no visibility into <code>fitz</code>, <code>numpy</code>, <code>Pillow</code>, or any other C-backed library. If the library provides a <code>close()</code>, use it. If it supports context managers, use <code>with</code>. And always wrap C-heavy processing in <code>try/finally</code>.</p>
+<h2 id="the-combined-impact">The combined impact</h2>
+<p>Here&rsquo;s the before and after across both services:</p>
+<table>
+  <thead>
+      <tr>
+          <th>Issue</th>
+          <th>Before</th>
+          <th>After</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>Unawaited coroutines</td>
+          <td>~200MB/hour leak</td>
+          <td>0</td>
+      </tr>
+      <tr>
+          <td>MongoClient per call</td>
+          <td>5–15 new connections per request</td>
+          <td>1 pooled</td>
+      </tr>
+      <tr>
+          <td>Stale cache entries</td>
+          <td>Up to 200MB unbounded</td>
+          <td>Cleaned every 60s</td>
+      </tr>
+      <tr>
+          <td>PyMuPDF documents</td>
+          <td>4GB+ with no release</td>
+          <td>Stable at 1.8GB</td>
+      </tr>
+      <tr>
+          <td>Embedding API calls</td>
+          <td>2× per document save</td>
+          <td>1× (cached concat)</td>
+      </tr>
+  </tbody>
+</table>
+<p>Service A went from daily OOMKills to zero restarts. Service B went from crashing every 8–10 hours to running for weeks without a restart.</p>
+<h2 id="how-i-found-them">How I found them</h2>
+<p>No fancy tooling. Here&rsquo;s the actual process:</p>
+<ol>
+<li>
+<p><strong>Look at the memory graph.</strong> Linear growth = accumulation leak. Sawtooth that doesn&rsquo;t return to baseline = handle/resource leak.</p>
+</li>
+<li>
+<p><strong>Read the code.</strong> Seriously. I read every function in the hot paths and asked &ldquo;what gets allocated here that doesn&rsquo;t get freed?&rdquo;</p>
+</li>
+<li>
+<p><strong><code>grep</code> for patterns.</strong> Once I found one unawaited coroutine, I searched for the pattern across the entire codebase:</p>
+</li>
+</ol>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl"><span class="c1"># Find async functions called without await</span>
+</span></span><span class="line"><span class="ln">2</span><span class="cl">rg <span class="s2">&#34;^\s+[a-z_]+\(&#34;</span> --type py <span class="p">|</span> grep -v <span class="s2">&#34;await &#34;</span> <span class="p">|</span> grep -v <span class="s2">&#34;def &#34;</span> <span class="p">|</span> grep -v <span class="s2">&#34;#&#34;</span></span></span></code></pre></div><p>Not perfect, but it flagged the 13 MongoClient instantiations immediately.</p>
+<ol start="4">
+<li>
+<p><strong>Check warnings.</strong> Enabled <code>RuntimeWarning</code> filtering and got 6 unawaited coroutine warnings within the first minute of startup.</p>
+</li>
+<li>
+<p><strong>Kubernetes events.</strong> <code>kubectl describe pod</code> shows OOMKilled with the exact memory at death. Compare that to your resource limits and you know how fast it&rsquo;s growing.</p>
+</li>
+</ol>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">kubectl get events --field-selector <span class="nv">reason</span><span class="o">=</span>OOMKilling <span class="se">\
+</span></span></span><span class="line"><span class="ln">2</span><span class="cl">  --sort-by<span class="o">=</span><span class="s1">&#39;.lastTimestamp&#39;</span> -n your-namespace</span></span></code></pre></div><h2 id="a-checklist-for-your-services">A checklist for your services</h2>
+<p>If you&rsquo;re running Python services on Kubernetes and seeing memory growth, check these in order:</p>
+<ul>
+<li><input disabled="" type="checkbox"> <strong>Unawaited coroutines.</strong> Search for <code>RuntimeWarning: coroutine.*was never awaited</code> in your logs. Better yet, make it an error.</li>
+<li><input disabled="" type="checkbox"> <strong>MongoClient instantiation.</strong> <code>grep -rn &quot;MongoClient(&quot; your_code/</code> - if it appears in more than one place (especially inside functions, not module level), you probably have a leak.</li>
+<li><input disabled="" type="checkbox"> <strong>In-memory caches without eviction.</strong> Any <code>dict</code> that grows with usage and has no <code>del</code> or size cap is a leak. <code>TTLCache</code>, <code>LRU</code>, or <code>maxsize</code> - pick one.</li>
+<li><input disabled="" type="checkbox"> <strong>C extension resources.</strong> PyMuPDF, Pillow, lxml, pdfplumber - anything that wraps C needs explicit <code>close()</code> or <code>with</code> statements.</li>
+<li><input disabled="" type="checkbox"> <strong>Large objects in exception handlers.</strong> If your <code>except</code> block captures the full traceback and logs the local variables, those locals (which may include entire documents) are pinned until the log entry is flushed.</li>
+<li><input disabled="" type="checkbox"> <strong>Background tasks holding request data.</strong> If <code>asyncio.create_task()</code> captures a closure over request objects, those objects live until the task completes.</li>
+</ul>
+<h2 id="final-thought">Final thought</h2>
+<p>None of these bugs produced an error. No stack trace. No warning (well, one did, but it was buried). The services ran <em>fine</em> - they just got slower and slower until Kubernetes killed them, then they restarted and the cycle began again.</p>
+<p>Memory leaks in garbage-collected languages are not the &ldquo;forgot to call <code>free()</code>&rdquo; kind. They&rsquo;re the &ldquo;I&rsquo;m holding a reference I didn&rsquo;t know about&rdquo; kind. The GC is doing its job perfectly - it&rsquo;s keeping alive exactly what you told it to.</p>
+<p>You just told it wrong.</p>
+]]></content:encoded>
+    </item>
+    <item>
+      <title>MongoDB Connection Pool Exhaustion: Diagnosis, Fixes, and SDAM</title>
+      <link>https://KTS-o7.github.io/bear/systems/connection_pool_exhaustion/</link>
+      <pubDate>Sat, 06 Dec 2025 12:00:00 +0000</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/systems/connection_pool_exhaustion/</guid>
+      <description>&lt;blockquote&gt;&#xA;&lt;p&gt;&lt;strong&gt;Why increasing maxPoolSize breaks your database.&lt;/strong&gt; A deep dive into MongoDB connection pooling, SDAM, WiredTiger tickets, and preventing transaction pinning.&lt;/p&gt;&#xA;&lt;/blockquote&gt;&#xA;&lt;h2 id=&#34;introduction&#34;&gt;Introduction&lt;/h2&gt;&#xA;&lt;p&gt;In the MongoDB ecosystem, the &amp;ldquo;connection pool&amp;rdquo; is often treated as a set-and-forget configuration within &lt;code&gt;MongoClient&lt;/code&gt;. However, when latency spikes or the database becomes unresponsive during high traffic, the pool is usually the first mechanism to break.&lt;/p&gt;&#xA;&lt;p&gt;Unlike relational databases that often sit behind proxies like PgBouncer, MongoDB drivers are &amp;ldquo;smart&amp;rdquo;—they maintain direct connections to multiple nodes in a Replica Set or Sharded Cluster. This complexity means exhaustion isn&amp;rsquo;t just about running out of sockets; it&amp;rsquo;s about topology monitoring, transaction pinning, and the brutal reality of the thread-per-connection model on the server side.&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<blockquote>
+<p><strong>Why increasing maxPoolSize breaks your database.</strong> A deep dive into MongoDB connection pooling, SDAM, WiredTiger tickets, and preventing transaction pinning.</p>
+</blockquote>
+<h2 id="introduction">Introduction</h2>
+<p>In the MongoDB ecosystem, the &ldquo;connection pool&rdquo; is often treated as a set-and-forget configuration within <code>MongoClient</code>. However, when latency spikes or the database becomes unresponsive during high traffic, the pool is usually the first mechanism to break.</p>
+<p>Unlike relational databases that often sit behind proxies like PgBouncer, MongoDB drivers are &ldquo;smart&rdquo;—they maintain direct connections to multiple nodes in a Replica Set or Sharded Cluster. This complexity means exhaustion isn&rsquo;t just about running out of sockets; it&rsquo;s about topology monitoring, transaction pinning, and the brutal reality of the thread-per-connection model on the server side.</p>
+<h2 id="how-mongodb-connects-and-executes-queries">How MongoDB Connects and Executes Queries</h2>
+<p>Before diving into pool exhaustion, it&rsquo;s worth understanding the lifecycle of a MongoDB connection and query. The process is more involved than a simple socket open/close.</p>
+<h3 id="connection-establishment">Connection Establishment</h3>
+<p>When your application calls <code>MongoClient.connect()</code>, the driver doesn&rsquo;t immediately open a socket. Instead, it:</p>
+<ol>
+<li>
+<p><strong>TCP Socket Creation:</strong> Establishes a TCP/IP connection to the MongoDB server (default port 27017). This is a standard three-way handshake at the network layer.</p>
+</li>
+<li>
+<p><strong>Wire Protocol Handshake:</strong> The client sends a <code>hello</code> command (formerly <code>isMaster</code> in older versions) to the server. This serves multiple purposes:</p>
+<ul>
+<li>Verifies the server is a MongoDB instance</li>
+<li>Retrieves server capabilities (wire protocol version, supported authentication mechanisms)</li>
+<li>In MongoDB 4.4+, can include <code>speculativeAuthenticate</code> to start authentication concurrently, reducing latency</li>
+</ul>
+</li>
+<li>
+<p><strong>Authentication:</strong> If credentials are provided, the client authenticates using mechanisms like SCRAM (Salted Challenge Response Authentication Mechanism):</p>
+<ul>
+<li>Client sends <code>saslStart</code> with chosen mechanism and initial payload</li>
+<li>Server responds with a challenge</li>
+<li>Client computes and sends proof derived from the challenge</li>
+<li>Server verifies and grants access</li>
+</ul>
+</li>
+</ol>
+<p>This entire process—TCP handshake, TLS negotiation (if enabled), handshake, and authentication—typically takes 10-50ms depending on network latency and encryption overhead.</p>
+<h3 id="query-execution-flow">Query Execution Flow</h3>
+<p>Once authenticated, the connection is ready for operations. When you execute a query:</p>
+<ol>
+<li>
+<p><strong>Connection Checkout:</strong> The driver checks out a connection from the pool (or waits if none are available—this is where exhaustion manifests).</p>
+</li>
+<li>
+<p><strong>Message Construction:</strong> The query is serialized into MongoDB&rsquo;s wire protocol format. Modern MongoDB uses the <code>OP_MSG</code> opcode (introduced in 3.6), which includes:</p>
+<ul>
+<li>Standard message header (request ID, response-to ID)</li>
+<li>Flags indicating message properties</li>
+<li>Sections containing the actual command/query data</li>
+<li>Optional checksum for integrity</li>
+</ul>
+</li>
+<li>
+<p><strong>Network Transmission:</strong> The message is sent over the TCP socket to the server.</p>
+</li>
+<li>
+<p><strong>Server Processing:</strong> The <code>mongod</code> process:</p>
+<ul>
+<li>Receives the message on a dedicated thread (in the thread-per-connection model)</li>
+<li>Parses the query</li>
+<li>Plans execution strategy</li>
+<li>Accesses data through WiredTiger (subject to ticket limits)</li>
+<li>Creates a cursor for read operations</li>
+</ul>
+</li>
+<li>
+<p><strong>Response:</strong> The server sends results back over the same connection. For large result sets, the driver uses cursors to fetch documents in batches (default batch size is 101 documents).</p>
+</li>
+<li>
+<p><strong>Connection Return:</strong> After the operation completes, the connection is returned to the pool for reuse—unless it&rsquo;s pinned to a transaction (see &ldquo;The Specific Pathology: Pinning&rdquo; below).</p>
+</li>
+</ol>
+<h3 id="why-this-matters-for-pooling">Why This Matters for Pooling</h3>
+<p>Each of these steps has latency and resource costs. The connection establishment overhead (10-50ms) is why pooling exists: reusing connections avoids paying this cost for every operation. However, the server-side thread allocation means each connection has a real memory and scheduling cost on <code>mongod</code>, which is why blindly increasing pool size backfires.</p>
+<h2 id="connection-pool-internals">Connection Pool Internals</h2>
+<p>Understanding how the pool manages connections internally is crucial for diagnosing exhaustion. The pool maintains connections in different states:</p>
+<h3 id="connection-states">Connection States</h3>
+<ol>
+<li>
+<p><strong>Idle:</strong> Connections that are established and authenticated but not currently in use. These sit in the pool, ready for immediate checkout. They consume server-side resources (thread + memory) but are available for operations.</p>
+</li>
+<li>
+<p><strong>Checked Out:</strong> Connections actively executing an operation. When you call <code>collection.find()</code>, the driver checks out a connection, performs the operation, then returns it to idle—unless it&rsquo;s pinned (see &ldquo;The Specific Pathology: Pinning&rdquo;).</p>
+</li>
+<li>
+<p><strong>Pending:</strong> Connections in the process of being established (TCP handshake, authentication). These don&rsquo;t count toward <code>maxPoolSize</code> until fully established.</p>
+</li>
+<li>
+<p><strong>Closed:</strong> Connections that have been terminated, either due to errors, idle timeout, or explicit closure.</p>
+</li>
+</ol>
+<h3 id="the-wait-queue">The Wait Queue</h3>
+<p>When all connections are checked out and the pool has reached <code>maxPoolSize</code>, new requests enter a <strong>wait queue</strong>. This queue has its own limits:</p>
+<ul>
+<li><strong>waitQueueTimeoutMS:</strong> How long a request waits for a connection before throwing <code>ConnectionPoolCheckoutFailed</code>. Default is 0 (infinite wait—dangerous in production). <strong>Always set this</strong> to fail fast rather than hang indefinitely.</li>
+</ul>
+<p>If the wait queue fills up, your application starts failing requests. This is often the first symptom of pool exhaustion, not the root cause.</p>
+<h3 id="connection-lifecycle">Connection Lifecycle</h3>
+<p>The connection lifecycle follows these states and transitions:</p>
+
+
+
+
+
+<pre tabindex="0"><code>[Not Created]
+    │
+    │ connect()
+    ▼
+[Pending] ── TCP handshake, authentication ──► [Idle]
+    │                                              │
+    │                                              │ Driver request
+    │                                              ▼
+    │                                        [Checked Out]
+    │                                              │
+    │                                              │ Operation complete
+    │                                              │
+    │                                              ▼
+    │                                          [Idle] ◄──┐
+    │                                              │     │
+    │                                              │     │ Return to pool
+    │                                              │     │
+    │                                              │     │
+    │                                              │ startTransaction()
+    │                                              ▼     │
+    │                                          [Pinned] ──┘
+    │                                              │
+    │                                              │ ʕ•ᴥ•ʔ DANGEROUS:
+    │                                              │ Exclusive to session
+    │                                              │ until commit/abort
+    │                                              │
+    │                                              │ commit/abortTransaction()
+    │                                              ▼
+    │                                          [Idle]
+    │                                              │
+    │                                              │ maxIdleTimeMS reached
+    │                                              ▼
+    │                                          [Closed]
+    │                                              │
+    └──────────────────────────────────────────────┘</code></pre><p><strong>State Descriptions:</strong></p>
+<ul>
+<li><strong>Pending:</strong> Connection is being established (TCP handshake, authentication)</li>
+<li><strong>Idle:</strong> Connection is established and available in the pool for immediate use</li>
+<li><strong>Checked Out:</strong> Connection is actively executing an operation</li>
+<li><strong>Pinned:</strong> Connection is reserved for a transaction (removed from pool until transaction completes)</li>
+<li><strong>Closed:</strong> Connection has been terminated</li>
+</ul>
+<p>The pool lazily creates connections up to <code>maxPoolSize</code>. If <code>minPoolSize &gt; 0</code>, it pre-warms that many connections at startup. Connections idle longer than <code>maxIdleTimeMS</code> are closed to free server resources.</p>
+<h2 id="sdam-the-hidden-connection-overhead">SDAM: The Hidden Connection Overhead</h2>
+<p>MongoDB drivers implement <strong>SDAM</strong> (Server Discovery and Monitoring), which maintains connections to <em>all</em> nodes in a Replica Set or Sharded Cluster, not just the primary.</p>
+<h3 id="how-sdam-works">How SDAM Works</h3>
+<ol>
+<li>
+<p><strong>Initial Discovery:</strong> On <code>MongoClient.connect()</code>, the driver connects to seed addresses and sends <code>hello</code> commands to discover all replica set members.</p>
+</li>
+<li>
+<p><strong>Continuous Monitoring:</strong> Every <code>heartbeatFrequencyMS</code> (default 10 seconds), the driver sends <code>hello</code> to each known node to:</p>
+<ul>
+<li>Detect role changes (primary elections, step-downs)</li>
+<li>Check server capabilities</li>
+<li>Update topology description</li>
+</ul>
+</li>
+<li>
+<p><strong>Topology Events:</strong> When a primary election occurs, the driver:</p>
+<ul>
+<li>Closes connections to the old primary</li>
+<li>Opens connections to the new primary</li>
+<li>Potentially drains and recreates pools</li>
+</ul>
+</li>
+</ol>
+<h3 id="the-connection-multiplier">The Connection Multiplier</h3>
+<p>If you have a 3-node replica set and set <code>maxPoolSize=50</code>, you&rsquo;re not creating 50 connections—you&rsquo;re creating up to <strong>150 connections</strong> (50 per node). SDAM maintains separate pools for each server in the topology.</p>
+<p>During a primary election, the driver may temporarily exceed this as it transitions between nodes. If you&rsquo;re running 20 app instances, that&rsquo;s 3,000 potential connections during failover, even if only one node is serving traffic.</p>
+<p><strong>Takeaway:</strong> Your <code>maxPoolSize</code> is per-server, not per-client. In replica sets, multiply by the number of nodes you&rsquo;re monitoring.</p>
+<h2 id="connection-pool-configuration-options">Connection Pool Configuration Options</h2>
+<p>Here are the key options that affect pool behavior:</p>
+<ul>
+<li>
+<p><strong>maxPoolSize:</strong> Maximum connections per server. Default 100. This is the most commonly misconfigured setting.</p>
+</li>
+<li>
+<p><strong>minPoolSize:</strong> Minimum idle connections to maintain. Default 0. Setting this &gt; 0 pre-warms the pool but consumes server resources even when idle.</p>
+</li>
+<li>
+<p><strong>maxIdleTimeMS:</strong> Close idle connections after this duration. Default 0 (never close). Useful in serverless where you want aggressive cleanup.</p>
+</li>
+<li>
+<p><strong>waitQueueTimeoutMS:</strong> How long to wait for a connection before failing. Default 0 (wait forever—dangerous in production). <strong>Always set this</strong> to fail fast rather than hang indefinitely.</p>
+</li>
+<li>
+<p><strong>connectTimeoutMS:</strong> Timeout for initial connection establishment. Default 30 seconds.</p>
+</li>
+<li>
+<p><strong>socketTimeoutMS:</strong> Timeout for individual operations. Default 0 (no timeout). Different from connection checkout timeout.</p>
+</li>
+<li>
+<p><strong>heartbeatFrequencyMS:</strong> How often SDAM checks server status. Default 10 seconds. Lower values detect failovers faster but increase network overhead.</p>
+</li>
+<li>
+<p><strong>TCP Keepalive:</strong> Often overlooked. If your app sits behind a firewall or load balancer (e.g., AWS Network Load Balancer) with a 350s idle timeout, and your pool has <code>maxIdleTimeMS</code> &gt; 350s, the LB will silently drop the connection. The driver won&rsquo;t know until it tries to write to the socket and fails. <strong>Important:</strong> <code>socketTimeoutMS</code> does not send keepalive probes. <strong>Best Practice:</strong> Set <code>maxIdleTimeMS</code> to be slightly lower than your infrastructure&rsquo;s timeout (e.g., 120000ms). On Linux, also tune <code>net.ipv4.tcp_keepalive_time</code> to be less than the cloud provider&rsquo;s timeout (usually &lt; 120 seconds).</p>
+</li>
+</ul>
+<p><strong>Example Configuration (Node.js):</strong></p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-javascript" data-lang="javascript"><span class="line"><span class="ln">1</span><span class="cl"><span class="kr">const</span> <span class="nx">client</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">MongoClient</span><span class="p">(</span><span class="nx">uri</span><span class="p">,</span> <span class="p">{</span>
+</span></span><span class="line"><span class="ln">2</span><span class="cl">  <span class="nx">maxPoolSize</span><span class="o">:</span> <span class="mi">10</span><span class="p">,</span>              <span class="c1">// Small pool for 16-core DB
+</span></span></span><span class="line"><span class="ln">3</span><span class="cl">  <span class="nx">minPoolSize</span><span class="o">:</span> <span class="mi">2</span><span class="p">,</span>               <span class="c1">// Pre-warm 2 connections
+</span></span></span><span class="line"><span class="ln">4</span><span class="cl">  <span class="nx">maxIdleTimeMS</span><span class="o">:</span> <span class="mi">30000</span><span class="p">,</span>         <span class="c1">// Close idle after 30s
+</span></span></span><span class="line"><span class="ln">5</span><span class="cl">  <span class="nx">waitQueueTimeoutMS</span><span class="o">:</span> <span class="mi">5000</span><span class="p">,</span>     <span class="c1">// Fail after 5s wait
+</span></span></span><span class="line"><span class="ln">6</span><span class="cl">  <span class="nx">connectTimeoutMS</span><span class="o">:</span> <span class="mi">10000</span><span class="p">,</span>      <span class="c1">// 10s connection timeout
+</span></span></span><span class="line"><span class="ln">7</span><span class="cl">  <span class="nx">socketTimeoutMS</span><span class="o">:</span> <span class="mi">45000</span><span class="p">,</span>       <span class="c1">// 45s operation timeout
+</span></span></span><span class="line"><span class="ln">8</span><span class="cl">  <span class="nx">heartbeatFrequencyMS</span><span class="o">:</span> <span class="mi">10000</span>   <span class="c1">// Check every 10s
+</span></span></span><span class="line"><span class="ln">9</span><span class="cl"><span class="p">});</span></span></span></code></pre></div><h2 id="the-cost-of-a-connection-in-mongod">The Cost of a Connection in mongod</h2>
+<p>While MongoDB has moved toward a more asynchronous networking model in recent versions, historically (and effectively, for resource planning), it relies on a synchronous thread-per-connection model.</p>
+<p>When your application opens a new connection:</p>
+<ol>
+<li><strong>Network:</strong> TCP handshake + TLS negotiation (CPU intensive).</li>
+<li><strong>Authentication:</strong> SCRAM or X.509 handshakes occur.</li>
+<li><strong>Memory:</strong> The <code>mongod</code> process allocates stack memory (typically ~1MB) for the thread handling that connection.</li>
+<li><strong>Context:</strong> The internal <code>serviceExecutor</code> must schedule this thread.</li>
+</ol>
+<p>If you set <code>maxPoolSize=100</code> on 50 Kubernetes pods, you are allowing 5,000 potential concurrent threads on the Primary. Before you hit hardware limits, you will likely hit <strong>WiredTiger ticket exhaustion</strong>.</p>
+<h2 id="the-math-sizing-for-wiredtiger">The Math: Sizing for WiredTiger</h2>
+<p>The naive approach is to increase <code>maxPoolSize</code> when you see <code>ConnectionPoolCheckoutFailed</code> errors. This is usually wrong.</p>
+<p>WiredTiger (the storage engine) uses &ldquo;tickets&rdquo; to control concurrency. In MongoDB versions prior to 7.0, there are 128 read tickets and 128 write tickets by default. MongoDB 7.0+ uses dynamic ticketing that adjusts based on workload, but still caps at 128 per type. <strong>Note on MongoDB 7.0+:</strong> While the hard cap remains 128 tickets, the dynamic algorithm often lowers this limit (e.g., to 60 or 80) in real-time to preserve latency. This means you might see queuing before you hit 128 concurrent active queries. If 1,000 connections try to read simultaneously, 872 of them are just queuing inside the kernel, consuming RAM but doing zero work.</p>
+<p>The optimal pool size formula remains tied to hardware capability, not traffic volume:</p>
+$$
+PoolSize \approx \frac{\text{CoreCount} \times 2}{\text{AppInstances}}
+$$<p>If your database has 16 cores and you have 20 application instances, a <code>maxPoolSize</code> of 100 is overkill. You might actually achieve <em>higher</em> throughput with a pool size of 2 or 3 per instance, preventing the database from spending all its cycles on context switching.</p>
+<p><strong>Note:</strong> The <code>(Cores * 2)</code> rule applies strictly to the <em>active</em> executing threads. You can have a larger pool to handle network jitter, but <code>waitQueueTimeoutMS</code> is your safety valve. If you need 100 connections to saturate the CPU, your queries are likely too slow (unindexed). Fix the queries, don&rsquo;t inflate the pool.</p>
+<p><strong>Workload Considerations:</strong></p>
+<ul>
+<li><strong>CPU-Bound Workloads:</strong> The formula above applies directly. Each active connection should map to an executing thread.</li>
+<li><strong>IO-Bound Workloads:</strong> If the working set doesn&rsquo;t fit in RAM and disk I/O is the bottleneck, a slightly larger pool <em>might</em> help hide I/O latency, though typically <code>minPoolSize</code> is more relevant here to avoid establishing connections during I/O spikes.</li>
+<li><strong>Atlas Proxy / Serverless:</strong> If using <strong>MongoDB Atlas Serverless</strong> or the <strong>Atlas Proxy</strong>, the connection limits are handled differently (via a proxy layer), and the &ldquo;100 limit&rdquo; on the client side is less about server stress and more about client-side throttling.</li>
+</ul>
+<h2 id="the-specific-pathology-pinning">The Specific Pathology: &ldquo;Pinning&rdquo;</h2>
+<p>Since you are versed in Mongo, you know the drivers implement the <strong>SDAM</strong> (Server Discovery and Monitoring) specification. But the most dangerous feature regarding pooling is <strong>Client-Side Operation Pinning</strong>, specifically with Transactions.</p>
+<p>In a standard read/write, the driver grabs a connection, executes, and returns it.
+In a Transaction (Multi-Document ACID):</p>
+<ol>
+<li><code>session.startTransaction()</code> is called.</li>
+<li>The driver <strong>pins</strong> a connection to that session.</li>
+<li><strong>That connection is removed from the pool</strong> and reserved exclusively for this session until <code>commitTransaction</code> or <code>abortTransaction</code> is called.</li>
+</ol>
+<h3 id="the-exhaustion-scenario">The Exhaustion Scenario</h3>
+<p>If you have <code>maxPoolSize=50</code> and an API endpoint that takes 2 seconds to execute some logic <em>inside</em> a transaction, you can only serve 25 requests per second. The 26th request will wait. If the logic hangs (e.g., waiting for a third-party HTTP call), you will drain the pool instantly, causing a cascading failure across the app.</p>
+<blockquote>
+<p><strong>ʕ•ᴥ•ʔ Critical Rule:</strong> Never perform network I/O or long computations inside a MongoDB transaction. Transactions should be atomic, fast, and only contain database operations.</p>
+</blockquote>
+<h2 id="practical-examples-the-right-way-vs-the-wrong-way">Practical Examples: The Right Way vs. The Wrong Way</h2>
+<h3 id="proper-client-initialization">Proper Client Initialization</h3>
+<p><strong>Node.js - Express (Correct):</strong></p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-javascript" data-lang="javascript"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="c1">// app.js - Initialize once at startup
+</span></span></span><span class="line"><span class="ln"> 2</span><span class="cl"><span class="kr">const</span> <span class="p">{</span> <span class="nx">MongoClient</span> <span class="p">}</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">&#39;mongodb&#39;</span><span class="p">);</span>
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl">
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl"><span class="kd">let</span> <span class="nx">client</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl"><span class="kd">let</span> <span class="nx">db</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl"><span class="kr">async</span> <span class="kd">function</span> <span class="nx">initDatabase</span><span class="p">()</span> <span class="p">{</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl">  <span class="nx">client</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">MongoClient</span><span class="p">(</span><span class="nx">uri</span><span class="p">,</span> <span class="p">{</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">    <span class="nx">maxPoolSize</span><span class="o">:</span> <span class="mi">10</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln">10</span><span class="cl">    <span class="nx">waitQueueTimeoutMS</span><span class="o">:</span> <span class="mi">5000</span>
+</span></span><span class="line"><span class="ln">11</span><span class="cl">  <span class="p">});</span>
+</span></span><span class="line"><span class="ln">12</span><span class="cl">  <span class="kr">await</span> <span class="nx">client</span><span class="p">.</span><span class="nx">connect</span><span class="p">();</span>
+</span></span><span class="line"><span class="ln">13</span><span class="cl">  <span class="nx">db</span> <span class="o">=</span> <span class="nx">client</span><span class="p">.</span><span class="nx">db</span><span class="p">(</span><span class="s1">&#39;myapp&#39;</span><span class="p">);</span>
+</span></span><span class="line"><span class="ln">14</span><span class="cl">  <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="s1">&#39;Database connected&#39;</span><span class="p">);</span>
+</span></span><span class="line"><span class="ln">15</span><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="ln">16</span><span class="cl">
+</span></span><span class="line"><span class="ln">17</span><span class="cl"><span class="c1">// Initialize before starting server
+</span></span></span><span class="line"><span class="ln">18</span><span class="cl"><span class="nx">initDatabase</span><span class="p">().</span><span class="nx">then</span><span class="p">(()</span> <span class="p">=&gt;</span> <span class="p">{</span>
+</span></span><span class="line"><span class="ln">19</span><span class="cl">  <span class="nx">app</span><span class="p">.</span><span class="nx">listen</span><span class="p">(</span><span class="mi">3000</span><span class="p">);</span>
+</span></span><span class="line"><span class="ln">20</span><span class="cl"><span class="p">});</span>
+</span></span><span class="line"><span class="ln">21</span><span class="cl">
+</span></span><span class="line"><span class="ln">22</span><span class="cl"><span class="c1">// Use the same client instance everywhere
+</span></span></span><span class="line"><span class="ln">23</span><span class="cl"><span class="nx">app</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="s1">&#39;/users&#39;</span><span class="p">,</span> <span class="kr">async</span> <span class="p">(</span><span class="nx">req</span><span class="p">,</span> <span class="nx">res</span><span class="p">)</span> <span class="p">=&gt;</span> <span class="p">{</span>
+</span></span><span class="line"><span class="ln">24</span><span class="cl">  <span class="kr">const</span> <span class="nx">users</span> <span class="o">=</span> <span class="kr">await</span> <span class="nx">db</span><span class="p">.</span><span class="nx">collection</span><span class="p">(</span><span class="s1">&#39;users&#39;</span><span class="p">).</span><span class="nx">find</span><span class="p">({}).</span><span class="nx">toArray</span><span class="p">();</span>
+</span></span><span class="line"><span class="ln">25</span><span class="cl">  <span class="nx">res</span><span class="p">.</span><span class="nx">json</span><span class="p">(</span><span class="nx">users</span><span class="p">);</span>
+</span></span><span class="line"><span class="ln">26</span><span class="cl"><span class="p">});</span></span></span></code></pre></div><p><strong>Node.js - Express (Wrong - Creates New Pool Per Request):</strong></p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-javascript" data-lang="javascript"><span class="line"><span class="ln">1</span><span class="cl"><span class="c1">// ʕ•̀ω•́ʔ DON&#39;T DO THIS
+</span></span></span><span class="line"><span class="ln">2</span><span class="cl"><span class="nx">app</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="s1">&#39;/users&#39;</span><span class="p">,</span> <span class="kr">async</span> <span class="p">(</span><span class="nx">req</span><span class="p">,</span> <span class="nx">res</span><span class="p">)</span> <span class="p">=&gt;</span> <span class="p">{</span>
+</span></span><span class="line"><span class="ln">3</span><span class="cl">  <span class="kr">const</span> <span class="nx">client</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">MongoClient</span><span class="p">(</span><span class="nx">uri</span><span class="p">);</span>  <span class="c1">// New pool every request!
+</span></span></span><span class="line"><span class="ln">4</span><span class="cl">  <span class="kr">await</span> <span class="nx">client</span><span class="p">.</span><span class="nx">connect</span><span class="p">();</span>
+</span></span><span class="line"><span class="ln">5</span><span class="cl">  <span class="kr">const</span> <span class="nx">db</span> <span class="o">=</span> <span class="nx">client</span><span class="p">.</span><span class="nx">db</span><span class="p">(</span><span class="s1">&#39;myapp&#39;</span><span class="p">);</span>
+</span></span><span class="line"><span class="ln">6</span><span class="cl">  <span class="kr">const</span> <span class="nx">users</span> <span class="o">=</span> <span class="kr">await</span> <span class="nx">db</span><span class="p">.</span><span class="nx">collection</span><span class="p">(</span><span class="s1">&#39;users&#39;</span><span class="p">).</span><span class="nx">find</span><span class="p">({}).</span><span class="nx">toArray</span><span class="p">();</span>
+</span></span><span class="line"><span class="ln">7</span><span class="cl">  <span class="kr">await</span> <span class="nx">client</span><span class="p">.</span><span class="nx">close</span><span class="p">();</span>  <span class="c1">// Closes pool, but too late
+</span></span></span><span class="line"><span class="ln">8</span><span class="cl">  <span class="nx">res</span><span class="p">.</span><span class="nx">json</span><span class="p">(</span><span class="nx">users</span><span class="p">);</span>
+</span></span><span class="line"><span class="ln">9</span><span class="cl"><span class="p">});</span></span></span></code></pre></div><p><strong>Python - Gunicorn (Correct):</strong></p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="c1"># app.py - Create client after fork</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl"><span class="kn">from</span> <span class="nn">pymongo</span> <span class="kn">import</span> <span class="n">MongoClient</span>
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl">
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl"><span class="n">client</span> <span class="o">=</span> <span class="kc">None</span>
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl"><span class="n">db</span> <span class="o">=</span> <span class="kc">None</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl"><span class="k">def</span> <span class="nf">on_starting</span><span class="p">(</span><span class="n">server</span><span class="p">):</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl">    <span class="c1"># This runs in the master process</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">    <span class="k">pass</span>
+</span></span><span class="line"><span class="ln">10</span><span class="cl">
+</span></span><span class="line"><span class="ln">11</span><span class="cl"><span class="k">def</span> <span class="nf">when_ready</span><span class="p">(</span><span class="n">server</span><span class="p">):</span>
+</span></span><span class="line"><span class="ln">12</span><span class="cl">    <span class="c1"># This runs in each worker after fork</span>
+</span></span><span class="line"><span class="ln">13</span><span class="cl">    <span class="k">global</span> <span class="n">client</span><span class="p">,</span> <span class="n">db</span>
+</span></span><span class="line"><span class="ln">14</span><span class="cl">    <span class="n">client</span> <span class="o">=</span> <span class="n">MongoClient</span><span class="p">(</span><span class="n">uri</span><span class="p">,</span> <span class="n">maxPoolSize</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">15</span><span class="cl">    <span class="n">db</span> <span class="o">=</span> <span class="n">client</span><span class="p">[</span><span class="s1">&#39;myapp&#39;</span><span class="p">]</span>
+</span></span><span class="line"><span class="ln">16</span><span class="cl">
+</span></span><span class="line"><span class="ln">17</span><span class="cl"><span class="nd">@app.route</span><span class="p">(</span><span class="s1">&#39;/users&#39;</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">18</span><span class="cl"><span class="k">def</span> <span class="nf">get_users</span><span class="p">():</span>
+</span></span><span class="line"><span class="ln">19</span><span class="cl">    <span class="n">users</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">db</span><span class="o">.</span><span class="n">users</span><span class="o">.</span><span class="n">find</span><span class="p">({}))</span>
+</span></span><span class="line"><span class="ln">20</span><span class="cl">    <span class="k">return</span> <span class="n">jsonify</span><span class="p">(</span><span class="n">users</span><span class="p">)</span></span></span></code></pre></div><p><strong>Python - Gunicorn (Wrong - Fork-Unsafe):</strong></p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="c1"># ʕ•̀ω•́ʔ DON&#39;T DO THIS</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl"><span class="kn">from</span> <span class="nn">pymongo</span> <span class="kn">import</span> <span class="n">MongoClient</span>
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl">
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl"><span class="c1"># Created in master process - NOT fork-safe!</span>
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl"><span class="n">client</span> <span class="o">=</span> <span class="n">MongoClient</span><span class="p">(</span><span class="n">uri</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl"><span class="n">db</span> <span class="o">=</span> <span class="n">client</span><span class="p">[</span><span class="s1">&#39;myapp&#39;</span><span class="p">]</span>
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl">
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl"><span class="nd">@app.route</span><span class="p">(</span><span class="s1">&#39;/users&#39;</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl"><span class="k">def</span> <span class="nf">get_users</span><span class="p">():</span>
+</span></span><span class="line"><span class="ln">10</span><span class="cl">    <span class="c1"># Child processes share parent&#39;s file descriptors = deadlocks</span>
+</span></span><span class="line"><span class="ln">11</span><span class="cl">    <span class="c1"># This often results in AutoReconnect errors or </span>
+</span></span><span class="line"><span class="ln">12</span><span class="cl">    <span class="c1"># &#39;file descriptor bad&#39; errors because the socket </span>
+</span></span><span class="line"><span class="ln">13</span><span class="cl">    <span class="c1"># is shared across memory boundaries</span>
+</span></span><span class="line"><span class="ln">14</span><span class="cl">    <span class="n">users</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">db</span><span class="o">.</span><span class="n">users</span><span class="o">.</span><span class="n">find</span><span class="p">({}))</span>
+</span></span><span class="line"><span class="ln">15</span><span class="cl">    <span class="k">return</span> <span class="n">jsonify</span><span class="p">(</span><span class="n">users</span><span class="p">)</span></span></span></code></pre></div><p><strong>Java - Spring Boot:</strong></p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-java" data-lang="java"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="nl">spring</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 2</span><span class="cl"><span class="w">  </span><span class="n">data</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 3</span><span class="cl"><span class="w">    </span><span class="n">mongodb</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 4</span><span class="cl"><span class="w">      </span><span class="n">uri</span><span class="p">:</span><span class="w"> </span><span class="s">&#34;mongodb://user:pass@host1:27017,host2:27017/?replicaSet=myRS&amp;maxPoolSize=10&amp;minPoolSize=2&amp;maxIdleTimeMS=30000&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 5</span><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="ln"> 6</span><span class="cl"><span class="c1">// Or if using a Configurer Bean (safe way to customize without breaking auto-config)</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 7</span><span class="cl"><span class="nd">@Configuration</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 8</span><span class="cl"><span class="kd">public</span><span class="w"> </span><span class="kd">class</span> <span class="nc">MongoConfig</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 9</span><span class="cl"><span class="w">    </span><span class="nd">@Bean</span><span class="w">
+</span></span></span><span class="line"><span class="ln">10</span><span class="cl"><span class="w">    </span><span class="kd">public</span><span class="w"> </span><span class="n">MongoClientSettingsBuilderCustomizer</span><span class="w"> </span><span class="nf">customizer</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln">11</span><span class="cl"><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">builder</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">builder</span><span class="p">.</span><span class="na">applyToConnectionPoolSettings</span><span class="p">(</span><span class="n">pool</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln">12</span><span class="cl"><span class="w">            </span><span class="n">pool</span><span class="p">.</span><span class="na">maxSize</span><span class="p">(</span><span class="n">10</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="ln">13</span><span class="cl"><span class="w">            </span><span class="n">pool</span><span class="p">.</span><span class="na">maxWaitTime</span><span class="p">(</span><span class="n">5</span><span class="p">,</span><span class="w"> </span><span class="n">TimeUnit</span><span class="p">.</span><span class="na">SECONDS</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="ln">14</span><span class="cl"><span class="w">        </span><span class="p">});</span><span class="w">
+</span></span></span><span class="line"><span class="ln">15</span><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="ln">16</span><span class="cl"><span class="p">}</span></span></span></code></pre></div><p><strong>The Health Check Trap:</strong></p>
+<blockquote>
+<p><strong>ʕ•ᴥ•ʔ Warning:</strong> Do not create a new <code>MongoClient</code> inside your Kubernetes readiness/liveness probe. This is a classic DOS attack on your own database. The probe runs every 10s; if it creates a new connection each time without proper closure, you will exhaust the server limits in minutes. Use the singleton client to run a lightweight command like <code>db.command({ ping: 1 })</code>.</p>
+</blockquote>
+<h3 id="monitoring-pool-metrics">Monitoring Pool Metrics</h3>
+<p><strong>Node.js - Command Monitoring:</strong></p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-javascript" data-lang="javascript"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="kr">const</span> <span class="p">{</span> <span class="nx">MongoClient</span> <span class="p">}</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">&#39;mongodb&#39;</span><span class="p">);</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl">
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl"><span class="kr">const</span> <span class="nx">client</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">MongoClient</span><span class="p">(</span><span class="nx">uri</span><span class="p">,</span> <span class="p">{</span>
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl">  <span class="nx">monitorCommands</span><span class="o">:</span> <span class="kc">true</span>  <span class="c1">// Enable command monitoring
+</span></span></span><span class="line"><span class="ln"> 5</span><span class="cl"><span class="p">});</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl"><span class="nx">client</span><span class="p">.</span><span class="nx">on</span><span class="p">(</span><span class="s1">&#39;commandStarted&#39;</span><span class="p">,</span> <span class="p">(</span><span class="nx">event</span><span class="p">)</span> <span class="p">=&gt;</span> <span class="p">{</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl">  <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="s1">&#39;Command:&#39;</span><span class="p">,</span> <span class="nx">event</span><span class="p">.</span><span class="nx">commandName</span><span class="p">);</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl"><span class="p">});</span>
+</span></span><span class="line"><span class="ln">10</span><span class="cl">
+</span></span><span class="line"><span class="ln">11</span><span class="cl"><span class="nx">client</span><span class="p">.</span><span class="nx">on</span><span class="p">(</span><span class="s1">&#39;commandSucceeded&#39;</span><span class="p">,</span> <span class="p">(</span><span class="nx">event</span><span class="p">)</span> <span class="p">=&gt;</span> <span class="p">{</span>
+</span></span><span class="line"><span class="ln">12</span><span class="cl">  <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="s1">&#39;Duration:&#39;</span><span class="p">,</span> <span class="nx">event</span><span class="p">.</span><span class="nx">duration</span><span class="p">,</span> <span class="s1">&#39;ms&#39;</span><span class="p">);</span>
+</span></span><span class="line"><span class="ln">13</span><span class="cl"><span class="p">});</span>
+</span></span><span class="line"><span class="ln">14</span><span class="cl">
+</span></span><span class="line"><span class="ln">15</span><span class="cl"><span class="c1">// For connection pool metrics, use pool monitoring events
+</span></span></span><span class="line"><span class="ln">16</span><span class="cl"><span class="nx">client</span><span class="p">.</span><span class="nx">on</span><span class="p">(</span><span class="s1">&#39;connectionCheckedOut&#39;</span><span class="p">,</span> <span class="p">(</span><span class="nx">event</span><span class="p">)</span> <span class="p">=&gt;</span> <span class="p">{</span>
+</span></span><span class="line"><span class="ln">17</span><span class="cl">  <span class="k">if</span> <span class="p">(</span><span class="nx">event</span><span class="p">.</span><span class="nx">duration</span> <span class="o">&gt;</span> <span class="mi">100</span><span class="p">)</span> <span class="p">{</span>  <span class="c1">// Checkout took &gt; 100ms
+</span></span></span><span class="line"><span class="ln">18</span><span class="cl">    <span class="nx">console</span><span class="p">.</span><span class="nx">warn</span><span class="p">(</span><span class="s1">&#39;Slow connection checkout:&#39;</span><span class="p">,</span> <span class="nx">event</span><span class="p">.</span><span class="nx">duration</span><span class="p">,</span> <span class="s1">&#39;ms&#39;</span><span class="p">);</span>
+</span></span><span class="line"><span class="ln">19</span><span class="cl">  <span class="p">}</span>
+</span></span><span class="line"><span class="ln">20</span><span class="cl"><span class="p">});</span>
+</span></span><span class="line"><span class="ln">21</span><span class="cl">
+</span></span><span class="line"><span class="ln">22</span><span class="cl"><span class="nx">client</span><span class="p">.</span><span class="nx">on</span><span class="p">(</span><span class="s1">&#39;commandFailed&#39;</span><span class="p">,</span> <span class="p">(</span><span class="nx">event</span><span class="p">)</span> <span class="p">=&gt;</span> <span class="p">{</span>
+</span></span><span class="line"><span class="ln">23</span><span class="cl">  <span class="k">if</span> <span class="p">(</span><span class="nx">event</span><span class="p">.</span><span class="nx">error</span><span class="p">.</span><span class="nx">code</span> <span class="o">===</span> <span class="s1">&#39;ConnectionPoolCheckoutFailed&#39;</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="ln">24</span><span class="cl">    <span class="nx">console</span><span class="p">.</span><span class="nx">error</span><span class="p">(</span><span class="s1">&#39;Pool exhausted!&#39;</span><span class="p">);</span>
+</span></span><span class="line"><span class="ln">25</span><span class="cl">  <span class="p">}</span>
+</span></span><span class="line"><span class="ln">26</span><span class="cl"><span class="p">});</span></span></span></code></pre></div><p><strong>Go - Pool Monitoring:</strong></p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="kn">import</span><span class="w"> </span><span class="p">(</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 2</span><span class="cl"><span class="w">    </span><span class="s">&#34;go.mongodb.org/mongo-driver/event&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 3</span><span class="cl"><span class="w">    </span><span class="s">&#34;go.mongodb.org/mongo-driver/mongo&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 4</span><span class="cl"><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 5</span><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="ln"> 6</span><span class="cl"><span class="nx">poolMonitor</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="o">&amp;</span><span class="nx">event</span><span class="p">.</span><span class="nx">PoolMonitor</span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 7</span><span class="cl"><span class="w">    </span><span class="nx">Event</span><span class="p">:</span><span class="w"> </span><span class="kd">func</span><span class="p">(</span><span class="nx">evt</span><span class="w"> </span><span class="o">*</span><span class="nx">event</span><span class="p">.</span><span class="nx">PoolEvent</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 8</span><span class="cl"><span class="w">        </span><span class="k">switch</span><span class="w"> </span><span class="nx">evt</span><span class="p">.</span><span class="nx">Type</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 9</span><span class="cl"><span class="w">        </span><span class="k">case</span><span class="w"> </span><span class="nx">event</span><span class="p">.</span><span class="nx">ConnectionCreated</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln">10</span><span class="cl"><span class="w">            </span><span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="s">&#34;Connection created&#34;</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="ln">11</span><span class="cl"><span class="w">        </span><span class="k">case</span><span class="w"> </span><span class="nx">event</span><span class="p">.</span><span class="nx">ConnectionCheckedOut</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln">12</span><span class="cl"><span class="w">            </span><span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="s">&#34;Connection checked out&#34;</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="ln">13</span><span class="cl"><span class="w">        </span><span class="k">case</span><span class="w"> </span><span class="nx">event</span><span class="p">.</span><span class="nx">ConnectionCheckoutFailed</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln">14</span><span class="cl"><span class="w">            </span><span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="s">&#34;Checkout failed:&#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">evt</span><span class="p">.</span><span class="nx">Reason</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="ln">15</span><span class="cl"><span class="w">        </span><span class="k">case</span><span class="w"> </span><span class="nx">event</span><span class="p">.</span><span class="nx">ConnectionReturned</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln">16</span><span class="cl"><span class="w">            </span><span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="s">&#34;Connection returned&#34;</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="ln">17</span><span class="cl"><span class="w">        </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="ln">18</span><span class="cl"><span class="w">    </span><span class="p">},</span><span class="w">
+</span></span></span><span class="line"><span class="ln">19</span><span class="cl"><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="ln">20</span><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="ln">21</span><span class="cl"><span class="nx">clientOptions</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">options</span><span class="p">.</span><span class="nf">Client</span><span class="p">().</span><span class="w">
+</span></span></span><span class="line"><span class="ln">22</span><span class="cl"><span class="w">    </span><span class="nf">ApplyURI</span><span class="p">(</span><span class="nx">uri</span><span class="p">).</span><span class="w">
+</span></span></span><span class="line"><span class="ln">23</span><span class="cl"><span class="w">    </span><span class="nf">SetPoolMonitor</span><span class="p">(</span><span class="nx">poolMonitor</span><span class="p">).</span><span class="w">
+</span></span></span><span class="line"><span class="ln">24</span><span class="cl"><span class="w">    </span><span class="nf">SetMaxPoolSize</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="ln">25</span><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="ln">26</span><span class="cl"><span class="nx">client</span><span class="p">,</span><span class="w"> </span><span class="nx">_</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">mongo</span><span class="p">.</span><span class="nf">Connect</span><span class="p">(</span><span class="nx">context</span><span class="p">.</span><span class="nf">TODO</span><span class="p">(),</span><span class="w"> </span><span class="nx">clientOptions</span><span class="p">)</span></span></span></code></pre></div><h2 id="driver-nuances--pitfalls">Driver Nuances &amp; Pitfalls</h2>
+<h3 id="nodejs-mongoose--native-driver">Node.js (Mongoose / Native Driver)</h3>
+<p>The Node driver is asynchronous, but the pool logic is strict.</p>
+<ul>
+<li><strong>The Singleton Mistake:</strong> A common pattern in serverless or improper Express setup is calling <code>MongoClient.connect()</code> inside the route handler. This creates a new pool for every request, rapidly hitting the Atlas connection limit (e.g., 1,500 connections on M10). Always initialize the client <em>once</em> at startup.</li>
+<li><strong>Unified Topology:</strong> The Node.js driver (v4.0+) uses Unified Topology by default (it&rsquo;s the only option). This keeps a background monitoring thread that can detect step-downs. If your pool churns during a primary election, check if your <code>heartbeatFrequencyMS</code> is tuned correctly.</li>
+</ul>
+<h3 id="python-pymongo">Python (PyMongo)</h3>
+<ul>
+<li><strong>Fork Safety:</strong> <code>MongoClient</code> is not fork-safe. If you use <code>gunicorn</code> or <code>uwsgi</code> with forking, you <strong>must</strong> create the client <em>after</em> the fork (e.g., inside the worker process initialization), or you will end up with child processes trying to use the parent&rsquo;s file descriptors, leading to deadlocks and obscure socket errors. This often manifests as <code>AutoReconnect</code> errors or &ldquo;file descriptor bad&rdquo; errors.</li>
+<li><strong>Wait Queue:</strong> In PyMongo 4.0+, <code>waitQueueMultiple</code> was removed. Use <code>waitQueueTimeoutMS</code> to control how long threads wait for connections. Limit your application&rsquo;s thread pool size to control concurrency.</li>
+</ul>
+<h3 id="java-spring-boot--mongodb-java-driver">Java (Spring Boot / MongoDB Java Driver)</h3>
+<ul>
+<li><strong>Automatic Pooling:</strong> The <code>MongoTemplate</code> handles pooling automatically. Ensure <code>spring.data.mongodb.database</code> settings do not override defaults with aggressive timeouts. The Java driver&rsquo;s default <code>maxPoolSize</code> is 100, which is often too high for production.</li>
+</ul>
+<h3 id="go-mongo-go-driver">Go (mongo-go-driver)</h3>
+<ul>
+<li>The Go driver respects <code>context</code>. If your <code>Connect</code> or <code>Find</code> context times out, the connection might be closed or returned to the pool depending on the stage.</li>
+<li>Monitor <code>PoolEvent</code> via the <code>SetPoolMonitor</code> option to visualize exactly when connections are created vs. checked out.</li>
+</ul>
+<h2 id="serverless--atlas-implications">Serverless &amp; Atlas Implications</h2>
+<p>In MongoDB Atlas, connection limits are hard tiers.</p>
+<ul>
+<li><strong>M0 (Free Tier):</strong> 500 connections per node</li>
+<li><strong>M10:</strong> 1,500 connections per node</li>
+<li><strong>M20:</strong> 3,000 connections per node</li>
+<li><strong>Serverless Instances:</strong> These bill by &ldquo;Read Processing Units&rdquo; but still require connection management.</li>
+</ul>
+<p>If you are running on AWS Lambda or Vercel, you cannot maintain a persistent pool. Every &ldquo;warm&rdquo; container might keep a pool of 10 open. 100 concurrent Lambdas = 1,000 connections.
+<strong>Solution:</strong> You typically cannot use standard pooling here. You must aggressively close connections (set <code>maxIdleTimeMS</code> very low) or use the <strong>Atlas Data API</strong> (HTTP based) instead of the TCP driver to avoid socket exhaustion.</p>
+<h2 id="monitoring--diagnosis">Monitoring &amp; Diagnosis</h2>
+<p>How do you know it&rsquo;s a pool issue and not a slow query?</p>
+<ol>
+<li>
+<p><strong>Check the Server:</strong></p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-javascript" data-lang="javascript"><span class="line"><span class="ln">1</span><span class="cl"><span class="nx">db</span><span class="p">.</span><span class="nx">serverStatus</span><span class="p">().</span><span class="nx">connections</span>
+</span></span><span class="line"><span class="ln">2</span><span class="cl"><span class="c1">// look for { &#34;current&#34;: 1200, &#34;available&#34;: 50 }
+</span></span></span></code></pre></div><p>If <code>current</code> is high, your app is leaking connections or scaling too wide.</p>
+</li>
+<li>
+<p><strong>Check the Queue:</strong>
+Monitor WiredTiger ticket usage via <code>db.serverStatus().wiredTiger.concurrentTransactions</code> or connection counts. If active connections significantly exceed your pool size or WiredTiger tickets are exhausted, your latency is due to queuing, not network speed.</p>
+</li>
+<li>
+<p><strong>Zombie Connections:</strong>
+When a client crashes hard (OOM Kill) without sending a TCP FIN, the server keeps the connection open until the server-side <code>tcp_keepalive</code> times out. In high-churn Kubernetes environments, this can exhaust the server&rsquo;s file descriptors even if the <em>active</em> pool count seems low. This reinforces the need for aggressive <code>maxIdleTimeMS</code> and proper TCP keepalive configuration.</p>
+</li>
+<li>
+<p><strong>Driver Metrics:</strong>
+Enable command monitoring in your driver. If <code>connectionCheckoutTime</code> spikes while <code>commandDuration</code> (server execution time) stays low, the problem is client-side exhaustion. The database is fast; the line to get to it is slow.</p>
+</li>
+<li>
+<p><strong>Connection Churn Rate:</strong>
+Monitor the rate of new connections (<code>connectionsCreated</code> per second). If this is high (&gt;10/sec per node) while your total pool count is stable, your <code>maxIdleTimeMS</code> is likely too low. You are burning server CPU on SSL handshakes rather than reusing connections. Check <code>db.serverStatus().connections.created</code> and compare it to your connection pool turnover rate.</p>
+</li>
+</ol>
+<h2 id="conclusion">Conclusion</h2>
+<p>In MongoDB, &ldquo;Connection Pool Exhaustion&rdquo; is often a misnomer for &ldquo;Transaction Pinning&rdquo; or &ldquo;Overscaling.&rdquo; Because the drivers are complex state machines interacting with Replica Sets, simply bumping <code>maxPoolSize</code> masks the problem until it crashes <code>mongod</code> via memory pressure or ticket exhaustion.</p>
+<p>The fix is almost always:</p>
+<ol>
+<li>Lower the pool size to match hardware (<code>threads &lt;= cores</code>).</li>
+<li>Shorten transaction scopes to microseconds.</li>
+<li>Treat the <code>MongoClient</code> as a sacred singleton.</li>
+</ol>
+]]></content:encoded>
+    </item>
+  </channel>
+</rss>

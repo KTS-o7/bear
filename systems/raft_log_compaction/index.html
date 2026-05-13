@@ -6,11 +6,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <link rel="shortcut icon" href="https://KTS-o7.github.io/bear/images/favicon.png" />
-<title>Raft Log Compaction: Keeping the Log from Growing Forever | </title>
+<title>Raft Log Compaction: Keeping the Log from Growing Forever | Krishnatejaswi S</title>
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
 <meta name="title" content="Raft Log Compaction: Keeping the Log from Growing Forever" />
-<meta name="description" content="Raft&rsquo;s correctness relies on the log. Every state change is appended to it, replicated to a majority, and then applied to the state machine. This works perfectly until you&rsquo;ve been running for a few months and the log has millions of entries. Replaying the full log on every restart is slow. A new node joining the cluster would have to receive and apply every entry since the beginning of time." />
-<meta name="author" content="" />
-<meta name="keywords" content="" />
+<meta name="description" content="Raft logs grow forever if left unchecked. Log compaction via snapshots lets nodes discard old entries, transfer state to slow followers, and recover quickly after a restart." />
+<meta name="author" content="Krishnatejaswi S" />
+<meta name="keywords" content="distributed-systems,consensus,raft,replication," />
 
 
 
@@ -19,36 +20,68 @@
 
   
   <meta property="og:url" content="https://KTS-o7.github.io/bear/systems/raft_log_compaction/">
+  <meta property="og:site_name" content="Krishnatejaswi S">
   <meta property="og:title" content="Raft Log Compaction: Keeping the Log from Growing Forever">
-  <meta property="og:description" content="Raft’s correctness relies on the log. Every state change is appended to it, replicated to a majority, and then applied to the state machine. This works perfectly until you’ve been running for a few months and the log has millions of entries. Replaying the full log on every restart is slow. A new node joining the cluster would have to receive and apply every entry since the beginning of time.">
+  <meta property="og:description" content="Raft logs grow forever if left unchecked. Log compaction via snapshots lets nodes discard old entries, transfer state to slow followers, and recover quickly after a restart.">
   <meta property="og:locale" content="en_us">
   <meta property="og:type" content="article">
     <meta property="article:section" content="systems">
     <meta property="article:published_time" content="2026-05-03T00:00:00+05:30">
     <meta property="article:modified_time" content="2026-05-03T00:00:00+05:30">
+    <meta property="article:tag" content="Distributed-Systems">
+    <meta property="article:tag" content="Consensus">
+    <meta property="article:tag" content="Raft">
+    <meta property="article:tag" content="Replication">
     <meta property="og:image" content="https://KTS-o7.github.io/bear/images/share.webp">
 
+  
+  <meta property="og:site_name" content="Krishnatejaswi S" />
 
   
   
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:image" content="https://KTS-o7.github.io/bear/images/share.webp">
   <meta name="twitter:title" content="Raft Log Compaction: Keeping the Log from Growing Forever">
-  <meta name="twitter:description" content="Raft’s correctness relies on the log. Every state change is appended to it, replicated to a majority, and then applied to the state machine. This works perfectly until you’ve been running for a few months and the log has millions of entries. Replaying the full log on every restart is slow. A new node joining the cluster would have to receive and apply every entry since the beginning of time.">
+  <meta name="twitter:description" content="Raft logs grow forever if left unchecked. Log compaction via snapshots lets nodes discard old entries, transfer state to slow followers, and recover quickly after a restart.">
 
+  <meta name="twitter:site" content="@KTS_o7" />
 
   
   
   <meta itemprop="name" content="Raft Log Compaction: Keeping the Log from Growing Forever">
-  <meta itemprop="description" content="Raft’s correctness relies on the log. Every state change is appended to it, replicated to a majority, and then applied to the state machine. This works perfectly until you’ve been running for a few months and the log has millions of entries. Replaying the full log on every restart is slow. A new node joining the cluster would have to receive and apply every entry since the beginning of time.">
+  <meta itemprop="description" content="Raft logs grow forever if left unchecked. Log compaction via snapshots lets nodes discard old entries, transfer state to slow followers, and recover quickly after a restart.">
   <meta itemprop="datePublished" content="2026-05-03T00:00:00+05:30">
   <meta itemprop="dateModified" content="2026-05-03T00:00:00+05:30">
   <meta itemprop="wordCount" content="865">
   <meta itemprop="image" content="https://KTS-o7.github.io/bear/images/share.webp">
+  <meta itemprop="keywords" content="Distributed-Systems,Consensus,Raft,Replication">
 
-<meta name="referrer" content="no-referrer-when-downgrade" />
-
-  
+<link rel="canonical" href="https://KTS-o7.github.io/bear/systems/raft_log_compaction/" />
+  <meta name="referrer" content="no-referrer-when-downgrade" /><script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https:\/\/KTS-o7.github.io\/bear\/systems\/raft_log_compaction\/"
+  },
+  "headline": "Raft Log Compaction: Keeping the Log from Growing Forever",
+  "description": "Raft logs grow forever if left unchecked. Log compaction via snapshots lets nodes discard old entries, transfer state to slow followers, and recover quickly after a restart.",
+  "datePublished": "2026-05-03",
+  "dateModified": "2026-05-03",
+  "author": {
+    "@type": "Person",
+    "name": "Krishnatejaswi S",
+    "url": "https:\/\/KTS-o7.github.io\/bear\/"
+  },
+  "publisher": {
+    "@type": "Person",
+    "name": "Krishnatejaswi S"
+  },
+  "url": "https:\/\/KTS-o7.github.io\/bear\/systems\/raft_log_compaction\/",
+  "keywords": ["distributed-systems", "consensus", "raft", "replication"]
+}
+</script>
   <link href="/bear/herman.min.css" rel="stylesheet">
 
   
@@ -67,7 +100,7 @@
   <header><a class="skip-link" href="#main-content">Skip to main content</a>
 
 <div style="display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
-  <a href="/bear/" class="title"><h1></h1></a>
+  <a href="/bear/" class="title"><h1>Krishnatejaswi S</h1></a>
   <button id="theme-toggle" aria-label="Toggle light/dark mode" title="Toggle theme">
     <span id="theme-toggle-label">○●</span>
   </button>
@@ -100,7 +133,7 @@
   <time datetime='2026-05-03' pubdate>
     2026-05-03
   </time>
-  
+  · Krishnatejaswi S
 </p>
 
 <content>
@@ -143,6 +176,17 @@ After compaction:
 
 
 
+<p style="margin-top: 1.5rem;">
+  
+    <a class="blog-tags" href="/bear/tags/distributed-systems/">#distributed-systems</a>
+  
+    <a class="blog-tags" href="/bear/tags/consensus/">#consensus</a>
+  
+    <a class="blog-tags" href="/bear/tags/raft/">#raft</a>
+  
+    <a class="blog-tags" href="/bear/tags/replication/">#replication</a>
+  
+</p>
 
 
 
@@ -150,6 +194,36 @@ After compaction:
 
 
 
+
+
+
+
+<div class="related-notes">
+  <h4>Related Notes</h4>
+  <ul>
+    
+    <li>
+      <a href="/bear/systems/raft_consensus/">Raft: Consensus for the Rest of Us</a>
+      <span class="note-date">2026-05-02</span>
+    </li>
+    
+    <li>
+      <a href="/bear/systems/multi_paxos/">Multi-Paxos: From Single Decree to a Replicated Log</a>
+      <span class="note-date">2026-05-03</span>
+    </li>
+    
+    <li>
+      <a href="/bear/systems/paxos_consensus/">Paxos: How Distributed Systems Agree on Anything</a>
+      <span class="note-date">2026-05-02</span>
+    </li>
+    
+    <li>
+      <a href="/bear/systems/paxos/">Paxos</a>
+      <span class="note-date">2026-04-26</span>
+    </li>
+    
+  </ul>
+</div>
 
 
 

@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>Transactions on Krishnatejaswi S</title>
+    <link>https://KTS-o7.github.io/bear/tags/transactions/</link>
+    <description>Recent content in Transactions on Krishnatejaswi S</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <managingEditor>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</managingEditor>
+    <webMaster>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</webMaster>
+    <copyright>Krishnatejaswi S</copyright>
+    <lastBuildDate>Sun, 03 May 2026 00:00:00 +0530</lastBuildDate>
+    <atom:link href="https://KTS-o7.github.io/bear/tags/transactions/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>How Spanner Does Distributed Transactions Without Classic 2PC</title>
+      <link>https://KTS-o7.github.io/bear/systems/spanner_distributed_transactions/</link>
+      <pubDate>Sun, 03 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/systems/spanner_distributed_transactions/</guid>
+      <description>&lt;p&gt;Two-phase commit has a well-known problem: crash the coordinator between Phase 1 and Phase 2 and every participant is stuck holding locks, waiting, with no safe way to proceed. 2PC is a blocking protocol.&lt;/p&gt;&#xA;&lt;p&gt;Google Spanner runs distributed transactions across a globally replicated database at scale. It can&amp;rsquo;t afford to block on coordinator failure. Its solution is to not use a standalone coordinator at all &amp;ndash; it runs 2PC on top of Paxos groups, which means the coordinator itself is fault-tolerant.&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>Two-phase commit has a well-known problem: crash the coordinator between Phase 1 and Phase 2 and every participant is stuck holding locks, waiting, with no safe way to proceed. 2PC is a blocking protocol.</p>
+<p>Google Spanner runs distributed transactions across a globally replicated database at scale. It can&rsquo;t afford to block on coordinator failure. Its solution is to not use a standalone coordinator at all &ndash; it runs 2PC on top of Paxos groups, which means the coordinator itself is fault-tolerant.</p>
+<h2 id="the-core-move-paxos-groups-as-participants">The Core Move: Paxos Groups as Participants</h2>
+<p>In classic 2PC, each participant is a single node. It votes, acquires locks, and waits. If it crashes, the transaction is stuck.</p>
+<p>Spanner&rsquo;s participants are Paxos groups. Each shard of data is managed by a Paxos group &ndash; typically 5 replicas spread across datacenters. The Paxos leader for each group acts as the 2PC participant. Lock acquisition and voting happen on the leader, and the decision is durably replicated to the group before the leader responds.</p>
+<p>If the coordinator crashes, a new coordinator can be elected (it&rsquo;s also a Paxos group). If a participant leader crashes, a new leader in that group takes over &ndash; the lock state and vote are already replicated, so the protocol can continue.</p>
+<p>The blocking problem is solved not by changing the protocol but by making every node in the protocol fault-tolerant.</p>
+<h2 id="truetime">TrueTime</h2>
+<p>Spanner adds something 2PC doesn&rsquo;t have: globally synchronized timestamps, accurate enough to use for transaction ordering.</p>
+<p>Google runs GPS receivers and atomic clocks in each datacenter and exposes a <code>TrueTime</code> API that returns a time interval <code>[earliest, latest]</code> rather than a single timestamp. The interval accounts for clock uncertainty. The guarantee is that the real current time lies somewhere in that interval.</p>
+<p>Spanner uses TrueTime to assign commit timestamps. The rule: a transaction&rsquo;s commit timestamp must be after the <code>latest</code> bound of TrueTime at the moment the coordinator decides to commit. This means Spanner waits for a brief period &ndash; typically 1-7ms &ndash; before declaring a transaction committed, to ensure that any other transaction starting after this one will see a strictly later timestamp.</p>
+<p>This is the &ldquo;commit wait.&rdquo; It&rsquo;s intentional latency, paid to guarantee that commit timestamps accurately reflect real-world ordering.</p>
+<h2 id="external-consistency">External Consistency</h2>
+<p>The property this buys is external consistency: if transaction T1 commits before T2 starts (in real-world time), T2 will see T1&rsquo;s writes. This is stronger than serializability &ndash; serializable transactions can be ordered in any way consistent with their conflicts, even if that reorders real-world causality. External consistency preserves real-world order.</p>
+<p>In practical terms: if you commit a write and then tell a colleague &ldquo;it&rsquo;s committed, go read it,&rdquo; their read will see your write. There&rsquo;s no window where a causally later transaction misses a causally earlier committed write.</p>
+<p>Most distributed databases don&rsquo;t provide this. They provide serializability, which is strong, but allows committed writes to be temporarily invisible to transactions that started after the commit in real time. Spanner&rsquo;s external consistency closes that gap.</p>
+<h2 id="what-the-2pc-layer-actually-looks-like">What the 2PC Layer Actually Looks Like</h2>
+<p>A read-write transaction in Spanner:</p>
+<ol>
+<li>Client reads data, buffers writes locally (no locks yet)</li>
+<li>Client sends commit request to the coordinator Paxos group</li>
+<li>Coordinator runs 2PC with each participant Paxos group:
+<ul>
+<li>Sends <code>PREPARE</code> to each participant leader</li>
+<li>Each participant leader acquires locks, logs the prepare record to its Paxos group, replies <code>YES</code></li>
+<li>Coordinator picks a commit timestamp (TrueTime <code>latest</code> + epsilon), logs it to its group</li>
+<li>Sends <code>COMMIT</code> with the timestamp to all participants</li>
+</ul>
+</li>
+<li>Coordinator waits out the commit wait interval</li>
+<li>Participants apply the writes at the commit timestamp, release locks</li>
+<li>Client sees commit confirmation</li>
+</ol>
+<p>The 2PC messages are still there. The key difference is that every step that touches durable state goes through a Paxos replication round first. The coordinator can crash and be replaced. A participant leader can crash and its successor has the full prepare state. Nothing blocks permanently.</p>
+<h2 id="the-cost">The Cost</h2>
+<p>The commit wait adds latency. For single-region transactions it&rsquo;s small (sub-millisecond when clocks are well-synchronized). For multi-region transactions where the coordinator and participants are in different continents, round-trip latency dominates and the TrueTime uncertainty is larger &ndash; you&rsquo;re looking at tens of milliseconds.</p>
+<p>Spanner is designed for this tradeoff: strong global consistency in exchange for latency that scales with geographic distance. For financial systems, global inventory, or anything that requires real external consistency, that tradeoff is often correct. For low-latency local transactions, it&rsquo;s usually not.</p>
+<p>Classic 2PC is blocking because the coordinator is a single node. Spanner&rsquo;s answer is not to fix 2PC &ndash; it&rsquo;s to make every node in the 2PC protocol a replicated state machine.</p>
+]]></content:encoded>
+    </item>
+    <item>
+      <title>Two-Phase Commit: Distributed Atomicity and Its Fatal Flaw</title>
+      <link>https://KTS-o7.github.io/bear/systems/two_phase_commit/</link>
+      <pubDate>Sat, 02 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/systems/two_phase_commit/</guid>
+      <description>&lt;p&gt;The problem is simple to state: you have a transaction that touches multiple nodes. You want all of them to commit, or none of them to. No partial states, no one node committing while another aborts.&lt;/p&gt;&#xA;&lt;p&gt;Two-phase commit (2PC) solves this. It&amp;rsquo;s been in production databases for decades. It also has a flaw that makes it unusable for anything long-running, which is why most modern large-scale systems don&amp;rsquo;t use it directly.&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>The problem is simple to state: you have a transaction that touches multiple nodes. You want all of them to commit, or none of them to. No partial states, no one node committing while another aborts.</p>
+<p>Two-phase commit (2PC) solves this. It&rsquo;s been in production databases for decades. It also has a flaw that makes it unusable for anything long-running, which is why most modern large-scale systems don&rsquo;t use it directly.</p>
+<h2 id="the-protocol">The Protocol</h2>
+<p>There&rsquo;s a coordinator and a set of participants. The coordinator drives the protocol.</p>
+<p><strong>Phase 1 &ndash; Prepare</strong></p>
+<p>The coordinator sends <code>PREPARE</code> to every participant. Each participant:</p>
+<ul>
+<li>Writes the transaction to a durable log</li>
+<li>Acquires the necessary locks</li>
+<li>Replies <code>YES</code> (ready to commit) or <code>NO</code> (something failed)</li>
+</ul>
+<p><strong>Phase 2 &ndash; Commit or Abort</strong></p>
+<ul>
+<li>If all participants said YES: coordinator sends <code>COMMIT</code> to everyone</li>
+<li>If anyone said NO: coordinator sends <code>ABORT</code></li>
+</ul>
+<p>Participants execute the decision and release their locks.</p>
+
+
+
+
+
+<pre tabindex="0"><code>Coordinator         Node A        Node B
+    |--- PREPARE -------&gt;|             |
+    |--- PREPARE ---------|-----------&gt;|
+    |&lt;-- YES ------------|             |
+    |&lt;-- YES ------------|-------------|
+    |--- COMMIT --------&gt;|             |
+    |--- COMMIT ----------|-----------&gt;|</code></pre><p>Clean path works fine. Every node ends up in the same state. Locks are held only for the duration of the protocol.</p>
+<h2 id="the-fatal-flaw">The Fatal Flaw</h2>
+<p>Crash the coordinator after phase 1 but before phase 2.</p>
+<p>Participants are now stuck. They voted YES and locked their resources. They don&rsquo;t know whether the coordinator decided to commit or abort. They can&rsquo;t safely proceed in either direction &ndash; committing might be wrong if another participant said NO, aborting might be wrong if the coordinator was about to send COMMIT.</p>
+<p>They wait. The locks stay held. The system is in limbo until the coordinator recovers.</p>
+<p>This is the <strong>blocking problem</strong>. 2PC is a blocking protocol under failure. A single coordinator crash can stall the entire transaction indefinitely.</p>
+<h2 id="the-attempted-fix-3pc">The Attempted Fix: 3PC</h2>
+<p>Three-phase commit inserts a pre-commit phase between prepare and commit:</p>
+<p><code>PREPARE → PRE-COMMIT → COMMIT</code></p>
+<p>Pre-commit lets participants infer the coordinator&rsquo;s intent even if it crashes: if you received a pre-commit, the coordinator had seen all YES votes and was going to commit. You can safely commit yourself if the coordinator disappears after that point.</p>
+<p>3PC eliminates most blocking scenarios. It costs one extra round of messages and still has edge cases under network partitions. It&rsquo;s not widely used in practice &ndash; the complexity tradeoff isn&rsquo;t worth it for most systems.</p>
+<h2 id="what-systems-actually-do">What Systems Actually Do</h2>
+<table>
+  <thead>
+      <tr>
+          <th>Approach</th>
+          <th>Mechanism</th>
+          <th>Tradeoff</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>Saga pattern</td>
+          <td>Compensating transactions</td>
+          <td>No locks, but no true atomicity</td>
+      </tr>
+      <tr>
+          <td>Paxos / Raft</td>
+          <td>Consensus algorithm</td>
+          <td>Strong guarantees, higher complexity</td>
+      </tr>
+      <tr>
+          <td>Optimistic concurrency</td>
+          <td>Detect conflicts at commit time</td>
+          <td>Works well for low-contention workloads</td>
+      </tr>
+  </tbody>
+</table>
+<p>Most large-scale systems avoid 2PC for anything user-facing. Short, internal database transactions &ndash; a single service committing to one database &ndash; are fine. Cross-service transactions that could run for seconds or involve user interaction are not.</p>
+<p>2PC is worth understanding because it makes the tradeoff concrete: you can have distributed atomicity, but you&rsquo;re paying for it with availability under coordinator failure. Everything else in distributed transactions is a different point on that curve.</p>
+]]></content:encoded>
+    </item>
+  </channel>
+</rss>

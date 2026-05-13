@@ -6,21 +6,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <link rel="shortcut icon" href="https://KTS-o7.github.io/bear/images/favicon.png" />
-<title>Building a Local AI Stack: Hermes, Bifrost, Telegram, and Camoufox | </title>
+<title>Building a Local AI Stack: Hermes, Bifrost, Telegram, and Camoufox | Krishnatejaswi S</title>
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
 <meta name="title" content="Building a Local AI Stack: Hermes, Bifrost, Telegram, and Camoufox" />
-<meta name="description" content="I wanted a persistent AI agent that lives on my machine, reaches cloud models through a single gateway, and talks back to me on Telegram. Not a SaaS. Not a wrapper. Something I own end-to-end.
-This is the story of setting that up in one session, and the parts that went sideways.
-The Stack
-Four moving parts:
-
-Bifrost &ndash; LLM gateway already running on localhost:24242, routing to Ollama cloud models
-Hermes Agent &ndash; open-source AI agent framework by Nous Research, pointed at Bifrost
-Ollama &ndash; cloud relay for gemma4 and qwen3.5 cloud models via ollama.com
-Camoufox &ndash; Firefox fork with TLS fingerprint spoofing for scraping tasks
-
-The goal was to have Hermes run as a Telegram bot so I could assign it tasks from my phone, with all model traffic flowing through Bifrost so routing stays centralized." />
-<meta name="author" content="" />
-<meta name="keywords" content="" />
+<meta name="description" content="Building a local AI stack: Hermes as the agent framework, Bifrost for LLM routing, a Telegram bot as the interface, and Camoufox for browser automation — all running on local hardware." />
+<meta name="author" content="Krishnatejaswi S" />
+<meta name="keywords" content="ai-agents,open-source,llm,self-hosting," />
 
 
 
@@ -29,45 +20,68 @@ The goal was to have Hermes run as a Telegram bot so I could assign it tasks fro
 
   
   <meta property="og:url" content="https://KTS-o7.github.io/bear/notes/hermes_local_ai_stack/">
+  <meta property="og:site_name" content="Krishnatejaswi S">
   <meta property="og:title" content="Building a Local AI Stack: Hermes, Bifrost, Telegram, and Camoufox">
-  <meta property="og:description" content="I wanted a persistent AI agent that lives on my machine, reaches cloud models through a single gateway, and talks back to me on Telegram. Not a SaaS. Not a wrapper. Something I own end-to-end.
-This is the story of setting that up in one session, and the parts that went sideways.
-The Stack Four moving parts:
-Bifrost – LLM gateway already running on localhost:24242, routing to Ollama cloud models Hermes Agent – open-source AI agent framework by Nous Research, pointed at Bifrost Ollama – cloud relay for gemma4 and qwen3.5 cloud models via ollama.com Camoufox – Firefox fork with TLS fingerprint spoofing for scraping tasks The goal was to have Hermes run as a Telegram bot so I could assign it tasks from my phone, with all model traffic flowing through Bifrost so routing stays centralized.">
+  <meta property="og:description" content="Building a local AI stack: Hermes as the agent framework, Bifrost for LLM routing, a Telegram bot as the interface, and Camoufox for browser automation — all running on local hardware.">
   <meta property="og:locale" content="en_us">
   <meta property="og:type" content="article">
     <meta property="article:section" content="notes">
     <meta property="article:published_time" content="2026-04-15T00:00:00+05:30">
     <meta property="article:modified_time" content="2026-04-15T00:00:00+05:30">
+    <meta property="article:tag" content="Ai-Agents">
+    <meta property="article:tag" content="Open-Source">
+    <meta property="article:tag" content="Llm">
+    <meta property="article:tag" content="Self-Hosting">
     <meta property="og:image" content="https://KTS-o7.github.io/bear/images/share.webp">
 
+  
+  <meta property="og:site_name" content="Krishnatejaswi S" />
 
   
   
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:image" content="https://KTS-o7.github.io/bear/images/share.webp">
   <meta name="twitter:title" content="Building a Local AI Stack: Hermes, Bifrost, Telegram, and Camoufox">
-  <meta name="twitter:description" content="I wanted a persistent AI agent that lives on my machine, reaches cloud models through a single gateway, and talks back to me on Telegram. Not a SaaS. Not a wrapper. Something I own end-to-end.
-This is the story of setting that up in one session, and the parts that went sideways.
-The Stack Four moving parts:
-Bifrost – LLM gateway already running on localhost:24242, routing to Ollama cloud models Hermes Agent – open-source AI agent framework by Nous Research, pointed at Bifrost Ollama – cloud relay for gemma4 and qwen3.5 cloud models via ollama.com Camoufox – Firefox fork with TLS fingerprint spoofing for scraping tasks The goal was to have Hermes run as a Telegram bot so I could assign it tasks from my phone, with all model traffic flowing through Bifrost so routing stays centralized.">
+  <meta name="twitter:description" content="Building a local AI stack: Hermes as the agent framework, Bifrost for LLM routing, a Telegram bot as the interface, and Camoufox for browser automation — all running on local hardware.">
 
+  <meta name="twitter:site" content="@KTS_o7" />
 
   
   
   <meta itemprop="name" content="Building a Local AI Stack: Hermes, Bifrost, Telegram, and Camoufox">
-  <meta itemprop="description" content="I wanted a persistent AI agent that lives on my machine, reaches cloud models through a single gateway, and talks back to me on Telegram. Not a SaaS. Not a wrapper. Something I own end-to-end.
-This is the story of setting that up in one session, and the parts that went sideways.
-The Stack Four moving parts:
-Bifrost – LLM gateway already running on localhost:24242, routing to Ollama cloud models Hermes Agent – open-source AI agent framework by Nous Research, pointed at Bifrost Ollama – cloud relay for gemma4 and qwen3.5 cloud models via ollama.com Camoufox – Firefox fork with TLS fingerprint spoofing for scraping tasks The goal was to have Hermes run as a Telegram bot so I could assign it tasks from my phone, with all model traffic flowing through Bifrost so routing stays centralized.">
+  <meta itemprop="description" content="Building a local AI stack: Hermes as the agent framework, Bifrost for LLM routing, a Telegram bot as the interface, and Camoufox for browser automation — all running on local hardware.">
   <meta itemprop="datePublished" content="2026-04-15T00:00:00+05:30">
   <meta itemprop="dateModified" content="2026-04-15T00:00:00+05:30">
   <meta itemprop="wordCount" content="967">
   <meta itemprop="image" content="https://KTS-o7.github.io/bear/images/share.webp">
+  <meta itemprop="keywords" content="Ai-Agents,Open-Source,Llm,Self-Hosting">
 
-<meta name="referrer" content="no-referrer-when-downgrade" />
-
-  
+<link rel="canonical" href="https://KTS-o7.github.io/bear/notes/hermes_local_ai_stack/" />
+  <meta name="referrer" content="no-referrer-when-downgrade" /><script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https:\/\/KTS-o7.github.io\/bear\/notes\/hermes_local_ai_stack\/"
+  },
+  "headline": "Building a Local AI Stack: Hermes, Bifrost, Telegram, and Camoufox",
+  "description": "Building a local AI stack: Hermes as the agent framework, Bifrost for LLM routing, a Telegram bot as the interface, and Camoufox for browser automation — all running on local hardware.",
+  "datePublished": "2026-04-15",
+  "dateModified": "2026-04-15",
+  "author": {
+    "@type": "Person",
+    "name": "Krishnatejaswi S",
+    "url": "https:\/\/KTS-o7.github.io\/bear\/"
+  },
+  "publisher": {
+    "@type": "Person",
+    "name": "Krishnatejaswi S"
+  },
+  "url": "https:\/\/KTS-o7.github.io\/bear\/notes\/hermes_local_ai_stack\/",
+  "keywords": ["ai-agents", "open-source", "llm", "self-hosting"]
+}
+</script>
   <link href="/bear/herman.min.css" rel="stylesheet">
 
   
@@ -86,7 +100,7 @@ Bifrost – LLM gateway already running on localhost:24242, routing to Ollama cl
   <header><a class="skip-link" href="#main-content">Skip to main content</a>
 
 <div style="display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
-  <a href="/bear/" class="title"><h1></h1></a>
+  <a href="/bear/" class="title"><h1>Krishnatejaswi S</h1></a>
   <button id="theme-toggle" aria-label="Toggle light/dark mode" title="Toggle theme">
     <span id="theme-toggle-label">○●</span>
   </button>
@@ -119,7 +133,7 @@ Bifrost – LLM gateway already running on localhost:24242, routing to Ollama cl
   <time datetime='2026-04-15' pubdate>
     2026-04-15
   </time>
-  
+  · Krishnatejaswi S
 </p>
 
 <content>
@@ -281,6 +295,17 @@ hermes     gateway -- Telegram bot (restricted to single user)</code></pre><p>Th
 
 
 
+<p style="margin-top: 1.5rem;">
+  
+    <a class="blog-tags" href="/bear/tags/ai-agents/">#ai-agents</a>
+  
+    <a class="blog-tags" href="/bear/tags/open-source/">#open-source</a>
+  
+    <a class="blog-tags" href="/bear/tags/llm/">#llm</a>
+  
+    <a class="blog-tags" href="/bear/tags/self-hosting/">#self-hosting</a>
+  
+</p>
 
 
 
@@ -288,6 +313,36 @@ hermes     gateway -- Telegram bot (restricted to single user)</code></pre><p>Th
 
 
 
+
+
+
+
+<div class="related-notes">
+  <h4>Related Notes</h4>
+  <ul>
+    
+    <li>
+      <a href="/bear/notes/agentbudget_ulimit_for_ai_agents/">Fixing Silent $0 Streaming Costs in AgentBudget: An OSS Contribution</a>
+      <span class="note-date">2026-04-16</span>
+    </li>
+    
+    <li>
+      <a href="/bear/notes/freeseek_proxy/">Freeseek: Turning DeepSeek&#39;s Web Chat into an OpenAI-Compatible API</a>
+      <span class="note-date">2026-03-14</span>
+    </li>
+    
+    <li>
+      <a href="/bear/notes/bifrost_parallel_tool_call_fix/">Fixing Parallel Tool Call Streaming in Bifrost: An OSS Bug Hunt</a>
+      <span class="note-date">2026-03-02</span>
+    </li>
+    
+    <li>
+      <a href="/bear/ml/kv_cache_paged_attention/">KV Cache and PagedAttention: Why vLLM Actually Works</a>
+      <span class="note-date">2026-05-03</span>
+    </li>
+    
+  </ul>
+</div>
 
 
 

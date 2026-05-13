@@ -1,0 +1,127 @@
+# Krishnatejaswi S
+
+> A research notebook on distributed systems, machine learning, mathematics, and infrastructure engineering. Written by Krishnatejaswi S.
+
+This is a technical research notebook covering distributed systems, machine learning internals,
+mathematics, and infrastructure engineering. Posts are long-form, written slowly, and updated
+continuously. All content is written by Krishnatejaswi S.
+
+- GitHub: https://github.com/KTS-o7
+- Site: https://KTS-o7.github.io/bear/
+- RSS: https://KTS-o7.github.io/bear/index.xml
+
+## Distributed Systems
+
+Notes on consensus protocols, replication, consistency models, databases, and reliability patterns.
+
+- [CRDTs: Conflict-Free Replicated Data Types](https://KTS-o7.github.io/bear/systems/crdts/): CRDTs eliminate merge conflicts by design — commutative, associative, idempotent data structures that converge to the same state regardless of operation order. G-Counters, OR-Sets, and LWW registers explained.
+
+- [How Spanner Does Distributed Transactions Without Classic 2PC](https://KTS-o7.github.io/bear/systems/spanner_distributed_transactions/): Google Spanner achieves globally consistent distributed transactions using TrueTime — bounded clock uncertainty instead of classic 2PC, enabling external consistency at planetary scale.
+
+- [Multi-Paxos: From Single Decree to a Replicated Log](https://KTS-o7.github.io/bear/systems/multi_paxos/): Multi-Paxos extends single-decree Paxos into a replicated log by electing a stable leader, skipping Phase 1 for subsequent entries, and batching proposals for throughput.
+
+- [Raft Log Compaction: Keeping the Log from Growing Forever](https://KTS-o7.github.io/bear/systems/raft_log_compaction/): Raft logs grow forever if left unchecked. Log compaction via snapshots lets nodes discard old entries, transfer state to slow followers, and recover quickly after a restart.
+
+- [The Bulkhead Pattern: Isolating Failures Before They Spread](https://KTS-o7.github.io/bear/systems/bulkhead_pattern/): How the bulkhead pattern isolates failures in distributed systems — partition thread pools, connection pools, and resources so one degraded dependency cannot sink the whole service.
+
+- [The Saga Outbox Pattern: Reliable Event Delivery Without Two-Phase Commit](https://KTS-o7.github.io/bear/systems/saga_outbox_pattern/): The outbox pattern solves the dual-write problem in event-driven systems: persist events to a local outbox table in the same transaction as your domain change, then relay them reliably.
+
+- [Circuit Breakers: The Pattern That Stops Cascading Failures](https://KTS-o7.github.io/bear/systems/circuit_breakers_distributed_systems/): Circuit breakers prevent cascading failures in distributed systems by tripping open when a downstream dependency fails, giving it time to recover while protecting callers.
+
+- [Consistent Hashing: Scaling a Cluster Without Reshuffling the World](https://KTS-o7.github.io/bear/systems/consistent_hashing/): Consistent hashing lets you add or remove nodes from a distributed cluster while minimising the number of keys that need to move — the algorithm behind Dynamo, Cassandra, and load balancers.
+
+- [Paxos: How Distributed Systems Agree on Anything](https://KTS-o7.github.io/bear/systems/paxos_consensus/): A deep dive into Paxos: Phase 1 (Prepare/Promise) and Phase 2 (Accept/Accepted), safety guarantees, liveness limitations, and why real systems use Multi-Paxos instead.
+
+- [Raft: Consensus for the Rest of Us](https://KTS-o7.github.io/bear/systems/raft_consensus/): Raft is a consensus algorithm designed for understandability — leader election, log replication, and safety properties explained, with a comparison to Paxos.
+
+- [The Saga Pattern: Distributed Transactions Without the Lock](https://KTS-o7.github.io/bear/systems/saga_pattern/): The Saga pattern manages distributed transactions across microservices without 2PC — a sequence of local transactions with compensating actions for rollback when a step fails.
+
+- [Two-Phase Commit: Distributed Atomicity and Its Fatal Flaw](https://KTS-o7.github.io/bear/systems/two_phase_commit/): Two-phase commit achieves distributed atomicity — all nodes commit or none do. But the coordinator is a single point of failure that can leave participants blocked indefinitely.
+
+- [Vector Clocks: Causality Without a Shared Clock](https://KTS-o7.github.io/bear/systems/vector_clocks/): Vector clocks track causality in distributed systems — each event carries a logical timestamp that tells you whether two events are causally related or concurrent.
+
+- [Paxos](https://KTS-o7.github.io/bear/systems/paxos/): Paxos is a consensus protocol for getting a distributed system to agree on a single value despite node failures and message delays — the foundation of most replicated state machines.
+
+- [MongoDB Connection Pool Exhaustion: Diagnosis, Fixes, and SDAM](https://KTS-o7.github.io/bear/systems/connection_pool_exhaustion/): Diagnosing and fixing MongoDB connection pool exhaustion: SDAM monitoring, pool sizing, async leak patterns, and how to read the driver's topology events.
+
+- [Why MySQL is not CA](https://KTS-o7.github.io/bear/systems/why_mysql_is_not_ca/): MySQL is often called a CA system in CAP theorem discussions, but the reality is more nuanced — network partitions force tradeoffs even in single-master setups.
+
+
+## Machine Learning
+
+Notes on LLM internals, inference optimization, linear algebra, and the mathematical foundations of ML.
+
+- [KV Cache and PagedAttention: Why vLLM Actually Works](https://KTS-o7.github.io/bear/ml/kv_cache_paged_attention/): KV cache stores attention keys and values across tokens to avoid recomputation during autoregressive decoding. PagedAttention extends this with virtual memory paging, making vLLM's throughput possible.
+
+- [LLM Inference Optimization: Stop Paying for Idle Silicon](https://KTS-o7.github.io/bear/ml/llm_inference_optimization/): LLM inference is memory-bandwidth bound, not compute bound. Continuous batching, speculative decoding, quantization, and KV cache management — the techniques that actually move the needle.
+
+- [Eigenvalues of a Matrix](https://KTS-o7.github.io/bear/ml/eigen_vals/): Eigenvalues and eigenvectors — the linear algebra behind PCA, Google's PageRank, and the stability analysis of dynamical systems. Geometric intuition and computation.
+
+- [ Parameters in LLMs](https://KTS-o7.github.io/bear/ml/params_llms/): How to count parameters in a transformer LLM — attention heads, MLP layers, embeddings, and normalization. Includes a worked example matching published model sizes.
+
+- [Matrix-Vector Dot Product](https://KTS-o7.github.io/bear/ml/matrix_vec_dot/): Matrix-vector dot products are the inner loop of neural network inference. Understanding the memory access patterns and FLOP counts explains why hardware utilisation matters so much.
+
+
+## Infrastructure
+
+Notes on Kubernetes, CI/CD, self-hosting, reverse proxies, and operational engineering.
+
+- [A $22/Year VPS Running Three Self-Hosted Services](https://KTS-o7.github.io/bear/infra/vps_self_hosting/): Running Obsidian LiveSync, Matrix Synapse, and Calibre-Web on a $22/year VPS — nginx reverse proxy, Docker Compose, Cloudflare tunnels, and what actually fits in 2.9GB RAM.
+
+- [Three Useful Services on a $22/Year VPS](https://KTS-o7.github.io/bear/infra/vps_self_hosting_stack/): A minimal self-hosting stack on a budget VPS — three useful services (sync, chat, library) running on Docker Compose behind nginx, for under $22 a year.
+
+- [From Manual Deploys to SHA-Tagged Containers: CI/CD for a K8s Platform](https://KTS-o7.github.io/bear/infra/cicd_docker_buildx_sha_deploys/): SHA-tagged Docker images replace mutable latest tags, eliminating silent overwrites in CI/CD pipelines. Docker Buildx, multi-arch builds, and dynamic workflow generation for a Kubernetes platform.
+
+- [Hunting OOMKilled in Kubernetes: Four Memory Leaks That Almost Took Down Our Platform](https://KTS-o7.github.io/bear/infra/kubernetes_oom_memory_leaks/): Four memory leaks inside OOMKilled Kubernetes pods — slow async accumulation in Python services, unclosed client sessions, unbounded caches, and how to track each one down without a profiler.
+
+- [SSE in FastAPI: The Tab Closed and My “Done” Code Never Ran](https://KTS-o7.github.io/bear/infra/sse_disconnect_handling/): Server-Sent Events in FastAPI silently drop cleanup code when a browser tab closes. How to detect client disconnects and ensure generator cleanup runs reliably.
+
+- [End-to-End HTTPS with Cloudflare Origin Certificates and Nginx](https://KTS-o7.github.io/bear/infra/reverse_proxy/): End-to-end HTTPS with Cloudflare Origin Certificates and Nginx — full-strict SSL mode, origin certificate installation, and Dockerfile configuration to eliminate 521 errors.
+
+
+## Notes
+
+Short observations, OSS contributions, tools, competitive programming solutions, and ideas in progress.
+
+- [Teaching Myself CS: The Plan](https://KTS-o7.github.io/bear/notes/teaching_myself_cs/): A structured self-study plan for computer science fundamentals — algorithms, systems, databases, networks, and mathematics, with resources and a realistic timeline.
+
+- [Building a Second Brain with Obsidian, Zettelkasten, and an AI Agent](https://KTS-o7.github.io/bear/notes/obsidian_second_brain/): Building a second brain with Obsidian and Zettelkasten — atomic notes, linking ideas, periodic reviews, and an AI agent that surfaces connections you'd otherwise miss.
+
+- [Fixing Silent $0 Streaming Costs in AgentBudget: An OSS Contribution](https://KTS-o7.github.io/bear/notes/agentbudget_ulimit_for_ai_agents/): An OSS contribution to AgentBudget: fixing silent $0 costs for streaming responses by hooking into the token usage callbacks that LangChain emits post-stream.
+
+- [Building a Local AI Stack: Hermes, Bifrost, Telegram, and Camoufox](https://KTS-o7.github.io/bear/notes/hermes_local_ai_stack/): Building a local AI stack: Hermes as the agent framework, Bifrost for LLM routing, a Telegram bot as the interface, and Camoufox for browser automation — all running on local hardware.
+
+- [Freeseek: Turning DeepSeek's Web Chat into an OpenAI-Compatible API](https://KTS-o7.github.io/bear/notes/freeseek_proxy/): Freeseek proxies DeepSeek's web chat interface into an OpenAI-compatible API endpoint, enabling local tools and agents to use DeepSeek R1 without an API key.
+
+- [Fixing Parallel Tool Call Streaming in Bifrost: An OSS Bug Hunt](https://KTS-o7.github.io/bear/notes/bifrost_parallel_tool_call_fix/): Debugging a parallel tool call streaming bug in Bifrost — how delta chunks from different tool calls interleave incorrectly and the fix that restores correct JSON assembly.
+
+- [Many Small Tasks, One Deadline: Running Parallel AI Agents with Git Worktrees](https://KTS-o7.github.io/bear/notes/codex_worktrees_adventure/): Running parallel AI coding agents with Git worktrees — isolate each task to its own working tree, fire agents concurrently, and merge results without conflicts.
+
+- [Git](https://KTS-o7.github.io/bear/notes/git/): Git internals and practical patterns — objects model, rebase vs merge, worktrees, reflog recovery, and the commands that matter for day-to-day engineering work.
+
+- [Gray Code](https://KTS-o7.github.io/bear/notes/gray_code/): Gray code generates binary sequences where consecutive values differ by exactly one bit — the algorithm, its uses in hardware and error correction, and a CSES solution.
+
+- [Bit Strings](https://KTS-o7.github.io/bear/notes/bit_strings/): CSES bit string enumeration — counting and generating n-character strings over a binary alphabet using recursion and bitmask techniques.
+
+- [Two Sets](https://KTS-o7.github.io/bear/notes/two_sets/): CSES two sets — partitioning integers 1..n into two subsets with equal sum, with a proof of when this is possible and an O(n) construction.
+
+- [Permutations](https://KTS-o7.github.io/bear/notes/permutations/): CSES permutations — constructing a permutation of 1..n with no two adjacent elements differing by 1, using an interleaving strategy.
+
+- [Increasing Array](https://KTS-o7.github.io/bear/notes/increasing_array/): CSES increasing array — the minimum number of operations to make an array non-decreasing when you can only increment elements.
+
+- [Repeatations](https://KTS-o7.github.io/bear/notes/repeatations/): CSES repetitions — finding the longest run of a single character in a string in a single linear pass.
+
+- [Missing Number](https://KTS-o7.github.io/bear/notes/missing_number/): CSES missing number — finding the missing integer in a permutation of 1..n in O(n) time using the arithmetic sum formula.
+
+- [Weird Algorithm](https://KTS-o7.github.io/bear/notes/weird_algorithm/): CSES weird algorithm (Collatz conjecture) — simulating the 3n+1 sequence and the open question of whether it always terminates.
+
+- [markdown stuff](https://KTS-o7.github.io/bear/notes/markdown_stuff/): A reference for Hugo-flavoured Markdown — shortcodes, callout blocks, math rendering with KaTeX, and code block options used on this site.
+
+
+## Optional
+
+Empty sections reserved for future content.
+
+- [Math](https://KTS-o7.github.io/bear/math/): Linear algebra, probability, and optimization — mathematical foundations of computation.
+- [Research](https://KTS-o7.github.io/bear/research/): Long-form essays on AI, ML systems, and exploratory technical thinking.
+- [About](https://KTS-o7.github.io/bear/about/): About Krishnatejaswi S — background, contact, and links.

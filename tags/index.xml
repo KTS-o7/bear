@@ -1,14 +1,631 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
   <channel>
-    <title>Tags on </title>
+    <title>Tags on Krishnatejaswi S</title>
     <link>https://KTS-o7.github.io/bear/tags/</link>
-    <description>Recent content in Tags on </description>
+    <description>Recent content in Tags on Krishnatejaswi S</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
     <managingEditor>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</managingEditor>
     <webMaster>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</webMaster>
     <copyright>Krishnatejaswi S</copyright>
+    <lastBuildDate>Sun, 03 May 2026 00:00:00 +0530</lastBuildDate>
     <atom:link href="https://KTS-o7.github.io/bear/tags/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Algorithms</title>
+      <link>https://KTS-o7.github.io/bear/tags/algorithms/</link>
+      <pubDate>Sun, 03 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/algorithms/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Attention</title>
+      <link>https://KTS-o7.github.io/bear/tags/attention/</link>
+      <pubDate>Sun, 03 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/attention/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Bulkhead</title>
+      <link>https://KTS-o7.github.io/bear/tags/bulkhead/</link>
+      <pubDate>Sun, 03 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/bulkhead/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Consensus</title>
+      <link>https://KTS-o7.github.io/bear/tags/consensus/</link>
+      <pubDate>Sun, 03 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/consensus/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Consistency</title>
+      <link>https://KTS-o7.github.io/bear/tags/consistency/</link>
+      <pubDate>Sun, 03 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/consistency/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Crdt</title>
+      <link>https://KTS-o7.github.io/bear/tags/crdt/</link>
+      <pubDate>Sun, 03 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/crdt/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Databases</title>
+      <link>https://KTS-o7.github.io/bear/tags/databases/</link>
+      <pubDate>Sun, 03 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/databases/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Distributed-Systems</title>
+      <link>https://KTS-o7.github.io/bear/tags/distributed-systems/</link>
+      <pubDate>Sun, 03 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/distributed-systems/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Event-Driven</title>
+      <link>https://KTS-o7.github.io/bear/tags/event-driven/</link>
+      <pubDate>Sun, 03 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/event-driven/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Inference</title>
+      <link>https://KTS-o7.github.io/bear/tags/inference/</link>
+      <pubDate>Sun, 03 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/inference/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Llm</title>
+      <link>https://KTS-o7.github.io/bear/tags/llm/</link>
+      <pubDate>Sun, 03 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/llm/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Machine-Learning</title>
+      <link>https://KTS-o7.github.io/bear/tags/machine-learning/</link>
+      <pubDate>Sun, 03 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/machine-learning/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Patterns</title>
+      <link>https://KTS-o7.github.io/bear/tags/patterns/</link>
+      <pubDate>Sun, 03 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/patterns/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Paxos</title>
+      <link>https://KTS-o7.github.io/bear/tags/paxos/</link>
+      <pubDate>Sun, 03 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/paxos/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Raft</title>
+      <link>https://KTS-o7.github.io/bear/tags/raft/</link>
+      <pubDate>Sun, 03 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/raft/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Reliability</title>
+      <link>https://KTS-o7.github.io/bear/tags/reliability/</link>
+      <pubDate>Sun, 03 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/reliability/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Replication</title>
+      <link>https://KTS-o7.github.io/bear/tags/replication/</link>
+      <pubDate>Sun, 03 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/replication/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Saga</title>
+      <link>https://KTS-o7.github.io/bear/tags/saga/</link>
+      <pubDate>Sun, 03 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/saga/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Spanner</title>
+      <link>https://KTS-o7.github.io/bear/tags/spanner/</link>
+      <pubDate>Sun, 03 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/spanner/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Transactions</title>
+      <link>https://KTS-o7.github.io/bear/tags/transactions/</link>
+      <pubDate>Sun, 03 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/transactions/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Vllm</title>
+      <link>https://KTS-o7.github.io/bear/tags/vllm/</link>
+      <pubDate>Sun, 03 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/vllm/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>2pc</title>
+      <link>https://KTS-o7.github.io/bear/tags/2pc/</link>
+      <pubDate>Sat, 02 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/2pc/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Causality</title>
+      <link>https://KTS-o7.github.io/bear/tags/causality/</link>
+      <pubDate>Sat, 02 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/causality/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Circuit-Breaker</title>
+      <link>https://KTS-o7.github.io/bear/tags/circuit-breaker/</link>
+      <pubDate>Sat, 02 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/circuit-breaker/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Computer-Science</title>
+      <link>https://KTS-o7.github.io/bear/tags/computer-science/</link>
+      <pubDate>Sat, 02 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/computer-science/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Consistent-Hashing</title>
+      <link>https://KTS-o7.github.io/bear/tags/consistent-hashing/</link>
+      <pubDate>Sat, 02 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/consistent-hashing/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Docker</title>
+      <link>https://KTS-o7.github.io/bear/tags/docker/</link>
+      <pubDate>Sat, 02 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/docker/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Infra</title>
+      <link>https://KTS-o7.github.io/bear/tags/infra/</link>
+      <pubDate>Sat, 02 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/infra/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Learning</title>
+      <link>https://KTS-o7.github.io/bear/tags/learning/</link>
+      <pubDate>Sat, 02 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/learning/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Microservices</title>
+      <link>https://KTS-o7.github.io/bear/tags/microservices/</link>
+      <pubDate>Sat, 02 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/microservices/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Nginx</title>
+      <link>https://KTS-o7.github.io/bear/tags/nginx/</link>
+      <pubDate>Sat, 02 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/nginx/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Optimization</title>
+      <link>https://KTS-o7.github.io/bear/tags/optimization/</link>
+      <pubDate>Sat, 02 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/optimization/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Performance</title>
+      <link>https://KTS-o7.github.io/bear/tags/performance/</link>
+      <pubDate>Sat, 02 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/performance/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Self-Hosting</title>
+      <link>https://KTS-o7.github.io/bear/tags/self-hosting/</link>
+      <pubDate>Sat, 02 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/self-hosting/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Self-Improvement</title>
+      <link>https://KTS-o7.github.io/bear/tags/self-improvement/</link>
+      <pubDate>Sat, 02 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/self-improvement/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Study-Plan</title>
+      <link>https://KTS-o7.github.io/bear/tags/study-plan/</link>
+      <pubDate>Sat, 02 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/study-plan/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Vector-Clocks</title>
+      <link>https://KTS-o7.github.io/bear/tags/vector-clocks/</link>
+      <pubDate>Sat, 02 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/vector-clocks/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Vps</title>
+      <link>https://KTS-o7.github.io/bear/tags/vps/</link>
+      <pubDate>Sat, 02 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/vps/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Ai-Tools</title>
+      <link>https://KTS-o7.github.io/bear/tags/ai-tools/</link>
+      <pubDate>Tue, 21 Apr 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/ai-tools/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Note-Taking</title>
+      <link>https://KTS-o7.github.io/bear/tags/note-taking/</link>
+      <pubDate>Tue, 21 Apr 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/note-taking/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Obsidian</title>
+      <link>https://KTS-o7.github.io/bear/tags/obsidian/</link>
+      <pubDate>Tue, 21 Apr 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/obsidian/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Productivity</title>
+      <link>https://KTS-o7.github.io/bear/tags/productivity/</link>
+      <pubDate>Tue, 21 Apr 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/productivity/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Zettelkasten</title>
+      <link>https://KTS-o7.github.io/bear/tags/zettelkasten/</link>
+      <pubDate>Tue, 21 Apr 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/zettelkasten/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Ai-Agents</title>
+      <link>https://KTS-o7.github.io/bear/tags/ai-agents/</link>
+      <pubDate>Thu, 16 Apr 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/ai-agents/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Langchain</title>
+      <link>https://KTS-o7.github.io/bear/tags/langchain/</link>
+      <pubDate>Thu, 16 Apr 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/langchain/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Open-Source</title>
+      <link>https://KTS-o7.github.io/bear/tags/open-source/</link>
+      <pubDate>Thu, 16 Apr 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/open-source/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Oss-Contribution</title>
+      <link>https://KTS-o7.github.io/bear/tags/oss-contribution/</link>
+      <pubDate>Thu, 16 Apr 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/oss-contribution/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Proxy</title>
+      <link>https://KTS-o7.github.io/bear/tags/proxy/</link>
+      <pubDate>Sat, 14 Mar 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/proxy/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Debugging</title>
+      <link>https://KTS-o7.github.io/bear/tags/debugging/</link>
+      <pubDate>Mon, 02 Mar 2026 00:00:00 +0000</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/debugging/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Devtools</title>
+      <link>https://KTS-o7.github.io/bear/tags/devtools/</link>
+      <pubDate>Thu, 19 Feb 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/devtools/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Git</title>
+      <link>https://KTS-o7.github.io/bear/tags/git/</link>
+      <pubDate>Thu, 19 Feb 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/git/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Cicd</title>
+      <link>https://KTS-o7.github.io/bear/tags/cicd/</link>
+      <pubDate>Tue, 17 Feb 2026 00:00:00 +0000</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/cicd/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Devops</title>
+      <link>https://KTS-o7.github.io/bear/tags/devops/</link>
+      <pubDate>Tue, 17 Feb 2026 00:00:00 +0000</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/devops/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Kubernetes</title>
+      <link>https://KTS-o7.github.io/bear/tags/kubernetes/</link>
+      <pubDate>Tue, 17 Feb 2026 00:00:00 +0000</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/kubernetes/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Memory</title>
+      <link>https://KTS-o7.github.io/bear/tags/memory/</link>
+      <pubDate>Mon, 16 Feb 2026 00:00:00 +0000</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/memory/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Python</title>
+      <link>https://KTS-o7.github.io/bear/tags/python/</link>
+      <pubDate>Mon, 16 Feb 2026 00:00:00 +0000</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/python/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Async</title>
+      <link>https://KTS-o7.github.io/bear/tags/async/</link>
+      <pubDate>Fri, 23 Jan 2026 00:00:00 +0000</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/async/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Fastapi</title>
+      <link>https://KTS-o7.github.io/bear/tags/fastapi/</link>
+      <pubDate>Fri, 23 Jan 2026 00:00:00 +0000</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/fastapi/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Sse</title>
+      <link>https://KTS-o7.github.io/bear/tags/sse/</link>
+      <pubDate>Fri, 23 Jan 2026 00:00:00 +0000</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/sse/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Eigenvalues</title>
+      <link>https://KTS-o7.github.io/bear/tags/eigenvalues/</link>
+      <pubDate>Thu, 08 Jan 2026 07:07:07 +0100</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/eigenvalues/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Linear-Algebra</title>
+      <link>https://KTS-o7.github.io/bear/tags/linear-algebra/</link>
+      <pubDate>Thu, 08 Jan 2026 07:07:07 +0100</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/linear-algebra/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Mathematics</title>
+      <link>https://KTS-o7.github.io/bear/tags/mathematics/</link>
+      <pubDate>Thu, 08 Jan 2026 07:07:07 +0100</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/mathematics/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Cloudflare</title>
+      <link>https://KTS-o7.github.io/bear/tags/cloudflare/</link>
+      <pubDate>Sat, 27 Dec 2025 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/cloudflare/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Https</title>
+      <link>https://KTS-o7.github.io/bear/tags/https/</link>
+      <pubDate>Sat, 27 Dec 2025 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/https/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Security</title>
+      <link>https://KTS-o7.github.io/bear/tags/security/</link>
+      <pubDate>Sat, 27 Dec 2025 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/security/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Mongodb</title>
+      <link>https://KTS-o7.github.io/bear/tags/mongodb/</link>
+      <pubDate>Sat, 06 Dec 2025 12:00:00 +0000</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/mongodb/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Combinatorics</title>
+      <link>https://KTS-o7.github.io/bear/tags/combinatorics/</link>
+      <pubDate>Fri, 19 Sep 2025 23:03:51 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/combinatorics/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Competitive-Programming</title>
+      <link>https://KTS-o7.github.io/bear/tags/competitive-programming/</link>
+      <pubDate>Fri, 19 Sep 2025 23:03:51 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/competitive-programming/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Cses</title>
+      <link>https://KTS-o7.github.io/bear/tags/cses/</link>
+      <pubDate>Fri, 19 Sep 2025 23:03:51 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/cses/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Greedy</title>
+      <link>https://KTS-o7.github.io/bear/tags/greedy/</link>
+      <pubDate>Thu, 18 Sep 2025 22:37:39 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/greedy/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Strings</title>
+      <link>https://KTS-o7.github.io/bear/tags/strings/</link>
+      <pubDate>Thu, 18 Sep 2025 17:23:25 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/strings/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Transformers</title>
+      <link>https://KTS-o7.github.io/bear/tags/transformers/</link>
+      <pubDate>Fri, 12 Sep 2025 17:23:41 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/transformers/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Cap-Theorem</title>
+      <link>https://KTS-o7.github.io/bear/tags/cap-theorem/</link>
+      <pubDate>Fri, 05 Sep 2025 07:07:07 +0100</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/cap-theorem/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Mysql</title>
+      <link>https://KTS-o7.github.io/bear/tags/mysql/</link>
+      <pubDate>Fri, 05 Sep 2025 07:07:07 +0100</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/mysql/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Hugo</title>
+      <link>https://KTS-o7.github.io/bear/tags/hugo/</link>
+      <pubDate>Sun, 14 Jan 2024 07:07:07 +0100</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/hugo/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Markdown</title>
+      <link>https://KTS-o7.github.io/bear/tags/markdown/</link>
+      <pubDate>Sun, 14 Jan 2024 07:07:07 +0100</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/markdown/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+    <item>
+      <title>Meta</title>
+      <link>https://KTS-o7.github.io/bear/tags/meta/</link>
+      <pubDate>Sun, 14 Jan 2024 07:07:07 +0100</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/tags/meta/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
   </channel>
 </rss>

@@ -4,186 +4,698 @@
   <url>
     <loc>https://KTS-o7.github.io/bear/</loc>
     <lastmod>2026-05-03T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/notes/</loc>
     <lastmod>2026-05-02T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/ml/</loc>
     <lastmod>2026-05-03T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/about/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/cses.fi/</loc>
     <lastmod>2025-09-19T23:03:51+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/algorithms/</loc>
+    <lastmod>2026-05-03T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/attention/</loc>
+    <lastmod>2026-05-03T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/bulkhead/</loc>
+    <lastmod>2026-05-03T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/consensus/</loc>
+    <lastmod>2026-05-03T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/consistency/</loc>
+    <lastmod>2026-05-03T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/crdt/</loc>
+    <lastmod>2026-05-03T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/systems/crdts/</loc>
     <lastmod>2026-05-03T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/databases/</loc>
+    <lastmod>2026-05-03T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/distributed-systems/</loc>
+    <lastmod>2026-05-03T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/event-driven/</loc>
+    <lastmod>2026-05-03T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/systems/spanner_distributed_transactions/</loc>
     <lastmod>2026-05-03T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/inference/</loc>
+    <lastmod>2026-05-03T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/ml/kv_cache_paged_attention/</loc>
     <lastmod>2026-05-03T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/llm/</loc>
+    <lastmod>2026-05-03T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/machine-learning/</loc>
+    <lastmod>2026-05-03T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/systems/multi_paxos/</loc>
     <lastmod>2026-05-03T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/patterns/</loc>
+    <lastmod>2026-05-03T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/paxos/</loc>
+    <lastmod>2026-05-03T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/raft/</loc>
+    <lastmod>2026-05-03T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/systems/raft_log_compaction/</loc>
     <lastmod>2026-05-03T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/reliability/</loc>
+    <lastmod>2026-05-03T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/replication/</loc>
+    <lastmod>2026-05-03T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/saga/</loc>
+    <lastmod>2026-05-03T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/spanner/</loc>
+    <lastmod>2026-05-03T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/systems/</loc>
     <lastmod>2026-05-03T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/</loc>
+    <lastmod>2026-05-03T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/systems/bulkhead_pattern/</loc>
     <lastmod>2026-05-03T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/systems/saga_outbox_pattern/</loc>
     <lastmod>2026-05-03T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/transactions/</loc>
+    <lastmod>2026-05-03T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/vllm/</loc>
+    <lastmod>2026-05-03T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/2pc/</loc>
+    <lastmod>2026-05-02T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/infra/vps_self_hosting/</loc>
     <lastmod>2026-05-02T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/causality/</loc>
+    <lastmod>2026-05-02T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/systems/circuit_breakers_distributed_systems/</loc>
     <lastmod>2026-05-02T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/circuit-breaker/</loc>
+    <lastmod>2026-05-02T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/computer-science/</loc>
+    <lastmod>2026-05-02T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/systems/consistent_hashing/</loc>
     <lastmod>2026-05-02T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/consistent-hashing/</loc>
+    <lastmod>2026-05-02T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/docker/</loc>
+    <lastmod>2026-05-02T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/infra/</loc>
     <lastmod>2026-05-02T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/infra/</loc>
+    <lastmod>2026-05-02T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/learning/</loc>
+    <lastmod>2026-05-02T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/ml/llm_inference_optimization/</loc>
     <lastmod>2026-05-02T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/microservices/</loc>
+    <lastmod>2026-05-02T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/nginx/</loc>
+    <lastmod>2026-05-02T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/optimization/</loc>
+    <lastmod>2026-05-02T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/systems/paxos_consensus/</loc>
     <lastmod>2026-05-02T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/performance/</loc>
+    <lastmod>2026-05-02T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/systems/raft_consensus/</loc>
     <lastmod>2026-05-02T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/self-hosting/</loc>
+    <lastmod>2026-05-02T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/self-improvement/</loc>
+    <lastmod>2026-05-02T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/study-plan/</loc>
+    <lastmod>2026-05-02T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/notes/teaching_myself_cs/</loc>
     <lastmod>2026-05-02T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/systems/saga_pattern/</loc>
     <lastmod>2026-05-02T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/systems/two_phase_commit/</loc>
     <lastmod>2026-05-02T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/systems/vector_clocks/</loc>
     <lastmod>2026-05-02T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/vector-clocks/</loc>
+    <lastmod>2026-05-02T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/vps/</loc>
+    <lastmod>2026-05-02T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/systems/paxos/</loc>
     <lastmod>2026-04-26T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/infra/vps_self_hosting_stack/</loc>
     <lastmod>2026-04-22T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/ai-tools/</loc>
+    <lastmod>2026-04-21T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/notes/obsidian_second_brain/</loc>
     <lastmod>2026-04-21T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/note-taking/</loc>
+    <lastmod>2026-04-21T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/obsidian/</loc>
+    <lastmod>2026-04-21T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/productivity/</loc>
+    <lastmod>2026-04-21T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/zettelkasten/</loc>
+    <lastmod>2026-04-21T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/ai-agents/</loc>
+    <lastmod>2026-04-16T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/notes/agentbudget_ulimit_for_ai_agents/</loc>
     <lastmod>2026-04-16T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/langchain/</loc>
+    <lastmod>2026-04-16T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/open-source/</loc>
+    <lastmod>2026-04-16T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/oss-contribution/</loc>
+    <lastmod>2026-04-16T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/notes/hermes_local_ai_stack/</loc>
     <lastmod>2026-04-15T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/notes/freeseek_proxy/</loc>
     <lastmod>2026-03-14T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/proxy/</loc>
+    <lastmod>2026-03-14T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/debugging/</loc>
+    <lastmod>2026-03-02T00:00:00+00:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/notes/bifrost_parallel_tool_call_fix/</loc>
     <lastmod>2026-03-02T00:00:00+00:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/devtools/</loc>
+    <lastmod>2026-02-19T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/git/</loc>
+    <lastmod>2026-02-19T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/notes/codex_worktrees_adventure/</loc>
     <lastmod>2026-02-19T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/cicd/</loc>
+    <lastmod>2026-02-17T00:00:00+00:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/devops/</loc>
+    <lastmod>2026-02-17T00:00:00+00:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/infra/cicd_docker_buildx_sha_deploys/</loc>
     <lastmod>2026-02-17T00:00:00+00:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/kubernetes/</loc>
+    <lastmod>2026-02-17T00:00:00+00:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/infra/kubernetes_oom_memory_leaks/</loc>
     <lastmod>2026-02-16T00:00:00+00:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/memory/</loc>
+    <lastmod>2026-02-16T00:00:00+00:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/python/</loc>
+    <lastmod>2026-02-16T00:00:00+00:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/async/</loc>
+    <lastmod>2026-01-23T00:00:00+00:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/fastapi/</loc>
+    <lastmod>2026-01-23T00:00:00+00:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/sse/</loc>
+    <lastmod>2026-01-23T00:00:00+00:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/infra/sse_disconnect_handling/</loc>
     <lastmod>2026-01-23T00:00:00+00:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/eigenvalues/</loc>
+    <lastmod>2026-01-08T07:07:07+01:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/ml/eigen_vals/</loc>
     <lastmod>2026-01-08T07:07:07+01:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/linear-algebra/</loc>
+    <lastmod>2026-01-08T07:07:07+01:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/mathematics/</loc>
+    <lastmod>2026-01-08T07:07:07+01:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/cloudflare/</loc>
+    <lastmod>2025-12-27T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/infra/reverse_proxy/</loc>
     <lastmod>2025-12-27T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/https/</loc>
+    <lastmod>2025-12-27T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/security/</loc>
+    <lastmod>2025-12-27T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/mongodb/</loc>
+    <lastmod>2025-12-06T12:00:00+00:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/systems/connection_pool_exhaustion/</loc>
     <lastmod>2025-12-06T12:00:00+00:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/notes/git/</loc>
     <lastmod>2025-12-04T00:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/combinatorics/</loc>
+    <lastmod>2025-09-19T23:03:51+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/competitive-programming/</loc>
+    <lastmod>2025-09-19T23:03:51+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/cses/</loc>
+    <lastmod>2025-09-19T23:03:51+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/cses.fi/gray_code/</loc>
     <lastmod>2025-09-19T23:03:51+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/notes/gray_code/</loc>
     <lastmod>2025-09-19T23:03:51+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/cses.fi/bit_strings/</loc>
     <lastmod>2025-09-19T22:53:15+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/notes/bit_strings/</loc>
     <lastmod>2025-09-19T22:53:15+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/cses.fi/two_sets/</loc>
     <lastmod>2025-09-19T15:41:11+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/notes/two_sets/</loc>
     <lastmod>2025-09-19T15:41:11+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/cses.fi/permutations/</loc>
     <lastmod>2025-09-18T22:49:10+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/notes/permutations/</loc>
     <lastmod>2025-09-18T22:49:10+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/greedy/</loc>
+    <lastmod>2025-09-18T22:37:39+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/cses.fi/increasing_array/</loc>
     <lastmod>2025-09-18T22:37:39+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/notes/increasing_array/</loc>
     <lastmod>2025-09-18T22:37:39+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/cses.fi/repeatations/</loc>
     <lastmod>2025-09-18T17:23:25+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/notes/repeatations/</loc>
     <lastmod>2025-09-18T17:23:25+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/strings/</loc>
+    <lastmod>2025-09-18T17:23:25+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/cses.fi/missing_number/</loc>
     <lastmod>2025-09-18T17:17:22+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/notes/missing_number/</loc>
     <lastmod>2025-09-18T17:17:22+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/cses.fi/weird_algorithm/</loc>
     <lastmod>2025-09-18T17:05:38+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/notes/weird_algorithm/</loc>
     <lastmod>2025-09-18T17:05:38+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/ml/params_llms/</loc>
     <lastmod>2025-09-12T17:23:41+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/transformers/</loc>
+    <lastmod>2025-09-12T17:23:41+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/ml/matrix_vec_dot/</loc>
     <lastmod>2025-09-06T07:07:07+01:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/cap-theorem/</loc>
+    <lastmod>2025-09-05T07:07:07+01:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/mysql/</loc>
+    <lastmod>2025-09-05T07:07:07+01:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/systems/why_mysql_is_not_ca/</loc>
     <lastmod>2025-09-05T07:07:07+01:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/hugo/</loc>
+    <lastmod>2024-01-14T07:07:07+01:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/markdown/</loc>
+    <lastmod>2024-01-14T07:07:07+01:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/notes/markdown_stuff/</loc>
     <lastmod>2024-01-14T07:07:07+01:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url><url>
+    <loc>https://KTS-o7.github.io/bear/tags/meta/</loc>
+    <lastmod>2024-01-14T07:07:07+01:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/categories/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/math/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url><url>
     <loc>https://KTS-o7.github.io/bear/research/</loc>
-  </url><url>
-    <loc>https://KTS-o7.github.io/bear/tags/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url>
 </urlset>

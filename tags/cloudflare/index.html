@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en-us">
+
+<head>
+  <meta http-equiv="X-Clacks-Overhead" content="GNU Terry Pratchett" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="shortcut icon" href="https://KTS-o7.github.io/bear/images/favicon.png" />
+<title>Cloudflare | Krishnatejaswi S</title>
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+<meta name="title" content="Cloudflare" />
+<meta name="description" content="A research notebook on distributed systems, machine learning, mathematics, and infrastructure engineering. Written by Krishnatejaswi S." />
+<meta name="author" content="Krishnatejaswi S" />
+<meta name="keywords" content="2pc,ai-agents,ai-tools,algorithms,async,attention,bulkhead,cap-theorem,causality,cicd,circuit-breaker,cloudflare,combinatorics,competitive-programming,computer-science,consensus,consistency,consistent-hashing,crdt,cses,databases,debugging,devops,devtools,distributed-systems,docker,eigenvalues,event-driven,fastapi,git,greedy,https,hugo,inference,infra,kubernetes,langchain,learning,linear-algebra,llm,machine-learning,markdown,mathematics,memory,meta,microservices,mongodb,mysql,nginx,note-taking,obsidian,open-source,optimization,oss-contribution,patterns,paxos,performance,productivity,proxy,python,raft,reliability,replication,saga,security,self-hosting,self-improvement,spanner,sse,strings,study-plan,transactions,transformers,vector-clocks,vllm,vps,zettelkasten," />
+
+
+
+
+
+
+  
+  <meta property="og:url" content="https://KTS-o7.github.io/bear/tags/cloudflare/">
+  <meta property="og:site_name" content="Krishnatejaswi S">
+  <meta property="og:title" content="Cloudflare">
+  <meta property="og:description" content="A research notebook on distributed systems, machine learning, mathematics, and infrastructure engineering. Written by Krishnatejaswi S.">
+  <meta property="og:locale" content="en_us">
+  <meta property="og:type" content="website">
+    <meta property="og:image" content="https://KTS-o7.github.io/bear/images/share.webp">
+
+  
+  <meta property="og:site_name" content="Krishnatejaswi S" />
+
+  
+  
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://KTS-o7.github.io/bear/images/share.webp">
+  <meta name="twitter:title" content="Cloudflare">
+  <meta name="twitter:description" content="A research notebook on distributed systems, machine learning, mathematics, and infrastructure engineering. Written by Krishnatejaswi S.">
+
+  <meta name="twitter:site" content="@KTS_o7" />
+
+  
+  
+  <meta itemprop="name" content="Cloudflare">
+  <meta itemprop="description" content="A research notebook on distributed systems, machine learning, mathematics, and infrastructure engineering. Written by Krishnatejaswi S.">
+  <meta itemprop="datePublished" content="2025-12-27T00:00:00+05:30">
+  <meta itemprop="dateModified" content="2025-12-27T00:00:00+05:30">
+  <meta itemprop="image" content="https://KTS-o7.github.io/bear/images/share.webp">
+
+<link rel="canonical" href="https://KTS-o7.github.io/bear/tags/cloudflare/" />
+  <meta name="referrer" content="no-referrer-when-downgrade" />
+  <link href="/bear/herman.min.css" rel="stylesheet">
+
+  
+
+  
+
+  <link rel="alternate" type="application/rss+xml" href="https://KTS-o7.github.io/bear/tags/cloudflare/index.xml" title="Krishnatejaswi S" />
+  
+
+  
+    <link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.css"
+  integrity="sha384-zh0CIslj+VczCZtlzBcjt5ppRcsAmDnRem7ESsYwWwg3m/OaJ2l4x7YBZl9Kxxib"
+  crossorigin="anonymous"
+>
+<script
+  defer
+  src="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.js"
+  integrity="sha384-Rma6DA2IPUwhNxmrB/7S3Tno0YY7sFu9WSYMCuulLhIqYSGZ2gKCJWIqhBWqMQfh"
+  crossorigin="anonymous"
+>
+</script>
+<script
+  defer
+  src="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/contrib/auto-render.min.js"
+  integrity="sha384-hCXGrW6PitJEwbkoStFjeJxv+fSOOQKOPbJxSfM6G5sWZjAyWhXiTIIAmQqnlLlh"
+  crossorigin="anonymous"
+  onload="renderMathInElement(document.body);"
+>
+</script>
+<script>
+  document.addEventListener("DOMContentLoaded", function() {
+    renderMathInElement(document.body, {
+      delimiters: [
+        {left: '\\[', right: '\\]', display: true},
+        {left: '$$', right: '$$', display: true},
+        {left: '\\(', right: '\\)', display: false},
+      ],
+      throwOnError: false
+    });
+  });
+</script>
+<style>
+   
+  .katex { color: inherit; }
+  .katex .katex-html { color: inherit; }
+  .katex-display {
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 0.25rem 0;
+    margin: 1.4rem 0 !important;
+  }
+   
+  @media (max-width: 600px) {
+    .katex-display > .katex { max-width: 100%; }
+    .katex-display > .katex > .katex-html { overflow-x: auto; overflow-y: hidden; }
+  }
+</style>
+
+  
+</head>
+
+<body>
+  <header><a class="skip-link" href="#main-content">Skip to main content</a>
+
+<div style="display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+  <a href="/bear/" class="title"><h1>Krishnatejaswi S</h1></a>
+  <button id="theme-toggle" aria-label="Toggle light/dark mode" title="Toggle theme">
+    <span id="theme-toggle-label">○●</span>
+  </button>
+</div>
+<nav>
+  <a href="/bear/">Home</a>
+
+  <a href="/bear/notes/">Notes</a>
+
+  <a href="/bear/about/">About</a>
+
+  <a href="/bear/ml/">ML</a>
+
+  <a href="/bear/cses.fi/">CSES.fi</a>
+
+<a href='https://KTS-o7.github.io/bear/index.xml'>RSS</a>
+
+
+
+
+
+
+
+</nav>
+</header>
+  <main id="main-content">
+<content>
+  
+    <h3 class="blog-filter">Filtering for "Cloudflare"</h3>
+  
+  <ul class="blog-posts">
+    
+    <li>
+      <span>
+        <i>
+          <time datetime='2025-12-27' pubdate>
+            2025-12-27
+          </time>
+        </i>
+      </span>
+      
+        <a href="/bear/infra/reverse_proxy/">End-to-End HTTPS with Cloudflare Origin Certificates and Nginx</a>
+      
+    </li>
+    
+  </ul>
+  
+</content>
+
+  </main>
+  <footer><small>
+  Krishnatejaswi S | Made with <a href="https://github.com/clente/hugo-bearcub">Bear Cub</a>
+</small></footer>
+
+    
+<script>
+    (function() {
+      var STORAGE_KEY = 'theme';
+      var btn = document.getElementById('theme-toggle');
+      var label = document.getElementById('theme-toggle-label');
+
+      function getStored() { try { return localStorage.getItem(STORAGE_KEY); } catch(e) { return null; } }
+      function setStored(v) { try { localStorage.setItem(STORAGE_KEY, v); } catch(e) {} }
+
+      function getSystem() {
+        return window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+      }
+
+      function applyTheme(theme) {
+        document.documentElement.setAttribute('data-theme', theme);
+        if (label) label.textContent = theme === 'light' ? '●○' : '○●';
+      }
+
+      var stored = getStored();
+      applyTheme(stored || getSystem());
+
+      if (btn) {
+        btn.addEventListener('click', function() {
+          var current = document.documentElement.getAttribute('data-theme') || getSystem();
+          var next = current === 'dark' ? 'light' : 'dark';
+          setStored(next);
+          applyTheme(next);
+        });
+      }
+
+      
+      if (window.matchMedia) {
+        window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', function(e) {
+          if (!getStored()) applyTheme(e.matches ? 'light' : 'dark');
+        });
+      }
+    })();
+  </script>
+</body>
+
+</html>

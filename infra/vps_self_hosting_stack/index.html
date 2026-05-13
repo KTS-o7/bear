@@ -6,14 +6,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <link rel="shortcut icon" href="https://KTS-o7.github.io/bear/images/favicon.png" />
-<title>Three Useful Services on a $22/Year VPS | </title>
+<title>Three Useful Services on a $22/Year VPS | Krishnatejaswi S</title>
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
 <meta name="title" content="Three Useful Services on a $22/Year VPS" />
-<meta name="description" content="I bought a budget VPS for $22/year &ndash; 1 vCPU, 2.9GB RAM, 30GB disk, Dallas datacenter, Ubuntu 24.04. The plan was to run bots and experiments. I ended up setting up three services that are immediately useful: Obsidian note sync, a private Matrix chat server, and a personal book library.
-This post covers what I set up, what broke, and what actually works now.
-Starting point
-The provider gives you a root password on first boot. First thing I did was generate an ed25519 SSH key pair locally, paste the public key into the VPS control panel, add a Host personal entry to ~/.ssh/config, and verify key auth works before touching anything else. Then disabling password login:" />
-<meta name="author" content="" />
-<meta name="keywords" content="" />
+<meta name="description" content="A minimal self-hosting stack on a budget VPS — three useful services (sync, chat, library) running on Docker Compose behind nginx, for under $22 a year." />
+<meta name="author" content="Krishnatejaswi S" />
+<meta name="keywords" content="infra,self-hosting,vps,docker," />
 
 
 
@@ -22,42 +20,68 @@ The provider gives you a root password on first boot. First thing I did was gene
 
   
   <meta property="og:url" content="https://KTS-o7.github.io/bear/infra/vps_self_hosting_stack/">
+  <meta property="og:site_name" content="Krishnatejaswi S">
   <meta property="og:title" content="Three Useful Services on a $22/Year VPS">
-  <meta property="og:description" content="I bought a budget VPS for $22/year – 1 vCPU, 2.9GB RAM, 30GB disk, Dallas datacenter, Ubuntu 24.04. The plan was to run bots and experiments. I ended up setting up three services that are immediately useful: Obsidian note sync, a private Matrix chat server, and a personal book library.
-This post covers what I set up, what broke, and what actually works now.
-Starting point The provider gives you a root password on first boot. First thing I did was generate an ed25519 SSH key pair locally, paste the public key into the VPS control panel, add a Host personal entry to ~/.ssh/config, and verify key auth works before touching anything else. Then disabling password login:">
+  <meta property="og:description" content="A minimal self-hosting stack on a budget VPS — three useful services (sync, chat, library) running on Docker Compose behind nginx, for under $22 a year.">
   <meta property="og:locale" content="en_us">
   <meta property="og:type" content="article">
     <meta property="article:section" content="infra">
     <meta property="article:published_time" content="2026-04-22T00:00:00+05:30">
     <meta property="article:modified_time" content="2026-04-22T00:00:00+05:30">
+    <meta property="article:tag" content="Infra">
+    <meta property="article:tag" content="Self-Hosting">
+    <meta property="article:tag" content="Vps">
+    <meta property="article:tag" content="Docker">
     <meta property="og:image" content="https://KTS-o7.github.io/bear/images/share.webp">
 
+  
+  <meta property="og:site_name" content="Krishnatejaswi S" />
 
   
   
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:image" content="https://KTS-o7.github.io/bear/images/share.webp">
   <meta name="twitter:title" content="Three Useful Services on a $22/Year VPS">
-  <meta name="twitter:description" content="I bought a budget VPS for $22/year – 1 vCPU, 2.9GB RAM, 30GB disk, Dallas datacenter, Ubuntu 24.04. The plan was to run bots and experiments. I ended up setting up three services that are immediately useful: Obsidian note sync, a private Matrix chat server, and a personal book library.
-This post covers what I set up, what broke, and what actually works now.
-Starting point The provider gives you a root password on first boot. First thing I did was generate an ed25519 SSH key pair locally, paste the public key into the VPS control panel, add a Host personal entry to ~/.ssh/config, and verify key auth works before touching anything else. Then disabling password login:">
+  <meta name="twitter:description" content="A minimal self-hosting stack on a budget VPS — three useful services (sync, chat, library) running on Docker Compose behind nginx, for under $22 a year.">
 
+  <meta name="twitter:site" content="@KTS_o7" />
 
   
   
   <meta itemprop="name" content="Three Useful Services on a $22/Year VPS">
-  <meta itemprop="description" content="I bought a budget VPS for $22/year – 1 vCPU, 2.9GB RAM, 30GB disk, Dallas datacenter, Ubuntu 24.04. The plan was to run bots and experiments. I ended up setting up three services that are immediately useful: Obsidian note sync, a private Matrix chat server, and a personal book library.
-This post covers what I set up, what broke, and what actually works now.
-Starting point The provider gives you a root password on first boot. First thing I did was generate an ed25519 SSH key pair locally, paste the public key into the VPS control panel, add a Host personal entry to ~/.ssh/config, and verify key auth works before touching anything else. Then disabling password login:">
+  <meta itemprop="description" content="A minimal self-hosting stack on a budget VPS — three useful services (sync, chat, library) running on Docker Compose behind nginx, for under $22 a year.">
   <meta itemprop="datePublished" content="2026-04-22T00:00:00+05:30">
   <meta itemprop="dateModified" content="2026-04-22T00:00:00+05:30">
   <meta itemprop="wordCount" content="1173">
   <meta itemprop="image" content="https://KTS-o7.github.io/bear/images/share.webp">
+  <meta itemprop="keywords" content="Infra,Self-Hosting,Vps,Docker">
 
-<meta name="referrer" content="no-referrer-when-downgrade" />
-
-  
+<link rel="canonical" href="https://KTS-o7.github.io/bear/infra/vps_self_hosting_stack/" />
+  <meta name="referrer" content="no-referrer-when-downgrade" /><script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https:\/\/KTS-o7.github.io\/bear\/infra\/vps_self_hosting_stack\/"
+  },
+  "headline": "Three Useful Services on a $22\/Year VPS",
+  "description": "A minimal self-hosting stack on a budget VPS — three useful services (sync, chat, library) running on Docker Compose behind nginx, for under $22 a year.",
+  "datePublished": "2026-04-22",
+  "dateModified": "2026-04-22",
+  "author": {
+    "@type": "Person",
+    "name": "Krishnatejaswi S",
+    "url": "https:\/\/KTS-o7.github.io\/bear\/"
+  },
+  "publisher": {
+    "@type": "Person",
+    "name": "Krishnatejaswi S"
+  },
+  "url": "https:\/\/KTS-o7.github.io\/bear\/infra\/vps_self_hosting_stack\/",
+  "keywords": ["infra", "self-hosting", "vps", "docker"]
+}
+</script>
   <link href="/bear/herman.min.css" rel="stylesheet">
 
   
@@ -76,7 +100,7 @@ Starting point The provider gives you a root password on first boot. First thing
   <header><a class="skip-link" href="#main-content">Skip to main content</a>
 
 <div style="display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
-  <a href="/bear/" class="title"><h1></h1></a>
+  <a href="/bear/" class="title"><h1>Krishnatejaswi S</h1></a>
   <button id="theme-toggle" aria-label="Toggle light/dark mode" title="Toggle theme">
     <span id="theme-toggle-label">○●</span>
   </button>
@@ -109,7 +133,7 @@ Starting point The provider gives you a root password on first boot. First thing
   <time datetime='2026-04-22' pubdate>
     2026-04-22
   </time>
-  
+  · Krishnatejaswi S
 </p>
 
 <content>
@@ -327,6 +351,17 @@ Disk used        ~6GB / 30GB</code></pre><p>74% of RAM still free. The 2GB swap 
 
 
 
+<p style="margin-top: 1.5rem;">
+  
+    <a class="blog-tags" href="/bear/tags/infra/">#infra</a>
+  
+    <a class="blog-tags" href="/bear/tags/self-hosting/">#self-hosting</a>
+  
+    <a class="blog-tags" href="/bear/tags/vps/">#vps</a>
+  
+    <a class="blog-tags" href="/bear/tags/docker/">#docker</a>
+  
+</p>
 
 
 
@@ -334,6 +369,36 @@ Disk used        ~6GB / 30GB</code></pre><p>74% of RAM still free. The 2GB swap 
 
 
 
+
+
+
+
+<div class="related-notes">
+  <h4>Related Notes</h4>
+  <ul>
+    
+    <li>
+      <a href="/bear/infra/vps_self_hosting/">A $22/Year VPS Running Three Self-Hosted Services</a>
+      <span class="note-date">2026-05-02</span>
+    </li>
+    
+    <li>
+      <a href="/bear/infra/cicd_docker_buildx_sha_deploys/">From Manual Deploys to SHA-Tagged Containers: CI/CD for a K8s Platform</a>
+      <span class="note-date">2026-02-17</span>
+    </li>
+    
+    <li>
+      <a href="/bear/notes/hermes_local_ai_stack/">Building a Local AI Stack: Hermes, Bifrost, Telegram, and Camoufox</a>
+      <span class="note-date">2026-04-15</span>
+    </li>
+    
+    <li>
+      <a href="/bear/infra/kubernetes_oom_memory_leaks/">Hunting OOMKilled in Kubernetes: Four Memory Leaks That Almost Took Down Our Platform</a>
+      <span class="note-date">2026-02-16</span>
+    </li>
+    
+  </ul>
+</div>
 
 
 

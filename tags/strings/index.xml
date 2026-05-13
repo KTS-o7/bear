@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>Strings on Krishnatejaswi S</title>
+    <link>https://KTS-o7.github.io/bear/tags/strings/</link>
+    <description>Recent content in Strings on Krishnatejaswi S</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <managingEditor>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</managingEditor>
+    <webMaster>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</webMaster>
+    <copyright>Krishnatejaswi S</copyright>
+    <lastBuildDate>Thu, 18 Sep 2025 17:23:25 +0530</lastBuildDate>
+    <atom:link href="https://KTS-o7.github.io/bear/tags/strings/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Repeatations</title>
+      <link>https://KTS-o7.github.io/bear/notes/repeatations/</link>
+      <pubDate>Thu, 18 Sep 2025 17:23:25 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/notes/repeatations/</guid>
+      <description>&lt;p&gt;Link to the problem : &lt;a href=&#34;https://cses.fi/problemset/task/1069&#34;&gt;Repeatations&lt;/a&gt;&lt;/p&gt;&#xA;&lt;h2 id=&#34;intuition&#34;&gt;Intuition&lt;/h2&gt;&#xA;&lt;p&gt;This problem wants us to find the longest substring of a string that has only 1 type of character.&#xA;input has A,G,C and T only.&lt;/p&gt;&#xA;&lt;p&gt;Edge case: if the string is empty, return 0.&lt;/p&gt;&#xA;&lt;p&gt;We need to keep track of the current length of the substring and the maximum length of the substring seen so far which satisfies the condition.&lt;/p&gt;&#xA;&lt;p&gt;Loop through the string and check if the current character is the same as the previous character.&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>Link to the problem : <a href="https://cses.fi/problemset/task/1069">Repeatations</a></p>
+<h2 id="intuition">Intuition</h2>
+<p>This problem wants us to find the longest substring of a string that has only 1 type of character.
+input has A,G,C and T only.</p>
+<p>Edge case: if the string is empty, return 0.</p>
+<p>We need to keep track of the current length of the substring and the maximum length of the substring seen so far which satisfies the condition.</p>
+<p>Loop through the string and check if the current character is the same as the previous character.</p>
+<ul>
+<li>If it is, increment the current length.
+Update the maximum length if the current length is greater than the maximum length.</li>
+<li>If it is not, reset the current length to 1.</li>
+</ul>
+<h2 id="solution">Solution</h2>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl">    <span class="n">string</span> <span class="o">=</span> <span class="nb">input</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl">    <span class="k">if</span> <span class="ow">not</span> <span class="n">string</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl">        <span class="nb">print</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl">        <span class="k">return</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">    
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl">    <span class="n">max_len</span> <span class="o">=</span> <span class="mi">1</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl">    <span class="n">current_len</span> <span class="o">=</span> <span class="mi">1</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">    
+</span></span><span class="line"><span class="ln">10</span><span class="cl">    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">string</span><span class="p">)):</span>
+</span></span><span class="line"><span class="ln">11</span><span class="cl">        <span class="k">if</span> <span class="n">string</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">==</span> <span class="n">string</span><span class="p">[</span><span class="n">i</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span>
+</span></span><span class="line"><span class="ln">12</span><span class="cl">            <span class="n">current_len</span> <span class="o">+=</span> <span class="mi">1</span>
+</span></span><span class="line"><span class="ln">13</span><span class="cl">            <span class="n">max_len</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">max_len</span><span class="p">,</span> <span class="n">current_len</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">14</span><span class="cl">        <span class="k">else</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">15</span><span class="cl">            <span class="n">current_len</span> <span class="o">=</span> <span class="mi">1</span>
+</span></span><span class="line"><span class="ln">16</span><span class="cl">    
+</span></span><span class="line"><span class="ln">17</span><span class="cl">    <span class="nb">print</span><span class="p">(</span><span class="n">max_len</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">18</span><span class="cl">
+</span></span><span class="line"><span class="ln">19</span><span class="cl"><span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&#34;__main__&#34;</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">20</span><span class="cl">    <span class="n">main</span><span class="p">()</span></span></span></code></pre></div><h3 id="time-complexity">Time complexity</h3>
+<p>O(n)</p>
+<h3 id="space-complexity">Space complexity</h3>
+<p>O(1)</p>
+<p>This is a greedy problem.
+A greedy approach is something that makes the best local choice at each step in the hope that this choice will lead to the global optimal solution.</p>
+<p>here the best local choice is to increment the current length if the current character is the same as the previous character.</p>
+]]></content:encoded>
+    </item>
+  </channel>
+</rss>

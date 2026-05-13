@@ -1,0 +1,299 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>Paxos on Krishnatejaswi S</title>
+    <link>https://KTS-o7.github.io/bear/tags/paxos/</link>
+    <description>Recent content in Paxos on Krishnatejaswi S</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <managingEditor>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</managingEditor>
+    <webMaster>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</webMaster>
+    <copyright>Krishnatejaswi S</copyright>
+    <lastBuildDate>Sun, 03 May 2026 00:00:00 +0530</lastBuildDate>
+    <atom:link href="https://KTS-o7.github.io/bear/tags/paxos/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Multi-Paxos: From Single Decree to a Replicated Log</title>
+      <link>https://KTS-o7.github.io/bear/systems/multi_paxos/</link>
+      <pubDate>Sun, 03 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/systems/multi_paxos/</guid>
+      <description>&lt;p&gt;Basic Paxos agrees on a single value. That&amp;rsquo;s useful for electing a leader or picking a configuration, but a database needs to agree on a sequence of values &amp;ndash; every write in order, forever. Running one full round of Paxos per log slot would work but it&amp;rsquo;s expensive: two network round-trips per slot, and Phase 1 has to complete before Phase 2 can start.&lt;/p&gt;&#xA;&lt;p&gt;Multi-Paxos is the optimization that makes Paxos practical as a replicated log. The insight is that Phase 1 can be amortized across many slots once you have a stable leader.&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>Basic Paxos agrees on a single value. That&rsquo;s useful for electing a leader or picking a configuration, but a database needs to agree on a sequence of values &ndash; every write in order, forever. Running one full round of Paxos per log slot would work but it&rsquo;s expensive: two network round-trips per slot, and Phase 1 has to complete before Phase 2 can start.</p>
+<p>Multi-Paxos is the optimization that makes Paxos practical as a replicated log. The insight is that Phase 1 can be amortized across many slots once you have a stable leader.</p>
+<h2 id="what-phase-1-actually-does">What Phase 1 Actually Does</h2>
+<p>Recall basic Paxos. Phase 1 (Prepare/Promise) establishes that a proposer has the highest ballot number any acceptor will respond to. The acceptors promise to ignore any lower-numbered proposer. This is the &ldquo;take control&rdquo; phase &ndash; after it completes, the proposer has permission to drive proposals through Phase 2.</p>
+<p>Phase 1 doesn&rsquo;t say anything about which value gets proposed. It just establishes leadership over the acceptors for a given ballot number.</p>
+<h2 id="the-amortization">The Amortization</h2>
+<p>If the same leader runs Phase 1 once with a high ballot number, it doesn&rsquo;t need to run Phase 1 again for subsequent log slots &ndash; as long as no other proposer challenges it with a higher ballot.</p>
+<p>The leader runs Phase 1 once, gets promises from a majority, and then drives Phase 2 directly for slot 1, slot 2, slot 3, and so on. Each slot is just one round-trip (Accept/Accepted) instead of two. Throughput roughly doubles for steady-state operation under a stable leader.</p>
+
+
+
+
+
+<pre tabindex="0"><code>Phase 1 (once):   Leader → Prepare(ballot=5) → Majority
+                  Majority → Promise(ballot=5, ...) → Leader
+
+Phase 2 (per slot):
+  Slot 1:  Leader → Accept(ballot=5, slot=1, value=A) → Majority
+           Majority → Accepted → Leader → Committed
+  Slot 2:  Leader → Accept(ballot=5, slot=2, value=B) → Majority
+           Majority → Accepted → Leader → Committed
+  ...</code></pre><p>This is Multi-Paxos. The Phase 1 cost is paid once per leader term, not once per log entry.</p>
+<h2 id="leader-election">Leader Election</h2>
+<p>Basic Paxos has no notion of a leader &ndash; any node can propose at any time, which is why it&rsquo;s correct but chaotic in practice. Multi-Paxos adds an informal leader election layer: one node is designated the distinguished proposer and the others voluntarily defer to it.</p>
+<p>&ldquo;Voluntarily&rdquo; is the key word. If followers suspect the leader is dead (no heartbeats for a timeout period), any of them can run Phase 1 with a higher ballot to take over. The old leader doesn&rsquo;t get a veto &ndash; it just gets its Accept messages rejected because the acceptors have now promised a higher ballot.</p>
+<p>This is where Multi-Paxos implementations diverge significantly. The Paxos paper doesn&rsquo;t specify how leader election works, what timeouts to use, or how to detect a live leader that&rsquo;s just partitioned. Every real implementation makes different choices here, which is part of why Multi-Paxos implementations are hard to compare.</p>
+<h2 id="log-holes">Log Holes</h2>
+<p>One complication basic Paxos avoids: with multiple slots running in parallel, you can get holes. The leader accepts slot 1 and slot 3 but slot 2 hasn&rsquo;t been filled yet because a client request was lost. Followers can&rsquo;t apply slot 3 to the state machine without knowing slot 2.</p>
+<p>Multi-Paxos implementations handle this with a no-op: when a new leader wins an election, it runs Phase 1 for all uncommitted slots and fills any gaps with a no-op entry. This is what &ldquo;leader reconciliation&rdquo; looks like in practice &ndash; the new leader has to figure out what was committed before it took over and resolve any ambiguity.</p>
+<p>Raft avoids holes entirely by requiring that the leader always send entries in order, with no gaps. This simplifies the implementation at the cost of some throughput (you can&rsquo;t pipeline out-of-order).</p>
+<h2 id="zab-vs-multi-paxos">Zab vs. Multi-Paxos</h2>
+<p>ZooKeeper uses Zab (ZooKeeper Atomic Broadcast), which is often described as &ldquo;Paxos-like&rdquo; but is actually closer to Multi-Paxos with some explicit differences.</p>
+<p>The main one: Zab is designed around a primary-backup model where the primary sends updates in a strict FIFO order. The recovery protocol (Phase 1 equivalent in Zab) is designed to ensure the new primary has a superset of all committed entries before it starts serving. Zab also has an explicit synchronization phase where followers sync their logs to the new primary before it starts accepting writes.</p>
+<p>Both tolerate the same number of failures and provide the same safety guarantees. The practical difference is that Zab is tuned for ZooKeeper&rsquo;s specific write pattern (broadcast to all followers, wait for majority ack, apply in order) while Multi-Paxos is a more general framework.</p>
+<h2 id="multi-paxos-vs-raft">Multi-Paxos vs. Raft</h2>
+<table>
+  <thead>
+      <tr>
+          <th></th>
+          <th>Multi-Paxos</th>
+          <th>Raft</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>Leader election</td>
+          <td>Ad hoc, not specified in paper</td>
+          <td>Built into protocol with explicit terms</td>
+      </tr>
+      <tr>
+          <td>Log holes</td>
+          <td>Possible, requires no-op fill on leader change</td>
+          <td>Not possible, entries sent in order</td>
+      </tr>
+      <tr>
+          <td>Pipelining</td>
+          <td>Supported natively</td>
+          <td>Requires extensions</td>
+      </tr>
+      <tr>
+          <td>Understandability</td>
+          <td>Requires significant paper-reading and inference</td>
+          <td>Designed to be implementable from the paper alone</td>
+      </tr>
+      <tr>
+          <td>Real implementations</td>
+          <td>Chubby (Google), custom variants</td>
+          <td>etcd, CockroachDB, TiKV, Consul</td>
+      </tr>
+  </tbody>
+</table>
+<p>Multi-Paxos and Raft have the same fault tolerance and safety properties. The difference is that Raft specifies the things Multi-Paxos leaves up to the implementer &ndash; which is why Raft implementations tend to be more consistent across codebases.</p>
+<p>Google&rsquo;s Chubby uses a Paxos variant internally. Google Spanner uses a Paxos variant per shard. In both cases Google built their own leader election and recovery logic on top of the basic protocol &ndash; which is exactly the work Raft was designed to eliminate.</p>
+]]></content:encoded>
+    </item>
+    <item>
+      <title>Paxos: How Distributed Systems Agree on Anything</title>
+      <link>https://KTS-o7.github.io/bear/systems/paxos_consensus/</link>
+      <pubDate>Sat, 02 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/systems/paxos_consensus/</guid>
+      <description>&lt;p&gt;Every replicated database, every distributed lock, every leader election comes down to the same underlying problem: how do multiple nodes in an unreliable network agree on a single value, even when some of them crash or messages get delayed?&lt;/p&gt;&#xA;&lt;p&gt;This is the consensus problem. Paxos is the foundational answer. It&amp;rsquo;s also notoriously difficult to implement correctly &amp;ndash; which is exactly why Raft exists. But you can&amp;rsquo;t really understand Raft without understanding what Paxos is doing and why.&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>Every replicated database, every distributed lock, every leader election comes down to the same underlying problem: how do multiple nodes in an unreliable network agree on a single value, even when some of them crash or messages get delayed?</p>
+<p>This is the consensus problem. Paxos is the foundational answer. It&rsquo;s also notoriously difficult to implement correctly &ndash; which is exactly why Raft exists. But you can&rsquo;t really understand Raft without understanding what Paxos is doing and why.</p>
+<h2 id="the-constraint">The Constraint</h2>
+<p>Two-phase commit solves distributed atomicity but requires the coordinator to stay up. If the coordinator crashes after phase 1, participants are stuck holding locks, unable to proceed. That&rsquo;s not consensus &ndash; that&rsquo;s a single point of failure with extra steps.</p>
+<p>Paxos removes that constraint. It guarantees agreement as long as a majority of nodes are up, regardless of which specific nodes fail. Any node can propose a value. No permanent coordinator required.</p>
+<h2 id="roles">Roles</h2>
+<p>In Paxos, nodes play three roles &ndash; and in practice, any node can play any of them:</p>
+<ul>
+<li><strong>Proposer</strong> &ndash; initiates a round, tries to get a value accepted</li>
+<li><strong>Acceptor</strong> &ndash; votes on proposals, must follow the protocol strictly</li>
+<li><strong>Learner</strong> &ndash; learns the final chosen value once consensus is reached</li>
+</ul>
+<h2 id="the-protocol">The Protocol</h2>
+<p>Paxos runs in two phases.</p>
+<h3 id="phase-1--prepare--promise">Phase 1 &ndash; Prepare / Promise</h3>
+<p>The proposer picks a proposal number <code>n</code> &ndash; unique, higher than any it has seen before &ndash; and sends <code>PREPARE(n)</code> to a quorum of acceptors (any majority).</p>
+<p>Each acceptor that receives this:</p>
+<ul>
+<li>Promises to ignore any future <code>PREPARE</code> with a lower number</li>
+<li>If it has already accepted a value in a prior round, includes that <code>(old_n, old_value)</code> in its reply</li>
+</ul>
+<h3 id="phase-2--accept--accepted">Phase 2 &ndash; Accept / Accepted</h3>
+<p>If the proposer receives promises from a quorum:</p>
+<ul>
+<li>If any promise included a prior accepted value, the proposer <strong>must use the highest one</strong> &ndash; it cannot choose freely</li>
+<li>Otherwise it can propose any value it wants</li>
+</ul>
+<p>It sends <code>ACCEPT(n, value)</code> to the quorum. Acceptors that haven&rsquo;t made a conflicting promise write the value and reply <code>ACCEPTED</code>. Once a quorum accepts, the value is chosen.</p>
+
+
+
+
+
+<pre tabindex="0"><code>Proposer       Acceptor A    Acceptor B    Acceptor C
+   |-- PREPARE(5) --&gt;|             |             |
+   |-- PREPARE(5) ---|------------&gt;|             |
+   |&lt;-- PROMISE(5) --|             |             |
+   |&lt;-- PROMISE(5) --|-------------|             |
+   |-- ACCEPT(5,v) -&gt;|             |             |
+   |-- ACCEPT(5,v) --|------------&gt;|             |
+   |&lt;-- ACCEPTED ----|             |             |
+   |&lt;-- ACCEPTED ----|-------------|             |
+      [value v is now chosen]</code></pre><h2 id="why-its-correct">Why It&rsquo;s Correct</h2>
+<p>The safety guarantee &ndash; that no two values are ever chosen &ndash; comes from the quorum overlap. Any two majorities in an N-node cluster share at least one node. That shared node is the bridge: if a value was accepted in round <code>n</code>, a new proposer in round <code>n+1</code> will hear about it from the shared node and be forced to continue it rather than propose something different.</p>
+<p>The constraint that proposers must adopt the highest prior accepted value is what makes this work. A new round can never silently override an old one.</p>
+<h2 id="the-gotchas">The Gotchas</h2>
+<p><strong>Livelock.</strong> Two competing proposers can keep preempting each other with higher proposal numbers indefinitely &ndash; neither ever reaching phase 2. The fix is to elect a single distinguished proposer (a leader) and have everyone else defer to it. This is what Multi-Paxos does.</p>
+<p><strong>Single-value vs. Multi-Paxos.</strong> Basic Paxos agrees on one value. Real systems need a log of values &ndash; a sequence of commands. Multi-Paxos runs Paxos repeatedly for each log slot with a stable leader, amortizing the phase 1 cost across many entries. Once a leader is established, phase 1 only needs to run once per leader lifetime.</p>
+<p><strong>Implementation gap.</strong> The original paper was intentionally abstract. &ldquo;Paxos Made Simple&rdquo; is cleaner but still leaves enormous implementation latitude &ndash; enough that teams have shipped subtly broken versions. The gap between the protocol description and a correct, production-safe implementation is one of the main reasons Raft was designed as an explicit replacement.</p>
+<h2 id="where-it-runs">Where It Runs</h2>
+<ul>
+<li><strong>Google Chubby</strong> &ndash; distributed lock service, underpins Bigtable and GFS coordination</li>
+<li><strong>Apache ZooKeeper</strong> &ndash; uses Zab (ZooKeeper Atomic Broadcast), a Paxos variant</li>
+<li><strong>Google Spanner</strong> &ndash; Paxos per shard for replication across datacenters</li>
+</ul>
+<p>Paxos is the theory. If you&rsquo;re building something new, you&rsquo;ll probably implement Raft instead &ndash; same guarantees, actually debuggable. But the mental model of quorum-based two-phase consensus is worth having regardless of which one you reach for.</p>
+]]></content:encoded>
+    </item>
+    <item>
+      <title>Paxos</title>
+      <link>https://KTS-o7.github.io/bear/systems/paxos/</link>
+      <pubDate>Sun, 26 Apr 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/systems/paxos/</guid>
+      <description>&lt;p&gt;Before Raft, there was Paxos. For about two decades it was the foundational answer to distributed consensus &amp;ndash; and it was notoriously hard to implement correctly. Lamport published the original paper in 1989, but it was so difficult to parse that he rewrote it as &amp;ldquo;Paxos Made Simple&amp;rdquo; in 2001. The simpler version is still genuinely hard.&lt;/p&gt;&#xA;&lt;p&gt;Understanding Paxos is worth doing. It&amp;rsquo;s not just historical &amp;ndash; Chubby, ZooKeeper, and Spanner are built on it or close variants, and many distributed systems interviews probe it. More importantly, every simplification Raft makes is a direct response to a specific pain point in Paxos. Understanding what Paxos gets wrong explains why Raft looks the way it does.&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>Before Raft, there was Paxos. For about two decades it was the foundational answer to distributed consensus &ndash; and it was notoriously hard to implement correctly. Lamport published the original paper in 1989, but it was so difficult to parse that he rewrote it as &ldquo;Paxos Made Simple&rdquo; in 2001. The simpler version is still genuinely hard.</p>
+<p>Understanding Paxos is worth doing. It&rsquo;s not just historical &ndash; Chubby, ZooKeeper, and Spanner are built on it or close variants, and many distributed systems interviews probe it. More importantly, every simplification Raft makes is a direct response to a specific pain point in Paxos. Understanding what Paxos gets wrong explains why Raft looks the way it does.</p>
+<h2 id="the-problem">The Problem</h2>
+<p>Multiple nodes need to agree on a single value. The network is unreliable: messages can be dropped, reordered, or delayed arbitrarily. Nodes can crash at any time. There is no shared clock.</p>
+<p>A minority of nodes can fail; the protocol must still make progress. The protocol must also be safe: once a value is chosen, no future round can choose a different value.</p>
+<p>This is the consensus problem. Two-Phase Commit solves it only when the coordinator doesn&rsquo;t fail. Paxos solves it even when any minority of nodes can fail, including the &ldquo;coordinator.&rdquo;</p>
+<h2 id="roles">Roles</h2>
+<p>Any node can play any role (often all three simultaneously in practice):</p>
+<ul>
+<li><strong>Proposer</strong> &ndash; initiates a round, trying to get a value agreed upon</li>
+<li><strong>Acceptor</strong> &ndash; votes on proposals; the safety machinery lives here</li>
+<li><strong>Learner</strong> &ndash; learns what value was finally chosen, acts on it</li>
+</ul>
+<h2 id="the-protocol--two-phases">The Protocol &ndash; Two Phases</h2>
+<h3 id="phase-1-prepare--promise">Phase 1: Prepare / Promise</h3>
+<ol>
+<li>
+<p>The proposer picks a <strong>proposal number</strong> <code>n</code>. It must be unique across all proposers and higher than any proposal number the proposer has seen before. (Usually implemented with <code>(timestamp, node_id)</code> tuples or a monotonic counter stored durably.)</p>
+</li>
+<li>
+<p>Sends <code>PREPARE(n)</code> to a quorum of acceptors (any majority).</p>
+</li>
+<li>
+<p>Each acceptor that receives <code>PREPARE(n)</code>:</p>
+<ul>
+<li>If <code>n</code> is higher than any PREPARE it has responded to: replies <code>PROMISE(n)</code>, committing to <strong>reject any future PREPARE or ACCEPT with a lower proposal number</strong></li>
+<li>If <code>n</code> is not higher: ignores or rejects the request</li>
+<li>If it has already accepted a value in a prior round, it includes that <code>(accepted_n, accepted_value)</code> in the promise</li>
+</ul>
+</li>
+</ol>
+<h3 id="phase-2-accept--accepted">Phase 2: Accept / Accepted</h3>
+<ol>
+<li>If the proposer receives PROMISE from a quorum:
+<ul>
+<li>If any promise included an <code>(accepted_n, accepted_value)</code>, the proposer <strong>must use the value with the highest <code>accepted_n</code></strong> &ndash; it cannot freely choose its own value</li>
+<li>If no promise included an accepted value, the proposer can propose any value it wants</li>
+</ul>
+</li>
+<li>Sends <code>ACCEPT(n, value)</code> to the quorum</li>
+<li>Each acceptor that receives <code>ACCEPT(n, value)</code>:
+<ul>
+<li>If it hasn&rsquo;t promised to ignore <code>n</code>: writes the value and replies <code>ACCEPTED(n, value)</code></li>
+<li>If it has made a promise with a higher number: ignores or rejects</li>
+</ul>
+</li>
+<li>Once a quorum of acceptors reply <code>ACCEPTED</code> with the same <code>n</code> → the value is <strong>chosen</strong></li>
+</ol>
+
+
+
+
+
+<pre tabindex="0"><code>Proposer          Acceptor A    Acceptor B    Acceptor C
+   |-- PREPARE(5) --&gt;|             |             |
+   |-- PREPARE(5) ---|------------&gt;|             |
+   |&lt;-- PROMISE(5) --|             |             |
+   |&lt;-- PROMISE(5) --|-------------|             |
+   |-- ACCEPT(5,v) -&gt;|             |             |
+   |-- ACCEPT(5,v) --|------------&gt;|             |
+   |&lt;-- ACCEPTED ---|              |             |
+   |&lt;-- ACCEPTED ---|--------------|             |
+      [value v is chosen, Acceptor C was unreachable but quorum achieved]</code></pre><h2 id="why-its-correct">Why It&rsquo;s Correct</h2>
+<p><strong>Safety (no two values can be chosen):</strong> Suppose value <code>v</code> was chosen at proposal <code>n</code> &ndash; meaning a quorum Q1 accepted it. Any later proposer <code>n' &gt; n</code> that runs Phase 1 will receive promises from a quorum Q2. Q1 and Q2 must overlap (both are majorities). The overlapping acceptor already accepted <code>v</code> and includes <code>(n, v)</code> in its promise. The Phase 2 rule forces the new proposer to use <code>v</code> (since it&rsquo;s the highest accepted value). So no different value can ever be chosen.</p>
+<p><strong>Liveness (the protocol makes progress):</strong> As long as a majority of nodes are reachable and a single stable proposer drives the protocol, a value will eventually be chosen. The protocol doesn&rsquo;t guarantee progress if proposers keep competing &ndash; see the livelock problem below.</p>
+<h2 id="the-gotchas">The Gotchas</h2>
+<h3 id="livelock-with-competing-proposers">Livelock with Competing Proposers</h3>
+<p>Two proposers P1 and P2 can keep preempting each other indefinitely:</p>
+
+
+
+
+
+<pre tabindex="0"><code>P1 sends PREPARE(5), gets promises from quorum
+P2 sends PREPARE(6) before P1 can reach ACCEPT -- quorum promises ignore n=5
+P1&#39;s ACCEPT(5, v) is rejected -- quorum promised to ignore anything &lt; 6
+P1 increments to PREPARE(7), gets new promises
+P2&#39;s ACCEPT(6, v) is now rejected
+... loops forever</code></pre><p>The fix is a <strong>distinguished proposer</strong> (leader): only one node proposes at a time. This is what Multi-Paxos formalizes &ndash; elect a stable leader, suppress all other proposers, and the livelock disappears. It&rsquo;s not part of basic Paxos; it&rsquo;s an add-on that every production implementation requires.</p>
+<h3 id="single-value-vs-log-multi-paxos">Single-Value vs. Log: Multi-Paxos</h3>
+<p>Basic Paxos agrees on one value. Real systems need to agree on a sequence of commands &ndash; a log. Multi-Paxos runs Paxos for each log slot, but with an optimization: once a stable leader exists, you can skip Phase 1 for subsequent slots. You pay the two-round-trip cost once per leader election, then only Phase 2 for every log entry.</p>
+<p>The problem: Multi-Paxos is not a formal protocol. It&rsquo;s described as an optimization on basic Paxos, and different implementations fill in the details differently. Log gaps are allowed &ndash; a slot can be accepted out of order. Cluster membership changes are not specified. Leader election is not specified. This leaves a large surface area for subtle bugs.</p>
+<h3 id="its-hard-to-implement-correctly">It&rsquo;s Hard to Implement Correctly</h3>
+<p>&ldquo;Paxos Made Simple&rdquo; describes the algorithm clearly. Getting from there to a correct implementation in a production system requires handling: durability of acceptor state across crashes (promise/accept must be persisted before responding), leader election, log gap handling, log compaction, cluster membership changes, client request routing, and linearizable reads. None of these are in the paper.</p>
+<p>Chubby&rsquo;s authors wrote that their Paxos implementation took years to get right and required multiple rewrites. This is why Raft was created.</p>
+<h2 id="paxos-vs-raft">Paxos vs. Raft</h2>
+<p>The safety properties are equivalent. The differences are implementation surface:</p>
+<table>
+  <thead>
+      <tr>
+          <th></th>
+          <th>Paxos (Multi-Paxos)</th>
+          <th>Raft</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><strong>Log gaps</strong></td>
+          <td>Allowed</td>
+          <td>Not allowed &ndash; sequential only</td>
+      </tr>
+      <tr>
+          <td><strong>Leader</strong></td>
+          <td>Distinguished proposer, informally defined</td>
+          <td>Formal, enforced by protocol</td>
+      </tr>
+      <tr>
+          <td><strong>Config changes</strong></td>
+          <td>Not specified</td>
+          <td>Joint consensus built in</td>
+      </tr>
+      <tr>
+          <td><strong>Understandability</strong></td>
+          <td>Notoriously hard</td>
+          <td>Designed to be teachable</td>
+      </tr>
+      <tr>
+          <td><strong>Implementations</strong></td>
+          <td>Chubby, Zab (ZooKeeper), Spanner</td>
+          <td>etcd, CockroachDB, TiKV, Consul</td>
+      </tr>
+  </tbody>
+</table>
+<p>Same fault tolerance: both tolerate <code>⌊(N-1)/2⌋</code> node failures.</p>
+<h2 id="where-paxos-is-still-used">Where Paxos Is Still Used</h2>
+<ul>
+<li><strong>Google Chubby</strong> &ndash; distributed lock service. Underpins Bigtable and GFS for leader election and metadata coordination.</li>
+<li><strong>Apache ZooKeeper</strong> &ndash; uses Zab (ZooKeeper Atomic Broadcast), which is a Paxos variant with primary-order delivery guarantees added. Powers Kafka, HBase, and Hadoop ecosystem coordination.</li>
+<li><strong>Google Spanner</strong> &ndash; Paxos per shard for cross-replica replication. Combined with TrueTime for external consistency.</li>
+</ul>
+<p>New systems almost universally choose Raft. The guarantees are equivalent and the implementation surface is much smaller. Paxos matters because it&rsquo;s what everything was built on, and because understanding what it leaves unspecified is the clearest way to understand why the distributed systems field spent a decade building on top of it before someone sat down and wrote a protocol that was complete enough to implement from scratch.</p>
+]]></content:encoded>
+    </item>
+  </channel>
+</rss>

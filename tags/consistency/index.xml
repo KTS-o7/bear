@@ -1,0 +1,261 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>Consistency on Krishnatejaswi S</title>
+    <link>https://KTS-o7.github.io/bear/tags/consistency/</link>
+    <description>Recent content in Consistency on Krishnatejaswi S</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <managingEditor>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</managingEditor>
+    <webMaster>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</webMaster>
+    <copyright>Krishnatejaswi S</copyright>
+    <lastBuildDate>Sun, 03 May 2026 00:00:00 +0530</lastBuildDate>
+    <atom:link href="https://KTS-o7.github.io/bear/tags/consistency/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>CRDTs: Conflict-Free Replicated Data Types</title>
+      <link>https://KTS-o7.github.io/bear/systems/crdts/</link>
+      <pubDate>Sun, 03 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/systems/crdts/</guid>
+      <description>&lt;p&gt;Vector clocks tell you when two writes conflict. They don&amp;rsquo;t tell you what to do about it. That&amp;rsquo;s still your problem.&lt;/p&gt;&#xA;&lt;p&gt;CRDTs take a different position: design the data structure so that conflicts can never happen. Not &amp;ldquo;detect and resolve&amp;rdquo; &amp;ndash; just structurally eliminate the problem.&lt;/p&gt;&#xA;&lt;h2 id=&#34;the-core-idea&#34;&gt;The Core Idea&lt;/h2&gt;&#xA;&lt;p&gt;A CRDT is a data structure with a merge function that is commutative, associative, and idempotent. Those three properties together mean you can apply updates in any order, any number of times, from any subset of nodes, and always converge to the same state.&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>Vector clocks tell you when two writes conflict. They don&rsquo;t tell you what to do about it. That&rsquo;s still your problem.</p>
+<p>CRDTs take a different position: design the data structure so that conflicts can never happen. Not &ldquo;detect and resolve&rdquo; &ndash; just structurally eliminate the problem.</p>
+<h2 id="the-core-idea">The Core Idea</h2>
+<p>A CRDT is a data structure with a merge function that is commutative, associative, and idempotent. Those three properties together mean you can apply updates in any order, any number of times, from any subset of nodes, and always converge to the same state.</p>
+<ul>
+<li><strong>Commutative</strong>: merge(A, B) = merge(B, A) &ndash; order doesn&rsquo;t matter</li>
+<li><strong>Associative</strong>: merge(A, merge(B, C)) = merge(merge(A, B), C) &ndash; grouping doesn&rsquo;t matter</li>
+<li><strong>Idempotent</strong>: merge(A, A) = A &ndash; applying the same update twice is harmless</li>
+</ul>
+<p>If your data structure satisfies these, you can replicate it across nodes with no coordination. Each node applies updates locally and gossips state to peers. Eventually everyone has the same state.</p>
+<h2 id="the-simplest-crdt-g-counter">The Simplest CRDT: G-Counter</h2>
+<p>A grow-only counter. Each node maintains a vector of counts, one slot per node. To increment, a node adds to its own slot. To read the total, sum all slots. To merge two replicas, take the element-wise max.</p>
+
+
+
+
+
+<pre tabindex="0"><code>Node A: [3, 1, 0]   Node B: [2, 2, 0]
+Merge:  [3, 2, 0]   -- take max per slot
+Total:  5</code></pre><p>Node A can never decrement B&rsquo;s slot and Node B can never decrement A&rsquo;s slot. Merges always move counters up, never down. Convergence is guaranteed.</p>
+<h2 id="adding-decrements-pn-counter">Adding Decrements: PN-Counter</h2>
+<p>A grow-only counter can&rsquo;t go down. If you need decrements, use two G-Counters &ndash; one for increments (P), one for decrements (N). The value is P - N.</p>
+<p>Each node increments its P slot to add and its N slot to subtract. Merges take the element-wise max of both vectors. The final value is the sum of all P slots minus the sum of all N slots.</p>
+<h2 id="sets-the-interesting-case">Sets: The Interesting Case</h2>
+<p>Sets are where CRDTs get non-obvious. The naive approach breaks immediately: if Node A removes an element at the same time Node B adds it, what&rsquo;s the right answer?</p>
+<p><strong>G-Set</strong> (grow-only set) sidesteps this: elements can only be added, never removed. Merge is union. Works perfectly but is obviously limited.</p>
+<p><strong>2P-Set</strong> (two-phase set) adds a remove set R alongside the add set A. An element is in the set if it&rsquo;s in A but not R. Once removed, it can never be re-added. Merge is union on both sets.</p>
+<p><strong>LWW-Element-Set</strong> (last-write-wins) attaches a timestamp to each add and remove. On conflict, the higher timestamp wins. Simple, but you&rsquo;re back to trusting clocks.</p>
+<p><strong>OR-Set</strong> (observed-remove set) is the one that gets this right. Each add operation generates a unique tag. Remove only removes the specific tags that were observed at remove time. If Node A adds element X (tag: t1) and Node B concurrently adds X again (tag: t2), then Node A removing X (removing tag t1) leaves Node B&rsquo;s addition (tag t2) intact. The element stays in the set.</p>
+<p>This matches user intuition: you removed the copy you knew about, not the one that was being added concurrently somewhere else.</p>
+<h2 id="state-based-vs-operation-based">State-based vs. Operation-based</h2>
+<p>There are two families of CRDTs.</p>
+<p><strong>State-based (CvRDTs)</strong>: nodes gossip their full state. Merge is applied on receipt. The merge function must be a join on a join-semilattice &ndash; a partial order where every pair of elements has a least upper bound. Simple to reason about, but shipping full state can be expensive for large structures.</p>
+<p><strong>Operation-based (CmRDTs)</strong>: nodes broadcast operations instead of state. No merge function needed on state &ndash; instead, the transport layer must guarantee exactly-once delivery and causal ordering. More efficient, but the delivery guarantee is a real constraint.</p>
+<p>In practice, libraries like Automerge and Yjs use operation-based CRDTs with a hybrid approach: operations for real-time sync, periodic state snapshots for catch-up after disconnection.</p>
+<h2 id="where-theyre-used">Where They&rsquo;re Used</h2>
+<p><strong>Collaborative editing</strong> is the obvious one. Google Docs uses OT (operational transformation), an older approach with similar goals. Figma uses CRDTs. Notion, Linear, and most newer collaborative tools have moved toward CRDTs because the math is cleaner and they handle offline edits naturally.</p>
+<p><strong>Distributed databases</strong>: Riak&rsquo;s eventual consistency model was built around CRDTs. Redis has CRDT support in Redis Enterprise for multi-region deployments. Azure Cosmos DB uses them internally for its multi-master replication.</p>
+<p><strong>Shopping carts</strong>: Amazon&rsquo;s Dynamo paper mentions the shopping cart as a canonical use case. Adds and removes to a cart from multiple devices or regions converge without a coordinator.</p>
+<h2 id="the-tradeoff">The Tradeoff</h2>
+<p>CRDTs don&rsquo;t work for everything. The merge semantics have to match what your application actually means.</p>
+<p>A bank account is not a PN-Counter. If your account shows $500 and you withdraw $200 concurrently from two ATMs, merging the two PN-Counters would show $100 &ndash; which is correct math but incorrect banking. The constraint &ldquo;balance must not go negative&rdquo; requires coordination. You can&rsquo;t avoid that with a CRDT.</p>
+<p>The rule: CRDTs work when the merge semantics match application intent and when the application can tolerate the conflict-free resolution behavior. They&rsquo;re not a universal replacement for coordination &ndash; they&rsquo;re a way to avoid coordination in cases where the math lines up.</p>
+<p>Vector clocks give you the diagnosis. CRDTs give you a structural guarantee that the diagnosis is never needed.</p>
+]]></content:encoded>
+    </item>
+    <item>
+      <title>How Spanner Does Distributed Transactions Without Classic 2PC</title>
+      <link>https://KTS-o7.github.io/bear/systems/spanner_distributed_transactions/</link>
+      <pubDate>Sun, 03 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/systems/spanner_distributed_transactions/</guid>
+      <description>&lt;p&gt;Two-phase commit has a well-known problem: crash the coordinator between Phase 1 and Phase 2 and every participant is stuck holding locks, waiting, with no safe way to proceed. 2PC is a blocking protocol.&lt;/p&gt;&#xA;&lt;p&gt;Google Spanner runs distributed transactions across a globally replicated database at scale. It can&amp;rsquo;t afford to block on coordinator failure. Its solution is to not use a standalone coordinator at all &amp;ndash; it runs 2PC on top of Paxos groups, which means the coordinator itself is fault-tolerant.&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>Two-phase commit has a well-known problem: crash the coordinator between Phase 1 and Phase 2 and every participant is stuck holding locks, waiting, with no safe way to proceed. 2PC is a blocking protocol.</p>
+<p>Google Spanner runs distributed transactions across a globally replicated database at scale. It can&rsquo;t afford to block on coordinator failure. Its solution is to not use a standalone coordinator at all &ndash; it runs 2PC on top of Paxos groups, which means the coordinator itself is fault-tolerant.</p>
+<h2 id="the-core-move-paxos-groups-as-participants">The Core Move: Paxos Groups as Participants</h2>
+<p>In classic 2PC, each participant is a single node. It votes, acquires locks, and waits. If it crashes, the transaction is stuck.</p>
+<p>Spanner&rsquo;s participants are Paxos groups. Each shard of data is managed by a Paxos group &ndash; typically 5 replicas spread across datacenters. The Paxos leader for each group acts as the 2PC participant. Lock acquisition and voting happen on the leader, and the decision is durably replicated to the group before the leader responds.</p>
+<p>If the coordinator crashes, a new coordinator can be elected (it&rsquo;s also a Paxos group). If a participant leader crashes, a new leader in that group takes over &ndash; the lock state and vote are already replicated, so the protocol can continue.</p>
+<p>The blocking problem is solved not by changing the protocol but by making every node in the protocol fault-tolerant.</p>
+<h2 id="truetime">TrueTime</h2>
+<p>Spanner adds something 2PC doesn&rsquo;t have: globally synchronized timestamps, accurate enough to use for transaction ordering.</p>
+<p>Google runs GPS receivers and atomic clocks in each datacenter and exposes a <code>TrueTime</code> API that returns a time interval <code>[earliest, latest]</code> rather than a single timestamp. The interval accounts for clock uncertainty. The guarantee is that the real current time lies somewhere in that interval.</p>
+<p>Spanner uses TrueTime to assign commit timestamps. The rule: a transaction&rsquo;s commit timestamp must be after the <code>latest</code> bound of TrueTime at the moment the coordinator decides to commit. This means Spanner waits for a brief period &ndash; typically 1-7ms &ndash; before declaring a transaction committed, to ensure that any other transaction starting after this one will see a strictly later timestamp.</p>
+<p>This is the &ldquo;commit wait.&rdquo; It&rsquo;s intentional latency, paid to guarantee that commit timestamps accurately reflect real-world ordering.</p>
+<h2 id="external-consistency">External Consistency</h2>
+<p>The property this buys is external consistency: if transaction T1 commits before T2 starts (in real-world time), T2 will see T1&rsquo;s writes. This is stronger than serializability &ndash; serializable transactions can be ordered in any way consistent with their conflicts, even if that reorders real-world causality. External consistency preserves real-world order.</p>
+<p>In practical terms: if you commit a write and then tell a colleague &ldquo;it&rsquo;s committed, go read it,&rdquo; their read will see your write. There&rsquo;s no window where a causally later transaction misses a causally earlier committed write.</p>
+<p>Most distributed databases don&rsquo;t provide this. They provide serializability, which is strong, but allows committed writes to be temporarily invisible to transactions that started after the commit in real time. Spanner&rsquo;s external consistency closes that gap.</p>
+<h2 id="what-the-2pc-layer-actually-looks-like">What the 2PC Layer Actually Looks Like</h2>
+<p>A read-write transaction in Spanner:</p>
+<ol>
+<li>Client reads data, buffers writes locally (no locks yet)</li>
+<li>Client sends commit request to the coordinator Paxos group</li>
+<li>Coordinator runs 2PC with each participant Paxos group:
+<ul>
+<li>Sends <code>PREPARE</code> to each participant leader</li>
+<li>Each participant leader acquires locks, logs the prepare record to its Paxos group, replies <code>YES</code></li>
+<li>Coordinator picks a commit timestamp (TrueTime <code>latest</code> + epsilon), logs it to its group</li>
+<li>Sends <code>COMMIT</code> with the timestamp to all participants</li>
+</ul>
+</li>
+<li>Coordinator waits out the commit wait interval</li>
+<li>Participants apply the writes at the commit timestamp, release locks</li>
+<li>Client sees commit confirmation</li>
+</ol>
+<p>The 2PC messages are still there. The key difference is that every step that touches durable state goes through a Paxos replication round first. The coordinator can crash and be replaced. A participant leader can crash and its successor has the full prepare state. Nothing blocks permanently.</p>
+<h2 id="the-cost">The Cost</h2>
+<p>The commit wait adds latency. For single-region transactions it&rsquo;s small (sub-millisecond when clocks are well-synchronized). For multi-region transactions where the coordinator and participants are in different continents, round-trip latency dominates and the TrueTime uncertainty is larger &ndash; you&rsquo;re looking at tens of milliseconds.</p>
+<p>Spanner is designed for this tradeoff: strong global consistency in exchange for latency that scales with geographic distance. For financial systems, global inventory, or anything that requires real external consistency, that tradeoff is often correct. For low-latency local transactions, it&rsquo;s usually not.</p>
+<p>Classic 2PC is blocking because the coordinator is a single node. Spanner&rsquo;s answer is not to fix 2PC &ndash; it&rsquo;s to make every node in the 2PC protocol a replicated state machine.</p>
+]]></content:encoded>
+    </item>
+    <item>
+      <title>Two-Phase Commit: Distributed Atomicity and Its Fatal Flaw</title>
+      <link>https://KTS-o7.github.io/bear/systems/two_phase_commit/</link>
+      <pubDate>Sat, 02 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/systems/two_phase_commit/</guid>
+      <description>&lt;p&gt;The problem is simple to state: you have a transaction that touches multiple nodes. You want all of them to commit, or none of them to. No partial states, no one node committing while another aborts.&lt;/p&gt;&#xA;&lt;p&gt;Two-phase commit (2PC) solves this. It&amp;rsquo;s been in production databases for decades. It also has a flaw that makes it unusable for anything long-running, which is why most modern large-scale systems don&amp;rsquo;t use it directly.&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>The problem is simple to state: you have a transaction that touches multiple nodes. You want all of them to commit, or none of them to. No partial states, no one node committing while another aborts.</p>
+<p>Two-phase commit (2PC) solves this. It&rsquo;s been in production databases for decades. It also has a flaw that makes it unusable for anything long-running, which is why most modern large-scale systems don&rsquo;t use it directly.</p>
+<h2 id="the-protocol">The Protocol</h2>
+<p>There&rsquo;s a coordinator and a set of participants. The coordinator drives the protocol.</p>
+<p><strong>Phase 1 &ndash; Prepare</strong></p>
+<p>The coordinator sends <code>PREPARE</code> to every participant. Each participant:</p>
+<ul>
+<li>Writes the transaction to a durable log</li>
+<li>Acquires the necessary locks</li>
+<li>Replies <code>YES</code> (ready to commit) or <code>NO</code> (something failed)</li>
+</ul>
+<p><strong>Phase 2 &ndash; Commit or Abort</strong></p>
+<ul>
+<li>If all participants said YES: coordinator sends <code>COMMIT</code> to everyone</li>
+<li>If anyone said NO: coordinator sends <code>ABORT</code></li>
+</ul>
+<p>Participants execute the decision and release their locks.</p>
+
+
+
+
+
+<pre tabindex="0"><code>Coordinator         Node A        Node B
+    |--- PREPARE -------&gt;|             |
+    |--- PREPARE ---------|-----------&gt;|
+    |&lt;-- YES ------------|             |
+    |&lt;-- YES ------------|-------------|
+    |--- COMMIT --------&gt;|             |
+    |--- COMMIT ----------|-----------&gt;|</code></pre><p>Clean path works fine. Every node ends up in the same state. Locks are held only for the duration of the protocol.</p>
+<h2 id="the-fatal-flaw">The Fatal Flaw</h2>
+<p>Crash the coordinator after phase 1 but before phase 2.</p>
+<p>Participants are now stuck. They voted YES and locked their resources. They don&rsquo;t know whether the coordinator decided to commit or abort. They can&rsquo;t safely proceed in either direction &ndash; committing might be wrong if another participant said NO, aborting might be wrong if the coordinator was about to send COMMIT.</p>
+<p>They wait. The locks stay held. The system is in limbo until the coordinator recovers.</p>
+<p>This is the <strong>blocking problem</strong>. 2PC is a blocking protocol under failure. A single coordinator crash can stall the entire transaction indefinitely.</p>
+<h2 id="the-attempted-fix-3pc">The Attempted Fix: 3PC</h2>
+<p>Three-phase commit inserts a pre-commit phase between prepare and commit:</p>
+<p><code>PREPARE → PRE-COMMIT → COMMIT</code></p>
+<p>Pre-commit lets participants infer the coordinator&rsquo;s intent even if it crashes: if you received a pre-commit, the coordinator had seen all YES votes and was going to commit. You can safely commit yourself if the coordinator disappears after that point.</p>
+<p>3PC eliminates most blocking scenarios. It costs one extra round of messages and still has edge cases under network partitions. It&rsquo;s not widely used in practice &ndash; the complexity tradeoff isn&rsquo;t worth it for most systems.</p>
+<h2 id="what-systems-actually-do">What Systems Actually Do</h2>
+<table>
+  <thead>
+      <tr>
+          <th>Approach</th>
+          <th>Mechanism</th>
+          <th>Tradeoff</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>Saga pattern</td>
+          <td>Compensating transactions</td>
+          <td>No locks, but no true atomicity</td>
+      </tr>
+      <tr>
+          <td>Paxos / Raft</td>
+          <td>Consensus algorithm</td>
+          <td>Strong guarantees, higher complexity</td>
+      </tr>
+      <tr>
+          <td>Optimistic concurrency</td>
+          <td>Detect conflicts at commit time</td>
+          <td>Works well for low-contention workloads</td>
+      </tr>
+  </tbody>
+</table>
+<p>Most large-scale systems avoid 2PC for anything user-facing. Short, internal database transactions &ndash; a single service committing to one database &ndash; are fine. Cross-service transactions that could run for seconds or involve user interaction are not.</p>
+<p>2PC is worth understanding because it makes the tradeoff concrete: you can have distributed atomicity, but you&rsquo;re paying for it with availability under coordinator failure. Everything else in distributed transactions is a different point on that curve.</p>
+]]></content:encoded>
+    </item>
+    <item>
+      <title>Why MySQL is not CA</title>
+      <link>https://KTS-o7.github.io/bear/systems/why_mysql_is_not_ca/</link>
+      <pubDate>Fri, 05 Sep 2025 07:07:07 +0100</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/systems/why_mysql_is_not_ca/</guid>
+      <description>&lt;hr&gt;&#xA;&lt;h2 id=&#34;motivation&#34;&gt;motivation&lt;/h2&gt;&#xA;&lt;p&gt;I was recently discussing with my CTO about databases. There was one point where we were thinking about the &lt;code&gt;CAP&lt;/code&gt; theorem.&#xA;Then he randomly mentioned that MySQL is not CA. I was surprised because I always thought that MySQL is a CA database at its core.&lt;/p&gt;&#xA;&lt;p&gt;Now I had to search and understand why MySQL is not CA.&lt;/p&gt;&#xA;&lt;hr&gt;&#xA;&lt;h2 id=&#34;cap-theorem&#34;&gt;CAP theorem&lt;/h2&gt;&#xA;&lt;p&gt;&lt;img src=&#34;https://substackcdn.com/image/fetch/$s_!cOsx!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F869db2d6-6133-411e-96ad-cc1c52611778_800x472.png&#34; alt=&#34;CAP theorem&#34;&gt;&lt;/p&gt;&#xA;&lt;p&gt;We have always been taught in Engineering that CAP is one of the most important theorems in distributed systems and databases. We just accepted it. Time to question and learn ┏ʕ •ᴥ•ʔ┛&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<hr>
+<h2 id="motivation">motivation</h2>
+<p>I was recently discussing with my CTO about databases. There was one point where we were thinking about the <code>CAP</code> theorem.
+Then he randomly mentioned that MySQL is not CA. I was surprised because I always thought that MySQL is a CA database at its core.</p>
+<p>Now I had to search and understand why MySQL is not CA.</p>
+<hr>
+<h2 id="cap-theorem">CAP theorem</h2>
+<p><img src="https://substackcdn.com/image/fetch/$s_!cOsx!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F869db2d6-6133-411e-96ad-cc1c52611778_800x472.png" alt="CAP theorem"></p>
+<p>We have always been taught in Engineering that CAP is one of the most important theorems in distributed systems and databases. We just accepted it. Time to question and learn ┏ʕ •ᴥ•ʔ┛</p>
+<p>Here is what it actually means.</p>
+<p>Imagine a bank server, when you check your account balance it should not randomly change it based on the server you are hitting and it should be consistent across all nodes. But in a distributed system, network failures (partitions) can occur. The CAP theorem states that you can only guarantee 2 out of 3 properties:</p>
+<ul>
+<li><strong>Consistency (C)</strong>: All nodes see the same data at the same time</li>
+<li><strong>Availability (A)</strong>: Every request receives a response, even if it&rsquo;s not the most recent data</li>
+<li><strong>Partition Tolerance (P)</strong>: The system continues to operate despite network partitions</li>
+</ul>
+<p>Here are practical examples of each combination:</p>
+<h3 id="ca-systems-consistent--available-but-not-partition-tolerant">CA Systems (Consistent + Available, but not Partition Tolerant)</h3>
+<p><code>Example: Traditional Relational Databases (like PostgresSQL in single-node setups)</code></p>
+<p>Imagine a single PostgresSQL database server in a bank. When you check your balance:</p>
+<ul>
+<li><strong>Consistency</strong>: Every time you query your balance, you get the exact same amount ($100.00)</li>
+<li><strong>Availability</strong>: The system always responds to your requests</li>
+<li><strong>Partition Tolerance</strong>: If the network connection to the database fails, you can&rsquo;t access your account</li>
+</ul>
+<p>This works perfectly in non-distributed environments, but fails when you need to scale across multiple data centers.</p>
+<h3 id="cp-systems-consistent--partition-tolerant-but-sacrifices-availability">CP Systems (Consistent + Partition Tolerant, but sacrifices Availability)</h3>
+<p><code>Example: Apache ZooKeeper or etcd</code></p>
+<p>Imagine a distributed configuration management system like ZooKeeper:</p>
+<ul>
+<li><strong>Consistency</strong>: All nodes agree on configuration values (like which server is the leader)</li>
+<li><strong>Partition Tolerance</strong>: If some nodes lose network connectivity, the remaining nodes continue operating</li>
+<li><strong>Availability</strong>: During a network partition, some requests might be blocked to maintain consistency</li>
+</ul>
+<p>In a ZooKeeper cluster, if a majority of nodes become unreachable, the system stops accepting writes to prevent inconsistent states.</p>
+<h3 id="ap-systems-available--partition-tolerant-but-sacrifices-consistency">AP Systems (Available + Partition Tolerant, but sacrifices Consistency)</h3>
+<p><code>Example: Amazon DynamoDB or Cassandra</code></p>
+<p>Imagine a social media platform&rsquo;s like counter system:</p>
+<ul>
+<li><strong>Availability</strong>: The system always responds to requests, even during network failures</li>
+<li><strong>Partition Tolerance</strong>: The system continues operating across multiple data centers despite network issues</li>
+<li><strong>Consistency</strong>: During partitions, you might see different like counts on different servers</li>
+</ul>
+<p>You might see a post with 100 likes on one page refresh, then 102 likes on the next refresh, as the systems reconcile the differences asynchronously.</p>
+<hr>
+<h3 id="why-mysql-is-not-ca">Why MySQL is not CA</h3>
+<p>While MySQL can achieve CA in single-node deployments, it cannot be truly CA in distributed scenarios. When you add MySQL replicas or clustering solutions like MySQL Group Replication:</p>
+<ul>
+<li>During network partitions, MySQL must choose between consistency (rejecting writes) or availability (allowing potentially conflicting writes)</li>
+<li>MySQL&rsquo;s synchronous replication can become unavailable during partitions if strict consistency is enforced</li>
+<li>Traditional asynchronous replication trades consistency for availability (so it becomes AP, not CA).
+Even with semi-sync replication, MySQL typically prioritizes availability over strict consistency—clients may see stale reads.</li>
+</ul>
+<p>It doesn’t enforce strong ACID guarantees across replicas the way PostgreSQL doe</p>
+<h3 id="why-postgresql-is-considered-ca">Why PostgreSQL is considered CA</h3>
+<p>Postgres in standalone mode: Definitely CA (strong ACID, always responds if node is up).</p>
+<p>In replication setups:</p>
+<p>PostgreSQL replication (especially with synchronous replication) prioritizes consistency first.
+A commit can be acknowledged only after replicas confirm the write (if you configure synchronous replication).</p>
+<p>This means if replicas aren’t reachable, Postgres will prefer not to serve stale data (sacrificing availability to preserve consistency).</p>
+<p>So Postgres is effectively CA (or CP in distributed setups).</p>
+<p>This is why distributed databases like CockroachDB or TiDB are often preferred for truly distributed, partition-tolerant systems.</p>
+<hr>
+<p>ʕ ● ᴥ ●ʔ</p>
+]]></content:encoded>
+    </item>
+  </channel>
+</rss>

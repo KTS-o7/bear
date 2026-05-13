@@ -6,22 +6,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <link rel="shortcut icon" href="https://KTS-o7.github.io/bear/images/favicon.png" />
-<title>SSE in FastAPI: The Tab Closed and My “Done” Code Never Ran | </title>
+<title>SSE in FastAPI: The Tab Closed and My “Done” Code Never Ran | Krishnatejaswi S</title>
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
 <meta name="title" content="SSE in FastAPI: The Tab Closed and My “Done” Code Never Ran" />
-<meta name="description" content="I hit this bug the annoying way.
-A coworker said: “I ran task generation, closed the tab, and the status never moved.”
-My first reaction was “no way.” The backend is doing the work, not the browser.
-Turns out… yeah. It was right. And once you see why, you stop trusting “code after the stream” forever.
-This post is about a very specific trap:
-
-you stream progress with SSE from a FastAPI endpoint
-you put important side effects after the streaming loop (DB status updates, poller kickoff, Slack notifications)
-a client disconnect cancels the stream
-your “after the loop” code never runs
-
-It doesn’t always fail. It fails just enough to make you doubt your own system." />
-<meta name="author" content="" />
-<meta name="keywords" content="" />
+<meta name="description" content="Server-Sent Events in FastAPI silently drop cleanup code when a browser tab closes. How to detect client disconnects and ensure generator cleanup runs reliably." />
+<meta name="author" content="Krishnatejaswi S" />
+<meta name="keywords" content="infra,fastapi,python,sse,async," />
 
 
 
@@ -30,51 +20,69 @@ It doesn’t always fail. It fails just enough to make you doubt your own system
 
   
   <meta property="og:url" content="https://KTS-o7.github.io/bear/infra/sse_disconnect_handling/">
+  <meta property="og:site_name" content="Krishnatejaswi S">
   <meta property="og:title" content="SSE in FastAPI: The Tab Closed and My “Done” Code Never Ran">
-  <meta property="og:description" content="I hit this bug the annoying way.
-A coworker said: “I ran task generation, closed the tab, and the status never moved.”
-My first reaction was “no way.” The backend is doing the work, not the browser.
-Turns out… yeah. It was right. And once you see why, you stop trusting “code after the stream” forever.
-This post is about a very specific trap:
-you stream progress with SSE from a FastAPI endpoint you put important side effects after the streaming loop (DB status updates, poller kickoff, Slack notifications) a client disconnect cancels the stream your “after the loop” code never runs It doesn’t always fail. It fails just enough to make you doubt your own system.">
+  <meta property="og:description" content="Server-Sent Events in FastAPI silently drop cleanup code when a browser tab closes. How to detect client disconnects and ensure generator cleanup runs reliably.">
   <meta property="og:locale" content="en_us">
   <meta property="og:type" content="article">
     <meta property="article:section" content="infra">
     <meta property="article:published_time" content="2026-01-23T00:00:00+00:00">
     <meta property="article:modified_time" content="2026-01-23T00:00:00+00:00">
+    <meta property="article:tag" content="Infra">
+    <meta property="article:tag" content="Fastapi">
+    <meta property="article:tag" content="Python">
+    <meta property="article:tag" content="Sse">
+    <meta property="article:tag" content="Async">
     <meta property="og:image" content="https://KTS-o7.github.io/bear/images/share.webp">
 
+  
+  <meta property="og:site_name" content="Krishnatejaswi S" />
 
   
   
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:image" content="https://KTS-o7.github.io/bear/images/share.webp">
   <meta name="twitter:title" content="SSE in FastAPI: The Tab Closed and My “Done” Code Never Ran">
-  <meta name="twitter:description" content="I hit this bug the annoying way.
-A coworker said: “I ran task generation, closed the tab, and the status never moved.”
-My first reaction was “no way.” The backend is doing the work, not the browser.
-Turns out… yeah. It was right. And once you see why, you stop trusting “code after the stream” forever.
-This post is about a very specific trap:
-you stream progress with SSE from a FastAPI endpoint you put important side effects after the streaming loop (DB status updates, poller kickoff, Slack notifications) a client disconnect cancels the stream your “after the loop” code never runs It doesn’t always fail. It fails just enough to make you doubt your own system.">
+  <meta name="twitter:description" content="Server-Sent Events in FastAPI silently drop cleanup code when a browser tab closes. How to detect client disconnects and ensure generator cleanup runs reliably.">
 
+  <meta name="twitter:site" content="@KTS_o7" />
 
   
   
   <meta itemprop="name" content="SSE in FastAPI: The Tab Closed and My “Done” Code Never Ran">
-  <meta itemprop="description" content="I hit this bug the annoying way.
-A coworker said: “I ran task generation, closed the tab, and the status never moved.”
-My first reaction was “no way.” The backend is doing the work, not the browser.
-Turns out… yeah. It was right. And once you see why, you stop trusting “code after the stream” forever.
-This post is about a very specific trap:
-you stream progress with SSE from a FastAPI endpoint you put important side effects after the streaming loop (DB status updates, poller kickoff, Slack notifications) a client disconnect cancels the stream your “after the loop” code never runs It doesn’t always fail. It fails just enough to make you doubt your own system.">
+  <meta itemprop="description" content="Server-Sent Events in FastAPI silently drop cleanup code when a browser tab closes. How to detect client disconnects and ensure generator cleanup runs reliably.">
   <meta itemprop="datePublished" content="2026-01-23T00:00:00+00:00">
   <meta itemprop="dateModified" content="2026-01-23T00:00:00+00:00">
   <meta itemprop="wordCount" content="2379">
   <meta itemprop="image" content="https://KTS-o7.github.io/bear/images/share.webp">
+  <meta itemprop="keywords" content="Infra,Fastapi,Python,Sse,Async">
 
-<meta name="referrer" content="no-referrer-when-downgrade" />
-
-  
+<link rel="canonical" href="https://KTS-o7.github.io/bear/infra/sse_disconnect_handling/" />
+  <meta name="referrer" content="no-referrer-when-downgrade" /><script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https:\/\/KTS-o7.github.io\/bear\/infra\/sse_disconnect_handling\/"
+  },
+  "headline": "SSE in FastAPI: The Tab Closed and My “Done” Code Never Ran",
+  "description": "Server-Sent Events in FastAPI silently drop cleanup code when a browser tab closes. How to detect client disconnects and ensure generator cleanup runs reliably.",
+  "datePublished": "2026-01-23",
+  "dateModified": "2026-01-23",
+  "author": {
+    "@type": "Person",
+    "name": "Krishnatejaswi S",
+    "url": "https:\/\/KTS-o7.github.io\/bear\/"
+  },
+  "publisher": {
+    "@type": "Person",
+    "name": "Krishnatejaswi S"
+  },
+  "url": "https:\/\/KTS-o7.github.io\/bear\/infra\/sse_disconnect_handling\/",
+  "keywords": ["infra", "fastapi", "python", "sse", "async"]
+}
+</script>
   <link href="/bear/herman.min.css" rel="stylesheet">
 
   
@@ -93,7 +101,7 @@ you stream progress with SSE from a FastAPI endpoint you put important side effe
   <header><a class="skip-link" href="#main-content">Skip to main content</a>
 
 <div style="display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
-  <a href="/bear/" class="title"><h1></h1></a>
+  <a href="/bear/" class="title"><h1>Krishnatejaswi S</h1></a>
   <button id="theme-toggle" aria-label="Toggle light/dark mode" title="Toggle theme">
     <span id="theme-toggle-label">○●</span>
   </button>
@@ -126,7 +134,7 @@ you stream progress with SSE from a FastAPI endpoint you put important side effe
   <time datetime='2026-01-23' pubdate>
     2026-01-23
   </time>
-  
+  · Krishnatejaswi S
 </p>
 
 <content>
@@ -552,6 +560,19 @@ you stream progress with SSE from a FastAPI endpoint you put important side effe
 
 
 
+<p style="margin-top: 1.5rem;">
+  
+    <a class="blog-tags" href="/bear/tags/infra/">#infra</a>
+  
+    <a class="blog-tags" href="/bear/tags/fastapi/">#fastapi</a>
+  
+    <a class="blog-tags" href="/bear/tags/python/">#python</a>
+  
+    <a class="blog-tags" href="/bear/tags/sse/">#sse</a>
+  
+    <a class="blog-tags" href="/bear/tags/async/">#async</a>
+  
+</p>
 
 
 
@@ -559,6 +580,36 @@ you stream progress with SSE from a FastAPI endpoint you put important side effe
 
 
 
+
+
+
+
+<div class="related-notes">
+  <h4>Related Notes</h4>
+  <ul>
+    
+    <li>
+      <a href="/bear/infra/kubernetes_oom_memory_leaks/">Hunting OOMKilled in Kubernetes: Four Memory Leaks That Almost Took Down Our Platform</a>
+      <span class="note-date">2026-02-16</span>
+    </li>
+    
+    <li>
+      <a href="/bear/infra/vps_self_hosting/">A $22/Year VPS Running Three Self-Hosted Services</a>
+      <span class="note-date">2026-05-02</span>
+    </li>
+    
+    <li>
+      <a href="/bear/infra/vps_self_hosting_stack/">Three Useful Services on a $22/Year VPS</a>
+      <span class="note-date">2026-04-22</span>
+    </li>
+    
+    <li>
+      <a href="/bear/infra/cicd_docker_buildx_sha_deploys/">From Manual Deploys to SHA-Tagged Containers: CI/CD for a K8s Platform</a>
+      <span class="note-date">2026-02-17</span>
+    </li>
+    
+  </ul>
+</div>
 
 
 

@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>2pc on Krishnatejaswi S</title>
+    <link>https://KTS-o7.github.io/bear/tags/2pc/</link>
+    <description>Recent content in 2pc on Krishnatejaswi S</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <managingEditor>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</managingEditor>
+    <webMaster>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</webMaster>
+    <copyright>Krishnatejaswi S</copyright>
+    <lastBuildDate>Sat, 02 May 2026 00:00:00 +0530</lastBuildDate>
+    <atom:link href="https://KTS-o7.github.io/bear/tags/2pc/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Two-Phase Commit: Distributed Atomicity and Its Fatal Flaw</title>
+      <link>https://KTS-o7.github.io/bear/systems/two_phase_commit/</link>
+      <pubDate>Sat, 02 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/systems/two_phase_commit/</guid>
+      <description>&lt;p&gt;The problem is simple to state: you have a transaction that touches multiple nodes. You want all of them to commit, or none of them to. No partial states, no one node committing while another aborts.&lt;/p&gt;&#xA;&lt;p&gt;Two-phase commit (2PC) solves this. It&amp;rsquo;s been in production databases for decades. It also has a flaw that makes it unusable for anything long-running, which is why most modern large-scale systems don&amp;rsquo;t use it directly.&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>The problem is simple to state: you have a transaction that touches multiple nodes. You want all of them to commit, or none of them to. No partial states, no one node committing while another aborts.</p>
+<p>Two-phase commit (2PC) solves this. It&rsquo;s been in production databases for decades. It also has a flaw that makes it unusable for anything long-running, which is why most modern large-scale systems don&rsquo;t use it directly.</p>
+<h2 id="the-protocol">The Protocol</h2>
+<p>There&rsquo;s a coordinator and a set of participants. The coordinator drives the protocol.</p>
+<p><strong>Phase 1 &ndash; Prepare</strong></p>
+<p>The coordinator sends <code>PREPARE</code> to every participant. Each participant:</p>
+<ul>
+<li>Writes the transaction to a durable log</li>
+<li>Acquires the necessary locks</li>
+<li>Replies <code>YES</code> (ready to commit) or <code>NO</code> (something failed)</li>
+</ul>
+<p><strong>Phase 2 &ndash; Commit or Abort</strong></p>
+<ul>
+<li>If all participants said YES: coordinator sends <code>COMMIT</code> to everyone</li>
+<li>If anyone said NO: coordinator sends <code>ABORT</code></li>
+</ul>
+<p>Participants execute the decision and release their locks.</p>
+
+
+
+
+
+<pre tabindex="0"><code>Coordinator         Node A        Node B
+    |--- PREPARE -------&gt;|             |
+    |--- PREPARE ---------|-----------&gt;|
+    |&lt;-- YES ------------|             |
+    |&lt;-- YES ------------|-------------|
+    |--- COMMIT --------&gt;|             |
+    |--- COMMIT ----------|-----------&gt;|</code></pre><p>Clean path works fine. Every node ends up in the same state. Locks are held only for the duration of the protocol.</p>
+<h2 id="the-fatal-flaw">The Fatal Flaw</h2>
+<p>Crash the coordinator after phase 1 but before phase 2.</p>
+<p>Participants are now stuck. They voted YES and locked their resources. They don&rsquo;t know whether the coordinator decided to commit or abort. They can&rsquo;t safely proceed in either direction &ndash; committing might be wrong if another participant said NO, aborting might be wrong if the coordinator was about to send COMMIT.</p>
+<p>They wait. The locks stay held. The system is in limbo until the coordinator recovers.</p>
+<p>This is the <strong>blocking problem</strong>. 2PC is a blocking protocol under failure. A single coordinator crash can stall the entire transaction indefinitely.</p>
+<h2 id="the-attempted-fix-3pc">The Attempted Fix: 3PC</h2>
+<p>Three-phase commit inserts a pre-commit phase between prepare and commit:</p>
+<p><code>PREPARE → PRE-COMMIT → COMMIT</code></p>
+<p>Pre-commit lets participants infer the coordinator&rsquo;s intent even if it crashes: if you received a pre-commit, the coordinator had seen all YES votes and was going to commit. You can safely commit yourself if the coordinator disappears after that point.</p>
+<p>3PC eliminates most blocking scenarios. It costs one extra round of messages and still has edge cases under network partitions. It&rsquo;s not widely used in practice &ndash; the complexity tradeoff isn&rsquo;t worth it for most systems.</p>
+<h2 id="what-systems-actually-do">What Systems Actually Do</h2>
+<table>
+  <thead>
+      <tr>
+          <th>Approach</th>
+          <th>Mechanism</th>
+          <th>Tradeoff</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>Saga pattern</td>
+          <td>Compensating transactions</td>
+          <td>No locks, but no true atomicity</td>
+      </tr>
+      <tr>
+          <td>Paxos / Raft</td>
+          <td>Consensus algorithm</td>
+          <td>Strong guarantees, higher complexity</td>
+      </tr>
+      <tr>
+          <td>Optimistic concurrency</td>
+          <td>Detect conflicts at commit time</td>
+          <td>Works well for low-contention workloads</td>
+      </tr>
+  </tbody>
+</table>
+<p>Most large-scale systems avoid 2PC for anything user-facing. Short, internal database transactions &ndash; a single service committing to one database &ndash; are fine. Cross-service transactions that could run for seconds or involve user interaction are not.</p>
+<p>2PC is worth understanding because it makes the tradeoff concrete: you can have distributed atomicity, but you&rsquo;re paying for it with availability under coordinator failure. Everything else in distributed transactions is a different point on that curve.</p>
+]]></content:encoded>
+    </item>
+  </channel>
+</rss>

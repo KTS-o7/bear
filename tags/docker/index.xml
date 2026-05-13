@@ -1,0 +1,947 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>Docker on Krishnatejaswi S</title>
+    <link>https://KTS-o7.github.io/bear/tags/docker/</link>
+    <description>Recent content in Docker on Krishnatejaswi S</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <managingEditor>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</managingEditor>
+    <webMaster>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</webMaster>
+    <copyright>Krishnatejaswi S</copyright>
+    <lastBuildDate>Sat, 02 May 2026 00:00:00 +0530</lastBuildDate>
+    <atom:link href="https://KTS-o7.github.io/bear/tags/docker/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>A $22/Year VPS Running Three Self-Hosted Services</title>
+      <link>https://KTS-o7.github.io/bear/infra/vps_self_hosting/</link>
+      <pubDate>Sat, 02 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/infra/vps_self_hosting/</guid>
+      <description>&lt;p&gt;I wanted three things: a private Obsidian sync server, a Matrix chat instance for personal use, and a self-hosted book library. The obvious path is a cheap VPS, a few Docker containers, and nginx as a reverse proxy in front of everything.&lt;/p&gt;&#xA;&lt;p&gt;The whole stack runs on a budget VPS &amp;ndash; 1 vCPU, 2.9GB RAM, 30GB disk, $22/year. All three services are running with room to spare.&lt;/p&gt;&#xA;&lt;h2 id=&#34;initial-setup&#34;&gt;Initial Setup&lt;/h2&gt;&#xA;&lt;p&gt;&lt;strong&gt;SSH key auth first, password auth off:&lt;/strong&gt;&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>I wanted three things: a private Obsidian sync server, a Matrix chat instance for personal use, and a self-hosted book library. The obvious path is a cheap VPS, a few Docker containers, and nginx as a reverse proxy in front of everything.</p>
+<p>The whole stack runs on a budget VPS &ndash; 1 vCPU, 2.9GB RAM, 30GB disk, $22/year. All three services are running with room to spare.</p>
+<h2 id="initial-setup">Initial Setup</h2>
+<p><strong>SSH key auth first, password auth off:</strong></p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl"><span class="c1"># local: generate key if you don&#39;t have one</span>
+</span></span><span class="line"><span class="ln">2</span><span class="cl">ssh-keygen -t ed25519 -C <span class="s2">&#34;your_email@example.com&#34;</span>
+</span></span><span class="line"><span class="ln">3</span><span class="cl"><span class="c1"># paste ~/.ssh/id_ed25519.pub into your provider&#39;s SSH key field</span>
+</span></span><span class="line"><span class="ln">4</span><span class="cl">
+</span></span><span class="line"><span class="ln">5</span><span class="cl"><span class="c1"># on the server: disable password login</span>
+</span></span><span class="line"><span class="ln">6</span><span class="cl">sed -i <span class="s1">&#39;s/^PasswordAuthentication yes/PasswordAuthentication no/&#39;</span> /etc/ssh/sshd_config
+</span></span><span class="line"><span class="ln">7</span><span class="cl">systemctl restart sshd</span></span></code></pre></div><p>Test key login before disabling password auth. If you lock yourself out, you&rsquo;re recovering via the provider&rsquo;s console.</p>
+<p><strong>Swap &ndash; critical on 3GB RAM:</strong></p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">fallocate -l 2G /swapfile
+</span></span><span class="line"><span class="ln">2</span><span class="cl">chmod <span class="m">600</span> /swapfile
+</span></span><span class="line"><span class="ln">3</span><span class="cl">mkswap /swapfile
+</span></span><span class="line"><span class="ln">4</span><span class="cl">swapon /swapfile
+</span></span><span class="line"><span class="ln">5</span><span class="cl"><span class="nb">echo</span> <span class="s1">&#39;/swapfile none swap sw 0 0&#39;</span> &gt;&gt; /etc/fstab</span></span></code></pre></div><p>Without this, CouchDB and Conduit together will occasionally OOM under load.</p>
+<p><strong>Firewall:</strong></p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">ufw allow ssh
+</span></span><span class="line"><span class="ln">2</span><span class="cl">ufw allow 80/tcp
+</span></span><span class="line"><span class="ln">3</span><span class="cl">ufw allow 443/tcp
+</span></span><span class="line"><span class="ln">4</span><span class="cl">ufw allow <span class="m">3478</span>        <span class="c1"># TURN (UDP+TCP)</span>
+</span></span><span class="line"><span class="ln">5</span><span class="cl">ufw allow <span class="m">5349</span>        <span class="c1"># TURN TLS</span>
+</span></span><span class="line"><span class="ln">6</span><span class="cl">ufw allow 49152:65535/udp  <span class="c1"># TURN relay range</span>
+</span></span><span class="line"><span class="ln">7</span><span class="cl">ufw enable</span></span></code></pre></div><p>The TURN ports are for Matrix voice/video &ndash; skip them if you&rsquo;re not setting up coturn.</p>
+<p><strong>Docker:</strong></p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">curl -fsSL https://get.docker.com <span class="p">|</span> sh</span></span></code></pre></div><h2 id="service-1-obsidian-livesync-couchdb">Service 1: Obsidian LiveSync (CouchDB)</h2>
+<p>LiveSync uses CouchDB as the sync backend. Install it directly on the host rather than in Docker &ndash; it&rsquo;s simpler to configure and easier to troubleshoot.</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">apt install -y couchdb</span></span></code></pre></div><p>The installer prompts for admin credentials. Set them and keep them somewhere safe.</p>
+<p>Configure <code>/opt/couchdb/etc/local.ini</code>:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-ini" data-lang="ini"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="k">[chttpd]</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl"><span class="na">bind_address</span> <span class="o">=</span> <span class="s">127.0.0.1</span>
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl">
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl"><span class="k">[couch_httpd_auth]</span>
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl"><span class="na">require_valid_user</span> <span class="o">=</span> <span class="s">true</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl"><span class="k">[httpd]</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl"><span class="na">enable_cors</span> <span class="o">=</span> <span class="s">true</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">
+</span></span><span class="line"><span class="ln">10</span><span class="cl"><span class="k">[cors]</span>
+</span></span><span class="line"><span class="ln">11</span><span class="cl"><span class="na">origins</span> <span class="o">=</span> <span class="s">app://obsidian.md, capacitor://localhost, http://localhost</span>
+</span></span><span class="line"><span class="ln">12</span><span class="cl"><span class="na">credentials</span> <span class="o">=</span> <span class="s">true</span>
+</span></span><span class="line"><span class="ln">13</span><span class="cl"><span class="na">headers</span> <span class="o">=</span> <span class="s">accept, authorization, content-type, origin, referer</span>
+</span></span><span class="line"><span class="ln">14</span><span class="cl"><span class="na">methods</span> <span class="o">=</span> <span class="s">GET, PUT, POST, HEAD, DELETE</span>
+</span></span><span class="line"><span class="ln">15</span><span class="cl"><span class="na">max_age</span> <span class="o">=</span> <span class="s">3600</span></span></span></code></pre></div>
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">systemctl restart couchdb
+</span></span><span class="line"><span class="ln">2</span><span class="cl">curl -X PUT http://admin:PASSWORD@localhost:5984/obsidian-sync</span></span></code></pre></div><p>nginx config:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-nginx" data-lang="nginx"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="k">server</span> <span class="p">{</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl">    <span class="kn">listen</span> <span class="mi">80</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl">    <span class="kn">server_name</span> <span class="s">sync.your.domain</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl">    <span class="kn">location</span> <span class="s">/</span> <span class="p">{</span>
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl">        <span class="kn">proxy_pass</span> <span class="s">http://127.0.0.1:5984</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">        <span class="kn">proxy_set_header</span> <span class="s">Host</span> <span class="nv">$host</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl">        <span class="kn">proxy_set_header</span> <span class="s">X-Real-IP</span> <span class="nv">$remote_addr</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl">        <span class="kn">proxy_set_header</span> <span class="s">X-Forwarded-For</span> <span class="nv">$proxy_add_x_forwarded_for</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="ln">10</span><span class="cl"><span class="p">}</span></span></span></code></pre></div><p>Get a cert: <code>certbot --nginx -d sync.your.domain</code></p>
+<p>In Obsidian: install the LiveSync community plugin, set the CouchDB URI to your domain, enter credentials, set a database name and an E2E passphrase. Enable sync. The passphrase encrypts vault content before it leaves your device &ndash; CouchDB never sees plaintext.</p>
+<h2 id="service-2-private-matrix-chat-conduit--coturn">Service 2: Private Matrix Chat (Conduit + coturn)</h2>
+<p>Conduit is a Matrix homeserver written in Rust &ndash; much lighter than Synapse, which would be too heavy for 3GB RAM. I run it with federation disabled &ndash; this is a personal instance, not connected to the public Matrix network.</p>
+<p><code>/opt/conduit/docker-compose.yml</code>:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="nt">services</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 2</span><span class="cl"><span class="w">  </span><span class="nt">conduit</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 3</span><span class="cl"><span class="w">    </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l">matrixconduit/matrix-conduit:latest</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 4</span><span class="cl"><span class="w">    </span><span class="nt">restart</span><span class="p">:</span><span class="w"> </span><span class="l">unless-stopped</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 5</span><span class="cl"><span class="w">    </span><span class="nt">volumes</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 6</span><span class="cl"><span class="w">      </span>- <span class="l">conduit_data:/var/lib/matrix-conduit</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 7</span><span class="cl"><span class="w">    </span><span class="nt">environment</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 8</span><span class="cl"><span class="w">      </span><span class="nt">CONDUIT_SERVER_NAME</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;chat.your.domain&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 9</span><span class="cl"><span class="w">      </span><span class="nt">CONDUIT_DATABASE_BACKEND</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;rocksdb&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="ln">10</span><span class="cl"><span class="w">      </span><span class="nt">CONDUIT_ALLOW_REGISTRATION</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;true&#34;</span><span class="w">      </span><span class="c"># flip to false after accounts created</span><span class="w">
+</span></span></span><span class="line"><span class="ln">11</span><span class="cl"><span class="w">      </span><span class="nt">CONDUIT_ALLOW_FEDERATION</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;false&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="ln">12</span><span class="cl"><span class="w">      </span><span class="nt">CONDUIT_MAX_REQUEST_SIZE</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;20000000&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="ln">13</span><span class="cl"><span class="w">      </span><span class="nt">CONDUIT_LOG</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;warn&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="ln">14</span><span class="cl"><span class="w">    </span><span class="nt">ports</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln">15</span><span class="cl"><span class="w">      </span>- <span class="s2">&#34;127.0.0.1:6167:6167&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="ln">16</span><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="ln">17</span><span class="cl"><span class="nt">volumes</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln">18</span><span class="cl"><span class="w">  </span><span class="l">conduit_data:</span></span></span></code></pre></div>
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl"><span class="nb">cd</span> /opt/conduit <span class="o">&amp;&amp;</span> docker compose up -d</span></span></code></pre></div><p>For voice and video calls, Matrix uses WebRTC &ndash; which needs a TURN server to traverse NAT. coturn handles this:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">apt install -y coturn
+</span></span><span class="line"><span class="ln">2</span><span class="cl">openssl rand -hex <span class="m">32</span>   <span class="c1"># generate a static auth secret, keep it</span></span></span></code></pre></div><p><code>/etc/turnserver.conf</code>:</p>
+
+
+
+
+
+<pre tabindex="0"><code>listening-port=3478
+tls-listening-port=5349
+fingerprint
+use-auth-secret
+static-auth-secret=YOUR_SECRET
+realm=chat.your.domain
+cert=/etc/letsencrypt/live/chat.your.domain/fullchain.pem
+pkey=/etc/letsencrypt/live/chat.your.domain/privkey.pem
+min-port=49152
+max-port=65535</code></pre><p>nginx config:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-nginx" data-lang="nginx"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="k">server</span> <span class="p">{</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl">    <span class="kn">listen</span> <span class="mi">80</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl">    <span class="kn">server_name</span> <span class="s">chat.your.domain</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl">    <span class="kn">location</span> <span class="s">/</span> <span class="p">{</span>
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl">        <span class="kn">proxy_pass</span> <span class="s">http://127.0.0.1:6167</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">        <span class="kn">proxy_set_header</span> <span class="s">Host</span> <span class="nv">$host</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl">        <span class="kn">proxy_set_header</span> <span class="s">X-Real-IP</span> <span class="nv">$remote_addr</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl">        <span class="kn">proxy_set_header</span> <span class="s">Upgrade</span> <span class="nv">$http_upgrade</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">        <span class="kn">proxy_set_header</span> <span class="s">Connection</span> <span class="s">&#34;upgrade&#34;</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln">10</span><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="ln">11</span><span class="cl"><span class="p">}</span></span></span></code></pre></div><p>Once Conduit is up: go to Element Web, set homeserver to your domain, register your accounts while <code>ALLOW_REGISTRATION</code> is true, then flip it to false and restart the container. Anyone who finds your homeserver URL can register while it&rsquo;s open.</p>
+<h2 id="service-3-calibre-web">Service 3: Calibre-Web</h2>
+<p>Calibre-Web gives you a browser-based library for EPUB, PDF, and MOBI files. The Docker image is from linuxserver.io.</p>
+<p><strong>Critical step before starting the container:</strong> Calibre-Web needs a properly initialized <code>metadata.db</code>. Not an empty file, not a directory &ndash; a valid Calibre library database. It must be created by <code>calibredb</code>.</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">apt install -y calibre   <span class="c1"># ~300MB, takes a few minutes</span>
+</span></span><span class="line"><span class="ln">2</span><span class="cl">mkdir -p /opt/calibre/books
+</span></span><span class="line"><span class="ln">3</span><span class="cl">calibredb --with-library /opt/calibre/books list   <span class="c1"># initializes metadata.db</span>
+</span></span><span class="line"><span class="ln">4</span><span class="cl">chown -R 1000:1000 /opt/calibre/books              <span class="c1"># container runs as uid 1000</span>
+</span></span><span class="line"><span class="ln">5</span><span class="cl">chmod -R <span class="m">755</span> /opt/calibre/books</span></span></code></pre></div><p>Do this before starting the container. If you start it first and hit &ldquo;invalid path&rdquo; or &ldquo;DB not writable&rdquo;, this is why.</p>
+<p><code>/opt/calibre/docker-compose.yml</code>:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="nt">services</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 2</span><span class="cl"><span class="w">  </span><span class="nt">calibre-web</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 3</span><span class="cl"><span class="w">    </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l">lscr.io/linuxserver/calibre-web:latest</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 4</span><span class="cl"><span class="w">    </span><span class="nt">restart</span><span class="p">:</span><span class="w"> </span><span class="l">unless-stopped</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 5</span><span class="cl"><span class="w">    </span><span class="nt">environment</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 6</span><span class="cl"><span class="w">      </span>- <span class="l">PUID=1000</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 7</span><span class="cl"><span class="w">      </span>- <span class="l">PGID=1000</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 8</span><span class="cl"><span class="w">      </span>- <span class="l">TZ=Asia/Kolkata</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 9</span><span class="cl"><span class="w">    </span><span class="nt">volumes</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln">10</span><span class="cl"><span class="w">      </span>- <span class="l">calibre_config:/config</span><span class="w">
+</span></span></span><span class="line"><span class="ln">11</span><span class="cl"><span class="w">      </span>- <span class="l">/opt/calibre/books:/books</span><span class="w">
+</span></span></span><span class="line"><span class="ln">12</span><span class="cl"><span class="w">    </span><span class="nt">ports</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln">13</span><span class="cl"><span class="w">      </span>- <span class="s2">&#34;127.0.0.1:8083:8083&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="ln">14</span><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="ln">15</span><span class="cl"><span class="nt">volumes</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln">16</span><span class="cl"><span class="w">  </span><span class="l">calibre_config:</span></span></span></code></pre></div><p>nginx config:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-nginx" data-lang="nginx"><span class="line"><span class="ln">1</span><span class="cl"><span class="k">server</span> <span class="p">{</span>
+</span></span><span class="line"><span class="ln">2</span><span class="cl">    <span class="kn">listen</span> <span class="mi">80</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln">3</span><span class="cl">    <span class="kn">server_name</span> <span class="s">books.your.domain</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln">4</span><span class="cl">    <span class="kn">location</span> <span class="s">/</span> <span class="p">{</span>
+</span></span><span class="line"><span class="ln">5</span><span class="cl">        <span class="kn">proxy_pass</span> <span class="s">http://127.0.0.1:8083</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln">6</span><span class="cl">        <span class="kn">proxy_set_header</span> <span class="s">Host</span> <span class="nv">$host</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln">7</span><span class="cl">        <span class="kn">proxy_set_header</span> <span class="s">X-Real-IP</span> <span class="nv">$remote_addr</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln">8</span><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="ln">9</span><span class="cl"><span class="p">}</span></span></span></code></pre></div><p>Default login is <code>admin</code> / <code>admin123</code>. Change it immediately. Set library path to <code>/books</code>.</p>
+<h2 id="cloudflare-in-front">Cloudflare in Front</h2>
+<p>All three subdomains go through Cloudflare. DNS A records point to the VPS IP, proxy status set to orange cloud (proxied) for all three. SSL mode set to Full &ndash; not Full Strict, since the Let&rsquo;s Encrypt cert on origin is valid enough and Full Strict adds complexity for no real benefit here.</p>
+<p>certbot handles the Let&rsquo;s Encrypt certs on the origin:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">certbot --nginx -d sync.your.domain
+</span></span><span class="line"><span class="ln">2</span><span class="cl">certbot --nginx -d chat.your.domain
+</span></span><span class="line"><span class="ln">3</span><span class="cl">certbot --nginx -d books.your.domain</span></span></code></pre></div><h2 id="resource-usage">Resource Usage</h2>
+<p>All three services running simultaneously:</p>
+<table>
+  <thead>
+      <tr>
+          <th>Service</th>
+          <th>RAM</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>Calibre-Web</td>
+          <td>~159MB</td>
+      </tr>
+      <tr>
+          <td>Conduit</td>
+          <td>~62MB</td>
+      </tr>
+      <tr>
+          <td>CouchDB</td>
+          <td>~80MB</td>
+      </tr>
+      <tr>
+          <td>nginx + OS</td>
+          <td>~453MB</td>
+      </tr>
+      <tr>
+          <td><strong>Total</strong></td>
+          <td><strong>~754MB / 2.9GB (26%)</strong></td>
+      </tr>
+  </tbody>
+</table>
+<p>Swap barely touched. Disk at ~6GB of 30GB. Plenty of headroom for adding services.</p>
+<h2 id="pitfalls">Pitfalls</h2>
+<table>
+  <thead>
+      <tr>
+          <th>Problem</th>
+          <th>Cause</th>
+          <th>Fix</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>SSH asks for password after key setup</td>
+          <td>Public key not on server</td>
+          <td><code>ssh-copy-id</code> or paste key in provider panel</td>
+      </tr>
+      <tr>
+          <td>Calibre-Web says &ldquo;invalid path&rdquo;</td>
+          <td>metadata.db missing or wrong schema</td>
+          <td>Install calibre on host, run <code>calibredb list</code> to init</td>
+      </tr>
+      <tr>
+          <td>Calibre-Web says &ldquo;DB not writable&rdquo;</td>
+          <td>Files owned by root, container runs as uid 1000</td>
+          <td><code>chown -R 1000:1000 /opt/calibre/books</code></td>
+      </tr>
+      <tr>
+          <td>Voice/video calls fail in Matrix</td>
+          <td>WebRTC can&rsquo;t traverse NAT</td>
+          <td>Install coturn, configure static-auth-secret</td>
+      </tr>
+      <tr>
+          <td>CouchDB sync drops randomly</td>
+          <td>Missing CORS headers</td>
+          <td>Double-check the <code>[cors]</code> section in local.ini</td>
+      </tr>
+  </tbody>
+</table>
+<p>The whole thing took an afternoon to set up. $22/year for services I fully control and can inspect end to end.</p>
+]]></content:encoded>
+    </item>
+    <item>
+      <title>Three Useful Services on a $22/Year VPS</title>
+      <link>https://KTS-o7.github.io/bear/infra/vps_self_hosting_stack/</link>
+      <pubDate>Wed, 22 Apr 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/infra/vps_self_hosting_stack/</guid>
+      <description>&lt;p&gt;I bought a budget VPS for $22/year &amp;ndash; 1 vCPU, 2.9GB RAM, 30GB disk, Dallas datacenter, Ubuntu 24.04. The plan was to run bots and experiments. I ended up setting up three services that are immediately useful: Obsidian note sync, a private Matrix chat server, and a personal book library.&lt;/p&gt;&#xA;&lt;p&gt;This post covers what I set up, what broke, and what actually works now.&lt;/p&gt;&#xA;&lt;h2 id=&#34;starting-point&#34;&gt;Starting point&lt;/h2&gt;&#xA;&lt;p&gt;The provider gives you a root password on first boot. First thing I did was generate an ed25519 SSH key pair locally, paste the public key into the VPS control panel, add a &lt;code&gt;Host personal&lt;/code&gt; entry to &lt;code&gt;~/.ssh/config&lt;/code&gt;, and verify key auth works before touching anything else. Then disabling password login:&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>I bought a budget VPS for $22/year &ndash; 1 vCPU, 2.9GB RAM, 30GB disk, Dallas datacenter, Ubuntu 24.04. The plan was to run bots and experiments. I ended up setting up three services that are immediately useful: Obsidian note sync, a private Matrix chat server, and a personal book library.</p>
+<p>This post covers what I set up, what broke, and what actually works now.</p>
+<h2 id="starting-point">Starting point</h2>
+<p>The provider gives you a root password on first boot. First thing I did was generate an ed25519 SSH key pair locally, paste the public key into the VPS control panel, add a <code>Host personal</code> entry to <code>~/.ssh/config</code>, and verify key auth works before touching anything else. Then disabling password login:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">sed -i <span class="s1">&#39;s/^PasswordAuthentication yes/PasswordAuthentication no/&#39;</span> /etc/ssh/sshd_config
+</span></span><span class="line"><span class="ln">2</span><span class="cl">systemctl restart sshd</span></span></code></pre></div><p>Don&rsquo;t close your existing SSH session before confirming you can open a new one with key auth. Classic footgun.</p>
+<p>Before any services: add swap. 2.9GB of RAM is workable but tight once Docker gets involved.</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">fallocate -l 2G /swapfile
+</span></span><span class="line"><span class="ln">2</span><span class="cl">chmod <span class="m">600</span> /swapfile
+</span></span><span class="line"><span class="ln">3</span><span class="cl">mkswap /swapfile
+</span></span><span class="line"><span class="ln">4</span><span class="cl">swapon /swapfile
+</span></span><span class="line"><span class="ln">5</span><span class="cl"><span class="nb">echo</span> <span class="s1">&#39;/swapfile none swap sw 0 0&#39;</span> &gt;&gt; /etc/fstab</span></span></code></pre></div><p>Then update packages, set up UFW to allow SSH, HTTP, HTTPS, and the TURN port range (3478, 5349, 49152:65535), and drop everything else.</p>
+<p>After all that, the box looked like this:</p>
+
+
+
+
+
+<pre tabindex="0"><code>OS: Ubuntu 24.04 LTS
+RAM: 2.9GB (470MB used, 2.4GB free)
+Disk: 30GB (2.4GB used, 26GB free)
+Swap: 2GB (none used yet)
+CPU: 1 core</code></pre><p>Plenty of room to work with.</p>
+<h2 id="service-1-obsidian-livesync">Service 1: Obsidian LiveSync</h2>
+<p>CouchDB as the backend for Obsidian&rsquo;s LiveSync community plugin. The plugin syncs your vault across devices using a CouchDB instance you control. End-to-end encrypted via a passphrase set in the plugin &ndash; CouchDB stores ciphertext only.</p>
+<p>Install CouchDB natively (not Docker &ndash; LiveSync requires specific CouchDB config that&rsquo;s simpler to manage directly):</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">apt install -y couchdb</span></span></code></pre></div><p>The installer asks for admin credentials. Set them and remember them. Then configure CouchDB to accept external connections by editing <code>/opt/couchdb/etc/local.ini</code>:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-ini" data-lang="ini"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="k">[chttpd]</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl"><span class="na">bind_address</span> <span class="o">=</span> <span class="s">127.0.0.1  ; nginx will proxy, no need to expose directly</span>
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl">
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl"><span class="k">[couch_httpd_auth]</span>
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl"><span class="na">require_valid_user</span> <span class="o">=</span> <span class="s">true</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl"><span class="k">[httpd]</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl"><span class="na">enable_cors</span> <span class="o">=</span> <span class="s">true</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">
+</span></span><span class="line"><span class="ln">10</span><span class="cl"><span class="k">[cors]</span>
+</span></span><span class="line"><span class="ln">11</span><span class="cl"><span class="na">origins</span> <span class="o">=</span> <span class="s">app://obsidian.md, capacitor://localhost, http://localhost</span>
+</span></span><span class="line"><span class="ln">12</span><span class="cl"><span class="na">credentials</span> <span class="o">=</span> <span class="s">true</span>
+</span></span><span class="line"><span class="ln">13</span><span class="cl"><span class="na">headers</span> <span class="o">=</span> <span class="s">accept, authorization, content-type, origin, referer</span>
+</span></span><span class="line"><span class="ln">14</span><span class="cl"><span class="na">methods</span> <span class="o">=</span> <span class="s">GET, PUT, POST, HEAD, DELETE</span>
+</span></span><span class="line"><span class="ln">15</span><span class="cl"><span class="na">max_age</span> <span class="o">=</span> <span class="s">3600</span></span></span></code></pre></div><p>Then create the sync database:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">curl -X PUT http://admin:password@localhost:5984/obsidian-sync</span></span></code></pre></div><p>nginx proxies the sync subdomain to <code>localhost:5984</code>. Cloudflare sits in front with Full SSL mode. In the Obsidian LiveSync plugin settings, point it at your CouchDB subdomain, enter the credentials, set your E2E passphrase, and enable sync.</p>
+<p>It just works after that. Notes push from Mac, pull on iPhone, no iCloud dependency.</p>
+<h2 id="service-2-private-matrix-chat">Service 2: Private Matrix Chat</h2>
+<p>Conduit is a Matrix homeserver written in Rust. It&rsquo;s small (62MB RAM), single-binary, and handles everything a private two-person server needs. Element Web as the client &ndash; works in any browser, no app required.</p>
+<p>Docker Compose setup:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="nt">services</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 2</span><span class="cl"><span class="w">  </span><span class="nt">conduit</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 3</span><span class="cl"><span class="w">    </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l">matrixconduit/matrix-conduit:latest</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 4</span><span class="cl"><span class="w">    </span><span class="nt">restart</span><span class="p">:</span><span class="w"> </span><span class="l">unless-stopped</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 5</span><span class="cl"><span class="w">    </span><span class="nt">volumes</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 6</span><span class="cl"><span class="w">      </span>- <span class="l">conduit_data:/var/lib/matrix-conduit</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 7</span><span class="cl"><span class="w">    </span><span class="nt">environment</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 8</span><span class="cl"><span class="w">      </span><span class="nt">CONDUIT_SERVER_NAME</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;your.chat.domain&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 9</span><span class="cl"><span class="w">      </span><span class="nt">CONDUIT_DATABASE_BACKEND</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;rocksdb&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="ln">10</span><span class="cl"><span class="w">      </span><span class="nt">CONDUIT_ALLOW_REGISTRATION</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;true&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="ln">11</span><span class="cl"><span class="w">      </span><span class="nt">CONDUIT_ALLOW_FEDERATION</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;false&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="ln">12</span><span class="cl"><span class="w">      </span><span class="nt">CONDUIT_MAX_REQUEST_SIZE</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;20000000&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="ln">13</span><span class="cl"><span class="w">      </span><span class="nt">CONDUIT_TRUSTED_SERVERS</span><span class="p">:</span><span class="w"> </span><span class="s1">&#39;[&#34;matrix.org&#34;]&#39;</span><span class="w">
+</span></span></span><span class="line"><span class="ln">14</span><span class="cl"><span class="w">      </span><span class="nt">CONDUIT_LOG</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;warn&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="ln">15</span><span class="cl"><span class="w">    </span><span class="nt">ports</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln">16</span><span class="cl"><span class="w">      </span>- <span class="s2">&#34;127.0.0.1:6167:6167&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="ln">17</span><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="ln">18</span><span class="cl"><span class="nt">volumes</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln">19</span><span class="cl"><span class="w">  </span><span class="l">conduit_data:</span></span></span></code></pre></div><p><code>ALLOW_FEDERATION: false</code> is important for a private server. No traffic leaves your machine to federate with matrix.org or anyone else.</p>
+<p>For Element Web, the easiest route is the hosted version at <code>app.element.io</code> &ndash; just point it at your homeserver URL when logging in. If you want it self-hosted too, serve the static build from nginx.</p>
+<p>For voice and video calls, WebRTC needs a TURN server or calls fail behind NAT. coturn handles this:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">apt install -y coturn</span></span></code></pre></div><p>Configure <code>/etc/turnserver.conf</code>:</p>
+
+
+
+
+
+<pre tabindex="0"><code>listening-port=3478
+tls-listening-port=5349
+fingerprint
+use-auth-secret
+static-auth-secret=&lt;generate with: openssl rand -hex 32&gt;
+realm=your.chat.domain
+cert=/etc/letsencrypt/live/your.chat.domain/fullchain.pem
+pkey=/etc/letsencrypt/live/your.chat.domain/privkey.pem</code></pre><p>Add the TURN server details in Conduit&rsquo;s config, then tell Element where to find it in the Synapse well-known file. After that, voice and video calls work reliably regardless of NAT.</p>
+<p>Create user accounts via the Conduit admin API or by registering through Element while <code>ALLOW_REGISTRATION: true</code>. After both accounts are created, set <code>ALLOW_REGISTRATION: false</code> so no new accounts can be made.</p>
+<h2 id="service-3-personal-book-library">Service 3: Personal Book Library</h2>
+<p>Calibre-Web in Docker. Serves EPUB, PDF, MOBI with a clean browser interface. Can read books directly in the browser without downloading.</p>
+<p>The setup hit two non-obvious problems worth documenting.</p>
+<p><strong>Problem 1: Calibre-Web needs a real metadata.db</strong></p>
+<p>The container starts and asks for a library path. I pointed it at <code>/books</code> (mapped to <code>/opt/calibre/books</code> on the host). It said &ldquo;invalid path.&rdquo;</p>
+<p>The issue is that Calibre-Web expects a valid Calibre library database (<code>metadata.db</code>) to already exist at that path. An empty directory is not enough. The database needs to have the correct schema &ndash; not just the file.</p>
+<p>The fix is to install Calibre on the host and use <code>calibredb</code> to initialize the library properly:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">apt install -y calibre  <span class="c1"># takes a while, ~300MB</span>
+</span></span><span class="line"><span class="ln">2</span><span class="cl">calibredb --with-library /opt/calibre/books list</span></span></code></pre></div><p>The <code>calibredb list</code> call creates a properly initialized <code>metadata.db</code> if one doesn&rsquo;t exist. After this, <code>/books</code> becomes a valid library path.</p>
+<p><strong>Problem 2: Permissions</strong></p>
+<p>Even after the database exists, Calibre-Web may refuse to write to it. The linuxserver/calibre-web Docker image runs as user 1000 internally. If the files on the host are owned by root, the container can&rsquo;t write.</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">chown -R 1000:1000 /opt/calibre/books
+</span></span><span class="line"><span class="ln">2</span><span class="cl">chmod -R <span class="m">755</span> /opt/calibre/books</span></span></code></pre></div><p>After both fixes, the setup page accepted <code>/books</code> and the library came up clean.</p>
+<p>Docker Compose:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="nt">services</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 2</span><span class="cl"><span class="w">  </span><span class="nt">calibre-web</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 3</span><span class="cl"><span class="w">    </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l">lscr.io/linuxserver/calibre-web:latest</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 4</span><span class="cl"><span class="w">    </span><span class="nt">restart</span><span class="p">:</span><span class="w"> </span><span class="l">unless-stopped</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 5</span><span class="cl"><span class="w">    </span><span class="nt">environment</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 6</span><span class="cl"><span class="w">      </span>- <span class="l">PUID=1000</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 7</span><span class="cl"><span class="w">      </span>- <span class="l">PGID=1000</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 8</span><span class="cl"><span class="w">      </span>- <span class="l">TZ=Asia/Kolkata</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 9</span><span class="cl"><span class="w">    </span><span class="nt">volumes</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln">10</span><span class="cl"><span class="w">      </span>- <span class="l">calibre_config:/config</span><span class="w">
+</span></span></span><span class="line"><span class="ln">11</span><span class="cl"><span class="w">      </span>- <span class="l">/opt/calibre/books:/books</span><span class="w">
+</span></span></span><span class="line"><span class="ln">12</span><span class="cl"><span class="w">    </span><span class="nt">ports</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln">13</span><span class="cl"><span class="w">      </span>- <span class="s2">&#34;127.0.0.1:8083:8083&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="ln">14</span><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="ln">15</span><span class="cl"><span class="nt">volumes</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln">16</span><span class="cl"><span class="w">  </span><span class="l">calibre_config:</span></span></span></code></pre></div><p>Default login after first start: <code>admin</code> / <code>admin123</code>. Change it immediately.</p>
+<h2 id="nginx-and-cloudflare">nginx and Cloudflare</h2>
+<p>All three services sit behind nginx. Each subdomain gets a server block that proxies to the local port:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-nginx" data-lang="nginx"><span class="line"><span class="ln">1</span><span class="cl"><span class="k">server</span> <span class="p">{</span>
+</span></span><span class="line"><span class="ln">2</span><span class="cl">    <span class="kn">listen</span> <span class="mi">80</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln">3</span><span class="cl">    <span class="kn">server_name</span> <span class="s">your.sync.domain</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln">4</span><span class="cl">    <span class="kn">location</span> <span class="s">/</span> <span class="p">{</span>
+</span></span><span class="line"><span class="ln">5</span><span class="cl">        <span class="kn">proxy_pass</span> <span class="s">http://127.0.0.1:5984</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln">6</span><span class="cl">        <span class="kn">proxy_set_header</span> <span class="s">Host</span> <span class="nv">$host</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln">7</span><span class="cl">        <span class="kn">proxy_set_header</span> <span class="s">X-Real-IP</span> <span class="nv">$remote_addr</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln">8</span><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="ln">9</span><span class="cl"><span class="p">}</span></span></span></code></pre></div><p>Cloudflare handles DNS and acts as the TLS terminator in Full mode. Let&rsquo;s Encrypt issues certs on each subdomain via certbot. The certs auto-renew &ndash; I won&rsquo;t have to touch them.</p>
+<p>Credentials stored in <code>pass</code> on the Mac, encrypted with a GPG key. No plaintext passwords in config files or notes.</p>
+<h2 id="resource-usage-after-all-three-services">Resource usage after all three services</h2>
+
+
+
+
+
+<pre tabindex="0"><code>Service          RAM
+---------        ----
+Calibre-Web      159MB
+Conduit          62MB
+CouchDB          ~80MB
+nginx + system   ~453MB
+---------        ------
+Total            754MB / 2.9GB  (26% used)
+Swap used        780KB
+Disk used        ~6GB / 30GB</code></pre><p>74% of RAM still free. The 2GB swap sits untouched. There&rsquo;s room for more things.</p>
+<h2 id="whats-next">What&rsquo;s next</h2>
+<p>The daily note has some ideas: run Bifrost on the VPS and wire up a blog-writing pipeline, use the unlimited bandwidth for a VPN, set up a small agent. The RAM budget will tighten but there&rsquo;s headroom to experiment.</p>
+<p>For $22/year, the box is already earning its keep.</p>
+<hr>
+<p>Tools: Ubuntu 24.04, Docker, nginx, Cloudflare, Let&rsquo;s Encrypt, CouchDB, Conduit (Matrix), Element Web, Calibre-Web, coturn, UFW, pass + GPG, certbot.</p>
+<h2 id="references">References</h2>
+<ul>
+<li>LandChad.net &ndash; practical self-hosting guides, covers nginx, certbot, and many services: <a href="https://landchad.net">https://landchad.net</a></li>
+<li>Conduit (Matrix homeserver in Rust): <a href="https://conduit.rs">https://conduit.rs</a></li>
+<li>Obsidian LiveSync plugin: <a href="https://github.com/vrtmrz/obsidian-livesync">https://github.com/vrtmrz/obsidian-livesync</a></li>
+<li>Calibre-Web: <a href="https://github.com/janeczku/calibre-web">https://github.com/janeczku/calibre-web</a></li>
+<li>coturn TURN server: <a href="https://github.com/coturn/coturn">https://github.com/coturn/coturn</a></li>
+</ul>
+]]></content:encoded>
+    </item>
+    <item>
+      <title>From Manual Deploys to SHA-Tagged Containers: CI/CD for a K8s Platform</title>
+      <link>https://KTS-o7.github.io/bear/infra/cicd_docker_buildx_sha_deploys/</link>
+      <pubDate>Tue, 17 Feb 2026 00:00:00 +0000</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/infra/cicd_docker_buildx_sha_deploys/</guid>
+      <description>&lt;p&gt;Someone tagged an image &lt;code&gt;latest&lt;/code&gt;, pushed it to ECR, and overwrote the image another service was using. Four hours of debugging later, we figured out we were running the wrong binary entirely. That was the week I decided to stop treating deployment as a manual process.&lt;/p&gt;&#xA;&lt;p&gt;This post covers three CI/CD problems I solved with Docker Buildx, SHA-based image tagging, and dynamic workflow generation — and one thing I broke along the way.&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>Someone tagged an image <code>latest</code>, pushed it to ECR, and overwrote the image another service was using. Four hours of debugging later, we figured out we were running the wrong binary entirely. That was the week I decided to stop treating deployment as a manual process.</p>
+<p>This post covers three CI/CD problems I solved with Docker Buildx, SHA-based image tagging, and dynamic workflow generation — and one thing I broke along the way.</p>
+<h2 id="why-latest-is-a-lie">Why <code>latest</code> is a lie</h2>
+<p>Container registries store images by tag. Tags are mutable pointers. When you <code>docker push myapp:latest</code>, you&rsquo;re moving a pointer — the old image behind <code>latest</code> is now unreferenced. If two services share the tag <code>latest</code> or two people push to the same tag concurrently, you get a race condition on a mutable pointer. This is exactly the class of bug that version control systems solved decades ago.</p>
+<p>The fundamental problem: <strong>image tags have no inherent ordering, no history, and no integrity guarantee.</strong> They&rsquo;re a name, not a version.</p>
+<p>The solution is to use a content-addressable identifier you already have: the Git commit SHA.</p>
+<h2 id="sha-based-image-tagging">SHA-based image tagging</h2>
+<p>Every commit has a unique SHA-1 hash. Using it as the image tag creates an injective mapping from source code state → deployed artifact:</p>
+
+
+
+
+
+<pre tabindex="0"><code>commit a1b2c3d → image registry/service:a1b2c3d → K8s pod spec</code></pre><p>The implementation in GitHub Actions:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="ln">1</span><span class="cl">- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">Derive image tag from commit</span><span class="w">
+</span></span></span><span class="line"><span class="ln">2</span><span class="cl"><span class="w">  </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="p">|</span><span class="sd">
+</span></span></span><span class="line"><span class="ln">3</span><span class="cl"><span class="sd">    # Short SHA is sufficient — collision probability
+</span></span></span><span class="line"><span class="ln">4</span><span class="cl"><span class="sd">    # across 2^28 commits is negligible for any single repo
+</span></span></span><span class="line"><span class="ln">5</span><span class="cl"><span class="sd">    echo &#34;IMAGE_TAG=${GITHUB_SHA::7}&#34; &gt;&gt; $GITHUB_ENV</span></span></span></code></pre></div><p>This gives you two things that <code>latest</code> never can:</p>
+<ol>
+<li><strong>Bijective traceability.</strong> Given a running pod, you can recover the exact source:</li>
+</ol>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">$ kubectl get pod <span class="nv">$POD</span> -o <span class="nv">jsonpath</span><span class="o">=</span><span class="s1">&#39;{.spec.containers[0].image}&#39;</span>
+</span></span><span class="line"><span class="ln">2</span><span class="cl">123456789.dkr.ecr.us-east-1.amazonaws.com/myservice:a1b2c3d
+</span></span><span class="line"><span class="ln">3</span><span class="cl">
+</span></span><span class="line"><span class="ln">4</span><span class="cl">$ git show a1b2c3d --stat</span></span></code></pre></div><ol start="2">
+<li><strong>Immutable deployment records.</strong> The tag <code>a1b2c3d</code> either exists or it doesn&rsquo;t. It can&rsquo;t silently change meaning.</li>
+</ol>
+<h3 id="propagating-the-tag-to-kubernetes-manifests">Propagating the tag to Kubernetes manifests</h3>
+<p>A tagged image is useless if the deployment spec still references <code>latest</code>. We close the loop by having CI update the manifest and commit the change:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="ln"> 1</span><span class="cl">- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">Patch deployment manifest</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 2</span><span class="cl"><span class="w">  </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="p">|</span><span class="sd">
+</span></span></span><span class="line"><span class="ln"> 3</span><span class="cl"><span class="sd">    sed -i &#34;s|image: $REGISTRY/$SERVICE:.*|image: $REGISTRY/$SERVICE:${IMAGE_TAG}|&#34; \
+</span></span></span><span class="line"><span class="ln"> 4</span><span class="cl"><span class="sd">      k8s/$ENVIRONMENT/${SERVICE}-deployment.yaml</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 5</span><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="ln"> 6</span><span class="cl">- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">Commit manifest update</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 7</span><span class="cl"><span class="w">  </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="p">|</span><span class="sd">
+</span></span></span><span class="line"><span class="ln"> 8</span><span class="cl"><span class="sd">    git config user.name &#34;ci-bot&#34;
+</span></span></span><span class="line"><span class="ln"> 9</span><span class="cl"><span class="sd">    git config user.email &#34;ci-bot@noreply&#34;
+</span></span></span><span class="line"><span class="ln">10</span><span class="cl"><span class="sd">    git add k8s/
+</span></span></span><span class="line"><span class="ln">11</span><span class="cl"><span class="sd">    git diff --cached --quiet || \
+</span></span></span><span class="line"><span class="ln">12</span><span class="cl"><span class="sd">      git commit -m &#34;deploy($ENVIRONMENT): $SERVICE → $IMAGE_TAG&#34;
+</span></span></span><span class="line"><span class="ln">13</span><span class="cl"><span class="sd">    git push</span></span></span></code></pre></div><p>Now <code>git log k8s/staging/</code> is your deployment history. Every deployment is a commit. Every rollback is <code>git revert</code>. This is the minimal viable GitOps pattern — your Git repo is the single source of truth for cluster state.</p>
+<p>The <code>git diff --cached --quiet</code> guard prevents empty commits when nothing actually changed (e.g., the service wasn&rsquo;t rebuilt).</p>
+<h2 id="docker-buildx-layer-caching-in-ci">Docker Buildx: layer caching in CI</h2>
+<p>The default <code>docker build</code> in CI has no cache. Every run downloads the base image, reinstalls all dependencies, copies all source files. For a Python service with 200+ packages, this is 8–12 minutes of work repeated identically on every push.</p>
+<p>Docker Buildx provides two things that fix this: <strong>persistent builder instances</strong> and <strong>pluggable cache backends</strong>.</p>
+<h3 id="how-docker-layer-caching-works">How Docker layer caching works</h3>
+<p>Docker images are a stack of layers. Each Dockerfile instruction creates a layer. Docker caches layers by their input hash — if the instruction and all preceding layers are identical, the cached layer is reused.</p>
+
+
+
+
+
+<pre tabindex="0"><code>Layer 4: COPY . .                    ← changes every commit
+Layer 3: RUN pip install -r req.txt  ← changes weekly
+Layer 2: RUN apt-get install gcc     ← changes monthly
+Layer 1: FROM python:3.11-slim       ← changes rarely</code></pre><p>Cache invalidation is <strong>top-down</strong>: if Layer 2 changes, Layers 3 and 4 are invalidated too, even if <code>requirements.txt</code> hasn&rsquo;t changed. This means <strong>Dockerfile instruction ordering directly determines cache efficiency.</strong></p>
+<p>The optimal ordering principle: <strong>sort instructions by change frequency, ascending.</strong> System deps → language deps → application source.</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-dockerfile" data-lang="dockerfile"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="k">FROM</span><span class="w"> </span><span class="s">python:3.11-slim</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="s">base</span><span class="err">
+</span></span></span><span class="line"><span class="ln"> 2</span><span class="cl"><span class="k">WORKDIR</span><span class="w"> </span><span class="s">/app</span><span class="err">
+</span></span></span><span class="line"><span class="ln"> 3</span><span class="cl"><span class="err">
+</span></span></span><span class="line"><span class="ln"> 4</span><span class="cl"><span class="c"># Layer 1: System dependencies (changes ~monthly)</span><span class="err">
+</span></span></span><span class="line"><span class="ln"> 5</span><span class="cl"><span class="k">RUN</span> apt-get update <span class="o">&amp;&amp;</span> apt-get install -y --no-install-recommends <span class="se">\
+</span></span></span><span class="line"><span class="ln"> 6</span><span class="cl">    gcc libpq-dev <span class="o">&amp;&amp;</span> rm -rf /var/lib/apt/lists/*<span class="err">
+</span></span></span><span class="line"><span class="ln"> 7</span><span class="cl"><span class="err">
+</span></span></span><span class="line"><span class="ln"> 8</span><span class="cl"><span class="c"># Layer 2: Python dependencies (changes ~weekly)</span><span class="err">
+</span></span></span><span class="line"><span class="ln"> 9</span><span class="cl"><span class="k">COPY</span> requirements.txt .<span class="err">
+</span></span></span><span class="line"><span class="ln">10</span><span class="cl"><span class="k">RUN</span> pip install --no-cache-dir -r requirements.txt<span class="err">
+</span></span></span><span class="line"><span class="ln">11</span><span class="cl"><span class="err">
+</span></span></span><span class="line"><span class="ln">12</span><span class="cl"><span class="c"># Layer 3: Application source (changes every commit)</span><span class="err">
+</span></span></span><span class="line"><span class="ln">13</span><span class="cl"><span class="k">COPY</span> . .<span class="err">
+</span></span></span><span class="line"><span class="ln">14</span><span class="cl"><span class="err">
+</span></span></span><span class="line"><span class="ln">15</span><span class="cl"><span class="k">CMD</span> <span class="p">[</span><span class="s2">&#34;uvicorn&#34;</span><span class="p">,</span> <span class="s2">&#34;main:app&#34;</span><span class="p">,</span> <span class="s2">&#34;--host&#34;</span><span class="p">,</span> <span class="s2">&#34;0.0.0.0&#34;</span><span class="p">,</span> <span class="s2">&#34;--port&#34;</span><span class="p">,</span> <span class="s2">&#34;8000&#34;</span><span class="p">]</span></span></span></code></pre></div><h3 id="github-actions-cache-backend">GitHub Actions cache backend</h3>
+<p>The key Buildx configuration:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="ln"> 1</span><span class="cl">- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">Set up Docker Buildx</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 2</span><span class="cl"><span class="w">  </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l">docker/setup-buildx-action@v3</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 3</span><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="ln"> 4</span><span class="cl">- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">Build and push</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 5</span><span class="cl"><span class="w">  </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l">docker/build-push-action@v5</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 6</span><span class="cl"><span class="w">  </span><span class="nt">with</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 7</span><span class="cl"><span class="w">    </span><span class="nt">context</span><span class="p">:</span><span class="w"> </span><span class="l">services/${{ matrix.service }}</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 8</span><span class="cl"><span class="w">    </span><span class="nt">push</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 9</span><span class="cl"><span class="w">    </span><span class="nt">tags</span><span class="p">:</span><span class="w"> </span><span class="p">|</span><span class="sd">
+</span></span></span><span class="line"><span class="ln">10</span><span class="cl"><span class="sd">      ${{ env.REGISTRY }}/${{ matrix.service }}:${{ env.IMAGE_TAG }}</span><span class="w">
+</span></span></span><span class="line"><span class="ln">11</span><span class="cl"><span class="w">    </span><span class="nt">cache-from</span><span class="p">:</span><span class="w"> </span><span class="l">type=gha</span><span class="w">
+</span></span></span><span class="line"><span class="ln">12</span><span class="cl"><span class="w">    </span><span class="nt">cache-to</span><span class="p">:</span><span class="w"> </span><span class="l">type=gha,mode=max</span></span></span></code></pre></div><p><code>type=gha</code> uses GitHub Actions&rsquo; built-in cache as the layer storage backend. This is important because CI runners are ephemeral — without an external cache backend, every run starts cold.</p>
+<p><code>mode=max</code> is critical and often missed. By default, Buildx only exports layers from the final stage. <code>mode=max</code> exports <strong>all intermediate layers</strong>, including those from multi-stage build stages. Without it, your <code>pip install</code> layer from a builder stage won&rsquo;t be cached.</p>
+<p>Under the hood, Buildx serializes each layer as a content-addressed blob and stores it via the GitHub Actions cache API. On subsequent runs, it checks the cache by layer digest before executing the instruction.</p>
+<h3 id="cache-efficiency-in-practice">Cache efficiency in practice</h3>
+<p>The difference is dramatic:</p>
+<table>
+  <thead>
+      <tr>
+          <th>Scenario</th>
+          <th style="text-align: center">Without cache</th>
+          <th style="text-align: center">With Buildx + GHA cache</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>Full build (cold cache)</td>
+          <td style="text-align: center">10 min</td>
+          <td style="text-align: center">10 min</td>
+      </tr>
+      <tr>
+          <td>Source-only change</td>
+          <td style="text-align: center">10 min</td>
+          <td style="text-align: center">45 sec</td>
+      </tr>
+      <tr>
+          <td>Dependency change</td>
+          <td style="text-align: center">10 min</td>
+          <td style="text-align: center">4 min</td>
+      </tr>
+      <tr>
+          <td>No change (skip with change detection)</td>
+          <td style="text-align: center">10 min</td>
+          <td style="text-align: center">0 sec</td>
+      </tr>
+  </tbody>
+</table>
+<p>The dominant cost axis shifts from build time to cache lookup time. For a source-only change, the only layer that rebuilds is <code>COPY . .</code>, which takes seconds.</p>
+<h3 id="multi-stage-builds-and-image-size">Multi-stage builds and image size</h3>
+<p>If your final image includes build tools (<code>gcc</code>, <code>python3-dev</code>, header files), you&rsquo;re shipping dead weight. Multi-stage builds separate the build environment from the runtime environment:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-dockerfile" data-lang="dockerfile"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="c"># Stage 1: Build (includes compilers, headers)</span><span class="err">
+</span></span></span><span class="line"><span class="ln"> 2</span><span class="cl"><span class="k">FROM</span><span class="w"> </span><span class="s">python:3.11-slim</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="s">builder</span><span class="err">
+</span></span></span><span class="line"><span class="ln"> 3</span><span class="cl"><span class="k">WORKDIR</span><span class="w"> </span><span class="s">/build</span><span class="err">
+</span></span></span><span class="line"><span class="ln"> 4</span><span class="cl"><span class="k">RUN</span> apt-get update <span class="o">&amp;&amp;</span> apt-get install -y gcc libffi-dev<span class="err">
+</span></span></span><span class="line"><span class="ln"> 5</span><span class="cl"><span class="k">COPY</span> requirements.txt .<span class="err">
+</span></span></span><span class="line"><span class="ln"> 6</span><span class="cl"><span class="k">RUN</span> pip install --no-cache-dir --prefix<span class="o">=</span>/install -r requirements.txt<span class="err">
+</span></span></span><span class="line"><span class="ln"> 7</span><span class="cl"><span class="err">
+</span></span></span><span class="line"><span class="ln"> 8</span><span class="cl"><span class="c"># Stage 2: Runtime (minimal)</span><span class="err">
+</span></span></span><span class="line"><span class="ln"> 9</span><span class="cl"><span class="k">FROM</span><span class="w"> </span><span class="s">python:3.11-slim</span><span class="err">
+</span></span></span><span class="line"><span class="ln">10</span><span class="cl"><span class="k">WORKDIR</span><span class="w"> </span><span class="s">/app</span><span class="err">
+</span></span></span><span class="line"><span class="ln">11</span><span class="cl"><span class="k">COPY</span> --from<span class="o">=</span>builder /install /usr/local<span class="err">
+</span></span></span><span class="line"><span class="ln">12</span><span class="cl"><span class="k">COPY</span> . .<span class="err">
+</span></span></span><span class="line"><span class="ln">13</span><span class="cl"><span class="k">CMD</span> <span class="p">[</span><span class="s2">&#34;uvicorn&#34;</span><span class="p">,</span> <span class="s2">&#34;main:app&#34;</span><span class="p">,</span> <span class="s2">&#34;--host&#34;</span><span class="p">,</span> <span class="s2">&#34;0.0.0.0&#34;</span><span class="p">,</span> <span class="s2">&#34;--port&#34;</span><span class="p">,</span> <span class="s2">&#34;8000&#34;</span><span class="p">]</span></span></span></code></pre></div><p>The <code>--prefix=/install</code> flag tells pip to install into a separate directory tree, which we then <code>COPY --from=builder</code> into the clean runtime image. The final image has no <code>gcc</code>, no header files, no pip cache.</p>
+<p>Impact: image sizes dropped from 1.2GB to ~450MB. This matters for pull times during rollouts — a 450MB image pulls in ~15 seconds vs ~45 seconds for 1.2GB. During a rolling update across 6 replicas, that&rsquo;s 3 minutes saved per deployment.</p>
+<h2 id="dynamic-service-discovery-in-ci">Dynamic service discovery in CI</h2>
+<p>Hardcoding a service list in your workflow is a maintenance hazard:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="ln">1</span><span class="cl"><span class="c"># ❌ This will drift</span><span class="w">
+</span></span></span><span class="line"><span class="ln">2</span><span class="cl"><span class="nt">strategy</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln">3</span><span class="cl"><span class="w">  </span><span class="nt">matrix</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln">4</span><span class="cl"><span class="w">    </span><span class="nt">service</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="l">auth, api, worker, processor]</span></span></span></code></pre></div><p>When someone deletes <code>processor/</code> and forgets to update the workflow, CI breaks. When someone adds a new service and forgets to add it, it never gets built. Both happen eventually.</p>
+<h3 id="filesystem-driven-matrix-generation">Filesystem-driven matrix generation</h3>
+<p>Instead of declaring services, discover them:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="nt">jobs</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 2</span><span class="cl"><span class="w">  </span><span class="nt">discover</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 3</span><span class="cl"><span class="w">    </span><span class="nt">runs-on</span><span class="p">:</span><span class="w"> </span><span class="l">ubuntu-latest</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 4</span><span class="cl"><span class="w">    </span><span class="nt">outputs</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 5</span><span class="cl"><span class="w">      </span><span class="nt">services</span><span class="p">:</span><span class="w"> </span><span class="l">${{ steps.find.outputs.services }}</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 6</span><span class="cl"><span class="w">    </span><span class="nt">steps</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 7</span><span class="cl"><span class="w">      </span>- <span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l">actions/checkout@v4</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 8</span><span class="cl"><span class="w">      </span>- <span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l">find</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 9</span><span class="cl"><span class="w">        </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="p">|</span><span class="sd">
+</span></span></span><span class="line"><span class="ln">10</span><span class="cl"><span class="sd">          services=$(find services/ -name Dockerfile -maxdepth 2 \
+</span></span></span><span class="line"><span class="ln">11</span><span class="cl"><span class="sd">            | xargs -I{} dirname {} \
+</span></span></span><span class="line"><span class="ln">12</span><span class="cl"><span class="sd">            | xargs -I{} basename {} \
+</span></span></span><span class="line"><span class="ln">13</span><span class="cl"><span class="sd">            | jq -R -s -c &#39;split(&#34;\n&#34;) | map(select(length &gt; 0))&#39;)
+</span></span></span><span class="line"><span class="ln">14</span><span class="cl"><span class="sd">          echo &#34;services=$services&#34; &gt;&gt; $GITHUB_OUTPUT</span><span class="w">
+</span></span></span><span class="line"><span class="ln">15</span><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="ln">16</span><span class="cl"><span class="w">  </span><span class="nt">build</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln">17</span><span class="cl"><span class="w">    </span><span class="nt">needs</span><span class="p">:</span><span class="w"> </span><span class="l">discover</span><span class="w">
+</span></span></span><span class="line"><span class="ln">18</span><span class="cl"><span class="w">    </span><span class="nt">strategy</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln">19</span><span class="cl"><span class="w">      </span><span class="nt">matrix</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln">20</span><span class="cl"><span class="w">        </span><span class="nt">service</span><span class="p">:</span><span class="w"> </span><span class="l">${{ fromJson(needs.discover.outputs.services) }}</span></span></span></code></pre></div><p>The contract becomes: a directory under <code>services/</code> with a <code>Dockerfile</code> is a deployable service. No other registration needed. Add a service → add a directory with a Dockerfile. Remove a service → remove the directory.</p>
+<h3 id="change-detection-only-build-whats-affected">Change detection: only build what&rsquo;s affected</h3>
+<p>Even with caching, there&rsquo;s no reason to build 8 services when 1 file changed. The <code>git diff</code> between the previous and current commit tells you what changed:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="ln"> 1</span><span class="cl">- <span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l">actions/checkout@v4</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 2</span><span class="cl"><span class="w">  </span><span class="nt">with</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 3</span><span class="cl"><span class="w">    </span><span class="nt">fetch-depth</span><span class="p">:</span><span class="w"> </span><span class="m">0</span><span class="w">  </span><span class="c"># Required for accurate git diff</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 4</span><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="ln"> 5</span><span class="cl">- <span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l">changes</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 6</span><span class="cl"><span class="w">  </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="p">|</span><span class="sd">
+</span></span></span><span class="line"><span class="ln"> 7</span><span class="cl"><span class="sd">    changed=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }})
+</span></span></span><span class="line"><span class="ln"> 8</span><span class="cl"><span class="sd">    if echo &#34;$changed&#34; | grep -q &#34;^services/${{ matrix.service }}/&#34;; then
+</span></span></span><span class="line"><span class="ln"> 9</span><span class="cl"><span class="sd">      echo &#34;build=true&#34; &gt;&gt; $GITHUB_OUTPUT
+</span></span></span><span class="line"><span class="ln">10</span><span class="cl"><span class="sd">    elif echo &#34;$changed&#34; | grep -q &#34;^libs/shared/&#34;; then
+</span></span></span><span class="line"><span class="ln">11</span><span class="cl"><span class="sd">      echo &#34;build=true&#34; &gt;&gt; $GITHUB_OUTPUT
+</span></span></span><span class="line"><span class="ln">12</span><span class="cl"><span class="sd">    else
+</span></span></span><span class="line"><span class="ln">13</span><span class="cl"><span class="sd">      echo &#34;build=false&#34; &gt;&gt; $GITHUB_OUTPUT
+</span></span></span><span class="line"><span class="ln">14</span><span class="cl"><span class="sd">    fi</span><span class="w">
+</span></span></span><span class="line"><span class="ln">15</span><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="ln">16</span><span class="cl">- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">Build and push</span><span class="w">
+</span></span></span><span class="line"><span class="ln">17</span><span class="cl"><span class="w">  </span><span class="nt">if</span><span class="p">:</span><span class="w"> </span><span class="l">steps.changes.outputs.build == &#39;true&#39;</span><span class="w">
+</span></span></span><span class="line"><span class="ln">18</span><span class="cl"><span class="w">  </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l">docker/build-push-action@v5</span><span class="w">
+</span></span></span><span class="line"><span class="ln">19</span><span class="cl"><span class="w">  </span><span class="c"># ...</span></span></span></code></pre></div><p>The <code>fetch-depth: 0</code> is essential. GitHub Actions performs a shallow clone by default (<code>fetch-depth: 1</code>), which means <code>git diff</code> doesn&rsquo;t have enough history and will treat everything as &ldquo;new.&rdquo; We discovered this when our changelogs started showing every file in the repo as changed.</p>
+<p>The <code>libs/shared/</code> check handles transitive dependencies — if a shared library changes, all services that could depend on it get rebuilt.</p>
+<h2 id="edge-cases-that-will-bite-you">Edge cases that will bite you</h2>
+<h3 id="ecr-lifecycle-policies">ECR lifecycle policies</h3>
+<p>SHA tags accumulate. At 5 pushes/day × 8 services × ~800MB average image size, that&rsquo;s 32GB/day of new images. Without cleanup, you&rsquo;ll hit storage budget limits within weeks.</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-json" data-lang="json"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl">  <span class="nt">&#34;rules&#34;</span><span class="p">:</span> <span class="p">[</span>
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl">    <span class="p">{</span>
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl">      <span class="nt">&#34;rulePriority&#34;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl">      <span class="nt">&#34;description&#34;</span><span class="p">:</span> <span class="s2">&#34;Keep last 20 tagged images&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">      <span class="nt">&#34;selection&#34;</span><span class="p">:</span> <span class="p">{</span>
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl">        <span class="nt">&#34;tagStatus&#34;</span><span class="p">:</span> <span class="s2">&#34;tagged&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl">        <span class="nt">&#34;countType&#34;</span><span class="p">:</span> <span class="s2">&#34;imageCountMoreThan&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">        <span class="nt">&#34;countNumber&#34;</span><span class="p">:</span> <span class="mi">20</span>
+</span></span><span class="line"><span class="ln">10</span><span class="cl">      <span class="p">},</span>
+</span></span><span class="line"><span class="ln">11</span><span class="cl">      <span class="nt">&#34;action&#34;</span><span class="p">:</span> <span class="p">{</span> <span class="nt">&#34;type&#34;</span><span class="p">:</span> <span class="s2">&#34;expire&#34;</span> <span class="p">}</span>
+</span></span><span class="line"><span class="ln">12</span><span class="cl">    <span class="p">},</span>
+</span></span><span class="line"><span class="ln">13</span><span class="cl">    <span class="p">{</span>
+</span></span><span class="line"><span class="ln">14</span><span class="cl">      <span class="nt">&#34;rulePriority&#34;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln">15</span><span class="cl">      <span class="nt">&#34;description&#34;</span><span class="p">:</span> <span class="s2">&#34;Expire untagged images after 24h&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln">16</span><span class="cl">      <span class="nt">&#34;selection&#34;</span><span class="p">:</span> <span class="p">{</span>
+</span></span><span class="line"><span class="ln">17</span><span class="cl">        <span class="nt">&#34;tagStatus&#34;</span><span class="p">:</span> <span class="s2">&#34;untagged&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln">18</span><span class="cl">        <span class="nt">&#34;countType&#34;</span><span class="p">:</span> <span class="s2">&#34;sinceImagePushed&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln">19</span><span class="cl">        <span class="nt">&#34;countUnit&#34;</span><span class="p">:</span> <span class="s2">&#34;days&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="ln">20</span><span class="cl">        <span class="nt">&#34;countNumber&#34;</span><span class="p">:</span> <span class="mi">1</span>
+</span></span><span class="line"><span class="ln">21</span><span class="cl">      <span class="p">},</span>
+</span></span><span class="line"><span class="ln">22</span><span class="cl">      <span class="nt">&#34;action&#34;</span><span class="p">:</span> <span class="p">{</span> <span class="nt">&#34;type&#34;</span><span class="p">:</span> <span class="s2">&#34;expire&#34;</span> <span class="p">}</span>
+</span></span><span class="line"><span class="ln">23</span><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="ln">24</span><span class="cl">  <span class="p">]</span>
+</span></span><span class="line"><span class="ln">25</span><span class="cl"><span class="p">}</span></span></span></code></pre></div><p>20 tagged images gives you ~4 days of rollback runway at 5 pushes/day, which is plenty. Untagged images (intermediate layers from multi-stage builds) expire after 24 hours.</p>
+<h3 id="concurrent-manifest-commits">Concurrent manifest commits</h3>
+<p>If two workflow runs try to commit manifest changes simultaneously, the second <code>git push</code> fails. A retry loop with rebase handles this:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="ln"> 1</span><span class="cl">- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">Push manifest update</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 2</span><span class="cl"><span class="w">  </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="p">|</span><span class="sd">
+</span></span></span><span class="line"><span class="ln"> 3</span><span class="cl"><span class="sd">    for attempt in 1 2 3; do
+</span></span></span><span class="line"><span class="ln"> 4</span><span class="cl"><span class="sd">      git pull --rebase origin main
+</span></span></span><span class="line"><span class="ln"> 5</span><span class="cl"><span class="sd">      git add k8s/
+</span></span></span><span class="line"><span class="ln"> 6</span><span class="cl"><span class="sd">      git diff --cached --quiet &amp;&amp; exit 0
+</span></span></span><span class="line"><span class="ln"> 7</span><span class="cl"><span class="sd">      git commit -m &#34;deploy: $SERVICE → $IMAGE_TAG&#34;
+</span></span></span><span class="line"><span class="ln"> 8</span><span class="cl"><span class="sd">      git push &amp;&amp; exit 0
+</span></span></span><span class="line"><span class="ln"> 9</span><span class="cl"><span class="sd">      echo &#34;Push failed (attempt $attempt), retrying...&#34;
+</span></span></span><span class="line"><span class="ln">10</span><span class="cl"><span class="sd">      sleep $((attempt * 2))
+</span></span></span><span class="line"><span class="ln">11</span><span class="cl"><span class="sd">    done
+</span></span></span><span class="line"><span class="ln">12</span><span class="cl"><span class="sd">    echo &#34;::error::Manifest push failed after 3 attempts&#34;
+</span></span></span><span class="line"><span class="ln">13</span><span class="cl"><span class="sd">    exit 1</span></span></span></code></pre></div><p>The exponential backoff (<code>sleep $((attempt * 2))</code>) avoids thundering herd on concurrent pushes. In practice, this retries successfully on the first attempt 99% of the time.</p>
+<h3 id="build-context-bloat">Build context bloat</h3>
+<p>Docker sends the entire build context directory to the daemon before building. In a monorepo, that context can be enormous if you&rsquo;re not careful. Each service needs a <code>.dockerignore</code>:</p>
+
+
+
+
+
+<pre tabindex="0"><code>**/__pycache__
+*.pyc
+.git
+.env
+tests/
+docs/
+*.md
+node_modules/</code></pre><p>Without this, we were sending ~500MB of context for services that only needed ~20MB of source. The context upload alone added 2 minutes to every build.</p>
+<h3 id="silent-auth-failures">Silent auth failures</h3>
+<p>ECR login can silently succeed without actually authenticating (e.g., when secrets aren&rsquo;t available in fork PRs). The build proceeds, spends 10 minutes compiling, and only fails at <code>docker push</code>.</p>
+<p>Add an explicit access check early:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="ln">1</span><span class="cl">- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">Verify registry access</span><span class="w">
+</span></span></span><span class="line"><span class="ln">2</span><span class="cl"><span class="w">  </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="p">|</span><span class="sd">
+</span></span></span><span class="line"><span class="ln">3</span><span class="cl"><span class="sd">    aws ecr describe-repositories \
+</span></span></span><span class="line"><span class="ln">4</span><span class="cl"><span class="sd">      --repository-names &#34;${{ matrix.service }}&#34; &gt; /dev/null 2&gt;&amp;1 \
+</span></span></span><span class="line"><span class="ln">5</span><span class="cl"><span class="sd">    || { echo &#34;::error::ECR access failed for ${{ matrix.service }}&#34;; exit 1; }</span></span></span></code></pre></div><p>Fail at second 5, not minute 12.</p>
+<h2 id="the-pipeline-end-to-end">The pipeline end-to-end</h2>
+
+
+
+
+
+<pre tabindex="0"><code>git push origin main
+        │
+        ▼
+┌──────────────┐
+│   Discover   │  find services/ -name Dockerfile
+│   Services   │  → [&#34;auth&#34;, &#34;api&#34;, &#34;worker&#34;]
+└──────┬───────┘
+       │
+       ▼
+┌─────────────────────────────────────────────────┐
+│  Per-service matrix job (parallel)              │
+│                                                 │
+│  1. Checkout (fetch-depth: 0)                   │
+│  2. git diff → should this service build?       │
+│     └── no → skip remaining steps               │
+│  3. Verify ECR access                           │
+│  4. Set up Buildx                               │
+│  5. Build + push (SHA tag, GHA layer cache)     │
+│  6. sed manifest with new SHA                   │
+│  7. git commit + push manifest (retry loop)     │
+└──────┬──────────────────────────────────────────┘
+       │
+       ▼
+┌──────────────┐
+│  GitOps sync │  ArgoCD / Flux / kubectl apply
+│  picks up    │  detects manifest diff → rolling update
+└──────────────┘</code></pre><p>Typical wall-clock time for a single-service source change: <strong>~90 seconds</strong> from push to new pod running.</p>
+<h2 id="key-metrics">Key metrics</h2>
+<table>
+  <thead>
+      <tr>
+          <th>Metric</th>
+          <th style="text-align: center">Manual process</th>
+          <th style="text-align: center">Automated pipeline</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>Deploy time</td>
+          <td style="text-align: center">~15 min</td>
+          <td style="text-align: center">~90 sec</td>
+      </tr>
+      <tr>
+          <td>Builds per push</td>
+          <td style="text-align: center">All services</td>
+          <td style="text-align: center">Only changed</td>
+      </tr>
+      <tr>
+          <td>Image traceability</td>
+          <td style="text-align: center">None (<code>latest</code>)</td>
+          <td style="text-align: center">Commit SHA</td>
+      </tr>
+      <tr>
+          <td>Rollback mechanism</td>
+          <td style="text-align: center">&ldquo;Redeploy the old one&rdquo;</td>
+          <td style="text-align: center"><code>git revert</code> + sync</td>
+      </tr>
+      <tr>
+          <td>CI minutes/week</td>
+          <td style="text-align: center">~400</td>
+          <td style="text-align: center">~90</td>
+      </tr>
+      <tr>
+          <td>Wrong-image incidents</td>
+          <td style="text-align: center">~1/month</td>
+          <td style="text-align: center">0</td>
+      </tr>
+  </tbody>
+</table>
+<h2 id="checklist">Checklist</h2>
+<ul>
+<li><input disabled="" type="checkbox"> <strong>Tag with commit SHA, not <code>latest</code>.</strong> Mutable tags are mutable bugs.</li>
+<li><input disabled="" type="checkbox"> <strong>Order Dockerfile by change frequency.</strong> System deps → language deps → source. Cache invalidation is top-down.</li>
+<li><input disabled="" type="checkbox"> <strong>Use <code>cache-from: type=gha</code> with <code>mode=max</code>.</strong> Without <code>mode=max</code>, intermediate stage layers aren&rsquo;t cached.</li>
+<li><input disabled="" type="checkbox"> <strong><code>fetch-depth: 0</code> on checkout.</strong> Shallow clones break <code>git diff</code> and changelog generation.</li>
+<li><input disabled="" type="checkbox"> <strong>Discover services from the filesystem.</strong> Hardcoded lists drift. Dockerfiles are the contract.</li>
+<li><input disabled="" type="checkbox"> <strong>Skip unchanged services.</strong> <code>git diff</code> + path matching. Don&rsquo;t forget shared library paths as rebuild triggers.</li>
+<li><input disabled="" type="checkbox"> <strong>Set ECR lifecycle policies.</strong> 20 tagged images + 24h untagged expiry is a reasonable starting point.</li>
+<li><input disabled="" type="checkbox"> <strong><code>.dockerignore</code> per service.</strong> Build context size ∝ upload time. Ship source, not tests.</li>
+<li><input disabled="" type="checkbox"> <strong>Verify registry auth early.</strong> Don&rsquo;t spend 10 minutes building an image you can&rsquo;t push.</li>
+<li><input disabled="" type="checkbox"> <strong>Retry manifest pushes.</strong> Concurrent CI runs will race on <code>git push</code>. Rebase + retry handles it.</li>
+</ul>
+]]></content:encoded>
+    </item>
+  </channel>
+</rss>

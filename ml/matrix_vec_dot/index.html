@@ -6,18 +6,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <link rel="shortcut icon" href="https://KTS-o7.github.io/bear/images/favicon.png" />
-<title>Matrix-Vector Dot Product | </title>
+<title>Matrix-Vector Dot Product | Krishnatejaswi S</title>
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
 <meta name="title" content="Matrix-Vector Dot Product" />
-<meta name="description" content="Matrix-Vector Dot Product
-
-Question 1 From deep-ml.com
-Essentially a dot product of a matrix and a vector an happen only if the number of columns in the matrix is equal to the number of elements in the vector.
-
-That is if A[m,n] and B[n], then A*B is defined.
-So in this case, the matrix is 2x3 and the vector is 3x1, so the dot product is defined.
-The result is a 2x1 matrix." />
-<meta name="author" content="" />
-<meta name="keywords" content="" />
+<meta name="description" content="Matrix-vector dot products are the inner loop of neural network inference. Understanding the memory access patterns and FLOP counts explains why hardware utilisation matters so much." />
+<meta name="author" content="Krishnatejaswi S" />
+<meta name="keywords" content="machine-learning,linear-algebra,mathematics,performance," />
 
 
 
@@ -26,42 +20,68 @@ The result is a 2x1 matrix." />
 
   
   <meta property="og:url" content="https://KTS-o7.github.io/bear/ml/matrix_vec_dot/">
+  <meta property="og:site_name" content="Krishnatejaswi S">
   <meta property="og:title" content="Matrix-Vector Dot Product">
-  <meta property="og:description" content="Matrix-Vector Dot Product Question 1 From deep-ml.com Essentially a dot product of a matrix and a vector an happen only if the number of columns in the matrix is equal to the number of elements in the vector. That is if A[m,n] and B[n], then A*B is defined.
-So in this case, the matrix is 2x3 and the vector is 3x1, so the dot product is defined.
-The result is a 2x1 matrix.">
+  <meta property="og:description" content="Matrix-vector dot products are the inner loop of neural network inference. Understanding the memory access patterns and FLOP counts explains why hardware utilisation matters so much.">
   <meta property="og:locale" content="en_us">
   <meta property="og:type" content="article">
     <meta property="article:section" content="ml">
     <meta property="article:published_time" content="2025-09-06T07:07:07+01:00">
     <meta property="article:modified_time" content="2025-09-06T07:07:07+01:00">
+    <meta property="article:tag" content="Machine-Learning">
+    <meta property="article:tag" content="Linear-Algebra">
+    <meta property="article:tag" content="Mathematics">
+    <meta property="article:tag" content="Performance">
     <meta property="og:image" content="https://KTS-o7.github.io/bear/images/share.webp">
 
+  
+  <meta property="og:site_name" content="Krishnatejaswi S" />
 
   
   
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:image" content="https://KTS-o7.github.io/bear/images/share.webp">
   <meta name="twitter:title" content="Matrix-Vector Dot Product">
-  <meta name="twitter:description" content="Matrix-Vector Dot Product Question 1 From deep-ml.com Essentially a dot product of a matrix and a vector an happen only if the number of columns in the matrix is equal to the number of elements in the vector. That is if A[m,n] and B[n], then A*B is defined.
-So in this case, the matrix is 2x3 and the vector is 3x1, so the dot product is defined.
-The result is a 2x1 matrix.">
+  <meta name="twitter:description" content="Matrix-vector dot products are the inner loop of neural network inference. Understanding the memory access patterns and FLOP counts explains why hardware utilisation matters so much.">
 
+  <meta name="twitter:site" content="@KTS_o7" />
 
   
   
   <meta itemprop="name" content="Matrix-Vector Dot Product">
-  <meta itemprop="description" content="Matrix-Vector Dot Product Question 1 From deep-ml.com Essentially a dot product of a matrix and a vector an happen only if the number of columns in the matrix is equal to the number of elements in the vector. That is if A[m,n] and B[n], then A*B is defined.
-So in this case, the matrix is 2x3 and the vector is 3x1, so the dot product is defined.
-The result is a 2x1 matrix.">
+  <meta itemprop="description" content="Matrix-vector dot products are the inner loop of neural network inference. Understanding the memory access patterns and FLOP counts explains why hardware utilisation matters so much.">
   <meta itemprop="datePublished" content="2025-09-06T07:07:07+01:00">
   <meta itemprop="dateModified" content="2025-09-06T07:07:07+01:00">
   <meta itemprop="wordCount" content="216">
   <meta itemprop="image" content="https://KTS-o7.github.io/bear/images/share.webp">
+  <meta itemprop="keywords" content="Machine-Learning,Linear-Algebra,Mathematics,Performance">
 
-<meta name="referrer" content="no-referrer-when-downgrade" />
-
-  
+<link rel="canonical" href="https://KTS-o7.github.io/bear/ml/matrix_vec_dot/" />
+  <meta name="referrer" content="no-referrer-when-downgrade" /><script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https:\/\/KTS-o7.github.io\/bear\/ml\/matrix_vec_dot\/"
+  },
+  "headline": "Matrix-Vector Dot Product",
+  "description": "Matrix-vector dot products are the inner loop of neural network inference. Understanding the memory access patterns and FLOP counts explains why hardware utilisation matters so much.",
+  "datePublished": "2025-09-06",
+  "dateModified": "2025-09-06",
+  "author": {
+    "@type": "Person",
+    "name": "Krishnatejaswi S",
+    "url": "https:\/\/KTS-o7.github.io\/bear\/"
+  },
+  "publisher": {
+    "@type": "Person",
+    "name": "Krishnatejaswi S"
+  },
+  "url": "https:\/\/KTS-o7.github.io\/bear\/ml\/matrix_vec_dot\/",
+  "keywords": ["machine-learning", "linear-algebra", "mathematics", "performance"]
+}
+</script>
   <link href="/bear/herman.min.css" rel="stylesheet">
 
   
@@ -131,7 +151,7 @@ The result is a 2x1 matrix.">
   <header><a class="skip-link" href="#main-content">Skip to main content</a>
 
 <div style="display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
-  <a href="/bear/" class="title"><h1></h1></a>
+  <a href="/bear/" class="title"><h1>Krishnatejaswi S</h1></a>
   <button id="theme-toggle" aria-label="Toggle light/dark mode" title="Toggle theme">
     <span id="theme-toggle-label">○●</span>
   </button>
@@ -164,7 +184,7 @@ The result is a 2x1 matrix.">
   <time datetime='2025-09-06' pubdate>
     2025-09-06
   </time>
-  
+  · Krishnatejaswi S
 </p>
 
 <content>
@@ -223,6 +243,17 @@ $$<h2 id="solution">Solution</h2>
 
 
 
+<p style="margin-top: 1.5rem;">
+  
+    <a class="blog-tags" href="/bear/tags/machine-learning/">#machine-learning</a>
+  
+    <a class="blog-tags" href="/bear/tags/linear-algebra/">#linear-algebra</a>
+  
+    <a class="blog-tags" href="/bear/tags/mathematics/">#mathematics</a>
+  
+    <a class="blog-tags" href="/bear/tags/performance/">#performance</a>
+  
+</p>
 
 
 
@@ -230,6 +261,36 @@ $$<h2 id="solution">Solution</h2>
 
 
 
+
+
+
+
+<div class="related-notes">
+  <h4>Related Notes</h4>
+  <ul>
+    
+    <li>
+      <a href="/bear/ml/eigen_vals/">Eigenvalues of a Matrix</a>
+      <span class="note-date">2026-01-08</span>
+    </li>
+    
+    <li>
+      <a href="/bear/ml/params_llms/"> Parameters in LLMs</a>
+      <span class="note-date">2025-09-12</span>
+    </li>
+    
+    <li>
+      <a href="/bear/ml/llm_inference_optimization/">LLM Inference Optimization: Stop Paying for Idle Silicon</a>
+      <span class="note-date">2026-05-02</span>
+    </li>
+    
+    <li>
+      <a href="/bear/notes/two_sets/">Two Sets</a>
+      <span class="note-date">2025-09-19</span>
+    </li>
+    
+  </ul>
+</div>
 
 
 

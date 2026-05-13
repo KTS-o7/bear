@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>Bulkhead on Krishnatejaswi S</title>
+    <link>https://KTS-o7.github.io/bear/tags/bulkhead/</link>
+    <description>Recent content in Bulkhead on Krishnatejaswi S</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <managingEditor>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</managingEditor>
+    <webMaster>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</webMaster>
+    <copyright>Krishnatejaswi S</copyright>
+    <lastBuildDate>Sun, 03 May 2026 00:00:00 +0530</lastBuildDate>
+    <atom:link href="https://KTS-o7.github.io/bear/tags/bulkhead/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>The Bulkhead Pattern: Isolating Failures Before They Spread</title>
+      <link>https://KTS-o7.github.io/bear/systems/bulkhead_pattern/</link>
+      <pubDate>Sun, 03 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/systems/bulkhead_pattern/</guid>
+      <description>&lt;p&gt;Circuit breakers stop you from hammering a failing downstream service. Bulkheads stop a failing downstream service from consuming all the resources you have &amp;ndash; even if you&amp;rsquo;re not hammering it.&lt;/p&gt;&#xA;&lt;p&gt;The name comes from ship design. A ship&amp;rsquo;s hull is divided into watertight compartments. One compartment floods, the others stay dry. The ship stays afloat. Without bulkheads, one breach sinks everything.&lt;/p&gt;&#xA;&lt;h2 id=&#34;the-problem-without-bulkheads&#34;&gt;The Problem Without Bulkheads&lt;/h2&gt;&#xA;&lt;p&gt;Imagine a service that calls three downstream APIs &amp;ndash; payment, inventory, and recommendations. You have a thread pool with 100 threads handling all outbound requests.&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>Circuit breakers stop you from hammering a failing downstream service. Bulkheads stop a failing downstream service from consuming all the resources you have &ndash; even if you&rsquo;re not hammering it.</p>
+<p>The name comes from ship design. A ship&rsquo;s hull is divided into watertight compartments. One compartment floods, the others stay dry. The ship stays afloat. Without bulkheads, one breach sinks everything.</p>
+<h2 id="the-problem-without-bulkheads">The Problem Without Bulkheads</h2>
+<p>Imagine a service that calls three downstream APIs &ndash; payment, inventory, and recommendations. You have a thread pool with 100 threads handling all outbound requests.</p>
+<p>The recommendations API starts responding slowly. Requests pile up waiting. Threads get tied up waiting for responses that take 10 seconds instead of 100ms. Within minutes all 100 threads are occupied waiting on recommendations. Now payment requests and inventory requests can&rsquo;t get a thread either. Your service is down for all three functions because one non-critical API got slow.</p>
+<p>A circuit breaker would help here once the recommendations API is actually failing &ndash; but slow isn&rsquo;t failing. The requests are completing, just slowly. The circuit never trips. The thread pool still drains.</p>
+<h2 id="the-fix-separate-resource-pools">The Fix: Separate Resource Pools</h2>
+<p>Partition your resources so that one downstream dependency can only consume its own allocation.</p>
+<p>Instead of one pool of 100 threads, you have three pools:</p>
+<ul>
+<li>Payment: 40 threads</li>
+<li>Inventory: 40 threads</li>
+<li>Recommendations: 20 threads</li>
+</ul>
+<p>The recommendations API goes slow. It consumes all 20 of its threads. Payment and inventory are unaffected &ndash; they have their own pools. The non-critical dependency is isolated in its own compartment.</p>
+<h2 id="two-implementation-styles">Two Implementation Styles</h2>
+<p><strong>Thread pool isolation</strong> is what Hystrix made popular. Each downstream call goes through a dedicated thread pool. Callers block on their own pool, not a shared one. Overhead: context switches between the caller thread and the pool thread for every call.</p>
+<p><strong>Semaphore isolation</strong> is lighter. Instead of separate thread pools, you put a semaphore in front of each dependency with a max concurrent count. Callers execute on their own thread but must acquire the semaphore first. No thread switching overhead. The tradeoff: if the call actually blocks the thread (synchronous I/O), you&rsquo;re still tying up the caller&rsquo;s thread. Better for fast calls, worse for slow ones.</p>
+<p>For services making lots of downstream calls with variable latency, thread pool isolation is generally safer. The overhead is real but the isolation is stronger.</p>
+<h2 id="combining-with-circuit-breakers">Combining with Circuit Breakers</h2>
+<p>Bulkheads and circuit breakers are complementary, not alternatives. They protect against different failure modes:</p>
+<ul>
+<li><strong>Bulkhead</strong>: limits resource consumption from a slow or partially degraded dependency</li>
+<li><strong>Circuit breaker</strong>: stops calls entirely when a dependency crosses a failure threshold</li>
+</ul>
+<p>The typical pattern is both together. The bulkhead caps how many threads/connections one dependency can consume. The circuit breaker trips when that dependency starts returning errors. Between the two, you handle the full range of failure behavior from &ldquo;slightly slow&rdquo; to &ldquo;completely down.&rdquo;</p>
+<p>Netflix Hystrix combined both in a single abstraction. Resilience4j does the same. In a service mesh like Istio, connection pool settings are the bulkhead and outlier detection is the circuit breaker &ndash; same ideas, configured at the mesh level rather than the application level.</p>
+<h2 id="what-to-size-the-pools-at">What to Size the Pools At</h2>
+<p>This is the hard part. Too small and you&rsquo;re rejecting valid traffic. Too large and the isolation breaks down.</p>
+<p>A reasonable starting point: look at your normal concurrency for each dependency, add headroom for spikes, and set the max at roughly 2x your normal peak. Monitor pool utilization in steady state &ndash; if the recommendations pool is regularly at 18/20, you either need to size up or your recommendations calls are too slow.</p>
+<p>Bulkheads don&rsquo;t fix slow dependencies. They contain the blast radius while you do.</p>
+]]></content:encoded>
+    </item>
+  </channel>
+</rss>

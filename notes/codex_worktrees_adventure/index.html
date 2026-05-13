@@ -6,13 +6,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <link rel="shortcut icon" href="https://KTS-o7.github.io/bear/images/favicon.png" />
-<title>Many Small Tasks, One Deadline: Running Parallel AI Agents with Git Worktrees | </title>
+<title>Many Small Tasks, One Deadline: Running Parallel AI Agents with Git Worktrees | Krishnatejaswi S</title>
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
 <meta name="title" content="Many Small Tasks, One Deadline: Running Parallel AI Agents with Git Worktrees" />
-<meta name="description" content="I thought this would be an easy day.
-The tasks were small. The backlog was not. This is the worst possible combo for a normal workflow because the fixed overhead dominates: branch setup, dependency sync, commits, reviewable diffs, and PR management. Doing it serially feels safe, but it is slow in a way that doesn&rsquo;t show up in estimates.
-So I tried the obvious cheat: run multiple AI agents in parallel." />
-<meta name="author" content="" />
-<meta name="keywords" content="" />
+<meta name="description" content="Running parallel AI coding agents with Git worktrees — isolate each task to its own working tree, fire agents concurrently, and merge results without conflicts." />
+<meta name="author" content="Krishnatejaswi S" />
+<meta name="keywords" content="ai-agents,git,productivity,devtools," />
 
 
 
@@ -21,42 +20,68 @@ So I tried the obvious cheat: run multiple AI agents in parallel." />
 
   
   <meta property="og:url" content="https://KTS-o7.github.io/bear/notes/codex_worktrees_adventure/">
+  <meta property="og:site_name" content="Krishnatejaswi S">
   <meta property="og:title" content="Many Small Tasks, One Deadline: Running Parallel AI Agents with Git Worktrees">
-  <meta property="og:description" content="I thought this would be an easy day.
-The tasks were small. The backlog was not. This is the worst possible combo for a normal workflow because the fixed overhead dominates: branch setup, dependency sync, commits, reviewable diffs, and PR management. Doing it serially feels safe, but it is slow in a way that doesn’t show up in estimates.
-So I tried the obvious cheat: run multiple AI agents in parallel.">
+  <meta property="og:description" content="Running parallel AI coding agents with Git worktrees — isolate each task to its own working tree, fire agents concurrently, and merge results without conflicts.">
   <meta property="og:locale" content="en_us">
   <meta property="og:type" content="article">
     <meta property="article:section" content="notes">
     <meta property="article:published_time" content="2026-02-19T00:00:00+05:30">
     <meta property="article:modified_time" content="2026-02-19T00:00:00+05:30">
+    <meta property="article:tag" content="Ai-Agents">
+    <meta property="article:tag" content="Git">
+    <meta property="article:tag" content="Productivity">
+    <meta property="article:tag" content="Devtools">
     <meta property="og:image" content="https://KTS-o7.github.io/bear/images/share.webp">
 
+  
+  <meta property="og:site_name" content="Krishnatejaswi S" />
 
   
   
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:image" content="https://KTS-o7.github.io/bear/images/share.webp">
   <meta name="twitter:title" content="Many Small Tasks, One Deadline: Running Parallel AI Agents with Git Worktrees">
-  <meta name="twitter:description" content="I thought this would be an easy day.
-The tasks were small. The backlog was not. This is the worst possible combo for a normal workflow because the fixed overhead dominates: branch setup, dependency sync, commits, reviewable diffs, and PR management. Doing it serially feels safe, but it is slow in a way that doesn’t show up in estimates.
-So I tried the obvious cheat: run multiple AI agents in parallel.">
+  <meta name="twitter:description" content="Running parallel AI coding agents with Git worktrees — isolate each task to its own working tree, fire agents concurrently, and merge results without conflicts.">
 
+  <meta name="twitter:site" content="@KTS_o7" />
 
   
   
   <meta itemprop="name" content="Many Small Tasks, One Deadline: Running Parallel AI Agents with Git Worktrees">
-  <meta itemprop="description" content="I thought this would be an easy day.
-The tasks were small. The backlog was not. This is the worst possible combo for a normal workflow because the fixed overhead dominates: branch setup, dependency sync, commits, reviewable diffs, and PR management. Doing it serially feels safe, but it is slow in a way that doesn’t show up in estimates.
-So I tried the obvious cheat: run multiple AI agents in parallel.">
+  <meta itemprop="description" content="Running parallel AI coding agents with Git worktrees — isolate each task to its own working tree, fire agents concurrently, and merge results without conflicts.">
   <meta itemprop="datePublished" content="2026-02-19T00:00:00+05:30">
   <meta itemprop="dateModified" content="2026-02-19T00:00:00+05:30">
   <meta itemprop="wordCount" content="1154">
   <meta itemprop="image" content="https://KTS-o7.github.io/bear/images/share.webp">
+  <meta itemprop="keywords" content="Ai-Agents,Git,Productivity,Devtools">
 
-<meta name="referrer" content="no-referrer-when-downgrade" />
-
-  
+<link rel="canonical" href="https://KTS-o7.github.io/bear/notes/codex_worktrees_adventure/" />
+  <meta name="referrer" content="no-referrer-when-downgrade" /><script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https:\/\/KTS-o7.github.io\/bear\/notes\/codex_worktrees_adventure\/"
+  },
+  "headline": "Many Small Tasks, One Deadline: Running Parallel AI Agents with Git Worktrees",
+  "description": "Running parallel AI coding agents with Git worktrees — isolate each task to its own working tree, fire agents concurrently, and merge results without conflicts.",
+  "datePublished": "2026-02-19",
+  "dateModified": "2026-02-19",
+  "author": {
+    "@type": "Person",
+    "name": "Krishnatejaswi S",
+    "url": "https:\/\/KTS-o7.github.io\/bear\/"
+  },
+  "publisher": {
+    "@type": "Person",
+    "name": "Krishnatejaswi S"
+  },
+  "url": "https:\/\/KTS-o7.github.io\/bear\/notes\/codex_worktrees_adventure\/",
+  "keywords": ["ai-agents", "git", "productivity", "devtools"]
+}
+</script>
   <link href="/bear/herman.min.css" rel="stylesheet">
 
   
@@ -75,7 +100,7 @@ So I tried the obvious cheat: run multiple AI agents in parallel.">
   <header><a class="skip-link" href="#main-content">Skip to main content</a>
 
 <div style="display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
-  <a href="/bear/" class="title"><h1></h1></a>
+  <a href="/bear/" class="title"><h1>Krishnatejaswi S</h1></a>
   <button id="theme-toggle" aria-label="Toggle light/dark mode" title="Toggle theme">
     <span id="theme-toggle-label">○●</span>
   </button>
@@ -108,7 +133,7 @@ So I tried the obvious cheat: run multiple AI agents in parallel.">
   <time datetime='2026-02-19' pubdate>
     2026-02-19
   </time>
-  
+  · Krishnatejaswi S
 </p>
 
 <content>
@@ -279,6 +304,17 @@ So I tried the obvious cheat: run multiple AI agents in parallel.">
 
 
 
+<p style="margin-top: 1.5rem;">
+  
+    <a class="blog-tags" href="/bear/tags/ai-agents/">#ai-agents</a>
+  
+    <a class="blog-tags" href="/bear/tags/git/">#git</a>
+  
+    <a class="blog-tags" href="/bear/tags/productivity/">#productivity</a>
+  
+    <a class="blog-tags" href="/bear/tags/devtools/">#devtools</a>
+  
+</p>
 
 
 
@@ -286,6 +322,36 @@ So I tried the obvious cheat: run multiple AI agents in parallel.">
 
 
 
+
+
+
+
+<div class="related-notes">
+  <h4>Related Notes</h4>
+  <ul>
+    
+    <li>
+      <a href="/bear/notes/git/">Git</a>
+      <span class="note-date">2025-12-04</span>
+    </li>
+    
+    <li>
+      <a href="/bear/notes/obsidian_second_brain/">Building a Second Brain with Obsidian, Zettelkasten, and an AI Agent</a>
+      <span class="note-date">2026-04-21</span>
+    </li>
+    
+    <li>
+      <a href="/bear/notes/agentbudget_ulimit_for_ai_agents/">Fixing Silent $0 Streaming Costs in AgentBudget: An OSS Contribution</a>
+      <span class="note-date">2026-04-16</span>
+    </li>
+    
+    <li>
+      <a href="/bear/notes/hermes_local_ai_stack/">Building a Local AI Stack: Hermes, Bifrost, Telegram, and Camoufox</a>
+      <span class="note-date">2026-04-15</span>
+    </li>
+    
+  </ul>
+</div>
 
 
 

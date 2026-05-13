@@ -6,12 +6,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <link rel="shortcut icon" href="https://KTS-o7.github.io/bear/images/favicon.png" />
-<title>Raft: Consensus for the Rest of Us | </title>
+<title>Raft: Consensus for the Rest of Us | Krishnatejaswi S</title>
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
 <meta name="title" content="Raft: Consensus for the Rest of Us" />
-<meta name="description" content="Paxos is the algorithm everyone cites and almost nobody implements correctly. The gap between the paper and a working, production-safe implementation is wide enough that teams have shipped subtly broken versions without knowing it for months.
-Raft was built as a direct response to that. Same safety guarantees, designed from scratch for understandability &ndash; the explicit goal was that a student should be able to implement it correctly from the paper alone." />
-<meta name="author" content="" />
-<meta name="keywords" content="" />
+<meta name="description" content="Raft is a consensus algorithm designed for understandability — leader election, log replication, and safety properties explained, with a comparison to Paxos." />
+<meta name="author" content="Krishnatejaswi S" />
+<meta name="keywords" content="distributed-systems,consensus,raft,replication," />
 
 
 
@@ -20,39 +20,68 @@ Raft was built as a direct response to that. Same safety guarantees, designed fr
 
   
   <meta property="og:url" content="https://KTS-o7.github.io/bear/systems/raft_consensus/">
+  <meta property="og:site_name" content="Krishnatejaswi S">
   <meta property="og:title" content="Raft: Consensus for the Rest of Us">
-  <meta property="og:description" content="Paxos is the algorithm everyone cites and almost nobody implements correctly. The gap between the paper and a working, production-safe implementation is wide enough that teams have shipped subtly broken versions without knowing it for months.
-Raft was built as a direct response to that. Same safety guarantees, designed from scratch for understandability – the explicit goal was that a student should be able to implement it correctly from the paper alone.">
+  <meta property="og:description" content="Raft is a consensus algorithm designed for understandability — leader election, log replication, and safety properties explained, with a comparison to Paxos.">
   <meta property="og:locale" content="en_us">
   <meta property="og:type" content="article">
     <meta property="article:section" content="systems">
     <meta property="article:published_time" content="2026-05-02T00:00:00+05:30">
     <meta property="article:modified_time" content="2026-05-02T00:00:00+05:30">
+    <meta property="article:tag" content="Distributed-Systems">
+    <meta property="article:tag" content="Consensus">
+    <meta property="article:tag" content="Raft">
+    <meta property="article:tag" content="Replication">
     <meta property="og:image" content="https://KTS-o7.github.io/bear/images/share.webp">
 
+  
+  <meta property="og:site_name" content="Krishnatejaswi S" />
 
   
   
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:image" content="https://KTS-o7.github.io/bear/images/share.webp">
   <meta name="twitter:title" content="Raft: Consensus for the Rest of Us">
-  <meta name="twitter:description" content="Paxos is the algorithm everyone cites and almost nobody implements correctly. The gap between the paper and a working, production-safe implementation is wide enough that teams have shipped subtly broken versions without knowing it for months.
-Raft was built as a direct response to that. Same safety guarantees, designed from scratch for understandability – the explicit goal was that a student should be able to implement it correctly from the paper alone.">
+  <meta name="twitter:description" content="Raft is a consensus algorithm designed for understandability — leader election, log replication, and safety properties explained, with a comparison to Paxos.">
 
+  <meta name="twitter:site" content="@KTS_o7" />
 
   
   
   <meta itemprop="name" content="Raft: Consensus for the Rest of Us">
-  <meta itemprop="description" content="Paxos is the algorithm everyone cites and almost nobody implements correctly. The gap between the paper and a working, production-safe implementation is wide enough that teams have shipped subtly broken versions without knowing it for months.
-Raft was built as a direct response to that. Same safety guarantees, designed from scratch for understandability – the explicit goal was that a student should be able to implement it correctly from the paper alone.">
+  <meta itemprop="description" content="Raft is a consensus algorithm designed for understandability — leader election, log replication, and safety properties explained, with a comparison to Paxos.">
   <meta itemprop="datePublished" content="2026-05-02T00:00:00+05:30">
   <meta itemprop="dateModified" content="2026-05-02T00:00:00+05:30">
   <meta itemprop="wordCount" content="888">
   <meta itemprop="image" content="https://KTS-o7.github.io/bear/images/share.webp">
+  <meta itemprop="keywords" content="Distributed-Systems,Consensus,Raft,Replication">
 
-<meta name="referrer" content="no-referrer-when-downgrade" />
-
-  
+<link rel="canonical" href="https://KTS-o7.github.io/bear/systems/raft_consensus/" />
+  <meta name="referrer" content="no-referrer-when-downgrade" /><script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https:\/\/KTS-o7.github.io\/bear\/systems\/raft_consensus\/"
+  },
+  "headline": "Raft: Consensus for the Rest of Us",
+  "description": "Raft is a consensus algorithm designed for understandability — leader election, log replication, and safety properties explained, with a comparison to Paxos.",
+  "datePublished": "2026-05-02",
+  "dateModified": "2026-05-02",
+  "author": {
+    "@type": "Person",
+    "name": "Krishnatejaswi S",
+    "url": "https:\/\/KTS-o7.github.io\/bear\/"
+  },
+  "publisher": {
+    "@type": "Person",
+    "name": "Krishnatejaswi S"
+  },
+  "url": "https:\/\/KTS-o7.github.io\/bear\/systems\/raft_consensus\/",
+  "keywords": ["distributed-systems", "consensus", "raft", "replication"]
+}
+</script>
   <link href="/bear/herman.min.css" rel="stylesheet">
 
   
@@ -71,7 +100,7 @@ Raft was built as a direct response to that. Same safety guarantees, designed fr
   <header><a class="skip-link" href="#main-content">Skip to main content</a>
 
 <div style="display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
-  <a href="/bear/" class="title"><h1></h1></a>
+  <a href="/bear/" class="title"><h1>Krishnatejaswi S</h1></a>
   <button id="theme-toggle" aria-label="Toggle light/dark mode" title="Toggle theme">
     <span id="theme-toggle-label">○●</span>
   </button>
@@ -104,7 +133,7 @@ Raft was built as a direct response to that. Same safety guarantees, designed fr
   <time datetime='2026-05-02' pubdate>
     2026-05-02
   </time>
-  
+  · Krishnatejaswi S
 </p>
 
 <content>
@@ -214,6 +243,17 @@ Leader  → AppendEntries(x=5) → Follower C  (unreachable)
 
 
 
+<p style="margin-top: 1.5rem;">
+  
+    <a class="blog-tags" href="/bear/tags/distributed-systems/">#distributed-systems</a>
+  
+    <a class="blog-tags" href="/bear/tags/consensus/">#consensus</a>
+  
+    <a class="blog-tags" href="/bear/tags/raft/">#raft</a>
+  
+    <a class="blog-tags" href="/bear/tags/replication/">#replication</a>
+  
+</p>
 
 
 
@@ -221,6 +261,36 @@ Leader  → AppendEntries(x=5) → Follower C  (unreachable)
 
 
 
+
+
+
+
+<div class="related-notes">
+  <h4>Related Notes</h4>
+  <ul>
+    
+    <li>
+      <a href="/bear/systems/raft_log_compaction/">Raft Log Compaction: Keeping the Log from Growing Forever</a>
+      <span class="note-date">2026-05-03</span>
+    </li>
+    
+    <li>
+      <a href="/bear/systems/multi_paxos/">Multi-Paxos: From Single Decree to a Replicated Log</a>
+      <span class="note-date">2026-05-03</span>
+    </li>
+    
+    <li>
+      <a href="/bear/systems/paxos_consensus/">Paxos: How Distributed Systems Agree on Anything</a>
+      <span class="note-date">2026-05-02</span>
+    </li>
+    
+    <li>
+      <a href="/bear/systems/paxos/">Paxos</a>
+      <span class="note-date">2026-04-26</span>
+    </li>
+    
+  </ul>
+</div>
 
 
 

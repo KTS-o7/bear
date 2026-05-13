@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>Microservices on Krishnatejaswi S</title>
+    <link>https://KTS-o7.github.io/bear/tags/microservices/</link>
+    <description>Recent content in Microservices on Krishnatejaswi S</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <managingEditor>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</managingEditor>
+    <webMaster>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</webMaster>
+    <copyright>Krishnatejaswi S</copyright>
+    <lastBuildDate>Sat, 02 May 2026 00:00:00 +0530</lastBuildDate>
+    <atom:link href="https://KTS-o7.github.io/bear/tags/microservices/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>The Saga Pattern: Distributed Transactions Without the Lock</title>
+      <link>https://KTS-o7.github.io/bear/systems/saga_pattern/</link>
+      <pubDate>Sat, 02 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/systems/saga_pattern/</guid>
+      <description>&lt;p&gt;Two-phase commit gives you distributed atomicity. It also gives you a coordinator that can stall your entire system if it crashes at the wrong moment, and locks held across multiple services for however long the transaction takes. For short, internal transactions that&amp;rsquo;s manageable. For a trip booking flow that touches a flight service, a hotel service, and a payment service &amp;ndash; each owned by a different team, each potentially slow &amp;ndash; it&amp;rsquo;s not.&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>Two-phase commit gives you distributed atomicity. It also gives you a coordinator that can stall your entire system if it crashes at the wrong moment, and locks held across multiple services for however long the transaction takes. For short, internal transactions that&rsquo;s manageable. For a trip booking flow that touches a flight service, a hotel service, and a payment service &ndash; each owned by a different team, each potentially slow &ndash; it&rsquo;s not.</p>
+<p>The Saga pattern is the alternative. You give up true atomicity in exchange for availability, scalability, and no cross-service locks.</p>
+<h2 id="how-it-works">How It Works</h2>
+<p>Break one big distributed transaction into a sequence of local transactions, each owned by a single service. Each step publishes an event or sends a message when it completes. If any step fails, run compensating transactions in reverse to undo the completed steps.</p>
+<p>The classic example is a trip booking:</p>
+
+
+
+
+
+<pre tabindex="0"><code>Step 1: Reserve flight    → local tx in Flight Service
+Step 2: Reserve hotel     → local tx in Hotel Service
+Step 3: Charge card       → local tx in Payment Service</code></pre><p>If step 3 fails:</p>
+
+
+
+
+
+<pre tabindex="0"><code>FORWARD:   [Flight ✓] → [Hotel ✓] → [Payment ✗]
+ROLLBACK:              ← [Cancel Hotel] ← [Cancel Flight]</code></pre><p>No global rollback. No coordinator holding locks across all three services. Each service knows how to undo its own step.</p>
+<h2 id="two-flavors">Two Flavors</h2>
+<p><strong>Choreography</strong> &ndash; each service listens for events and decides what to do next based on what it hears. No central coordinator. Fully decoupled. Easy to start, and a debugging nightmare once you have more than a handful of services. Tracing a failed saga means reconstructing a sequence of events scattered across multiple event streams.</p>
+<p><strong>Orchestration</strong> &ndash; a central saga orchestrator drives the sequence. It tells each service what to do, collects results, and issues compensating calls on failure. Full visibility into saga state. Easier to reason about and monitor. The orchestrator becomes a coordination hub &ndash; not quite a single point of failure if you make it durable, but a complexity center. Most teams end up here in production.</p>
+<h2 id="the-tradeoff-you-cant-avoid">The Tradeoff You Can&rsquo;t Avoid</h2>
+<p>Sagas trade the &ldquo;I&rdquo; in ACID (isolation) for availability. While a saga is in-flight, intermediate state is visible to other parts of the system. A hotel room might be reserved even though the flight hasn&rsquo;t been confirmed yet. Other services can observe that state.</p>
+<p>You have to design for this explicitly:</p>
+<ul>
+<li><strong>Eventual consistency</strong> &ndash; the system converges to a correct final state, but not atomically</li>
+<li><strong>Idempotent compensating transactions</strong> &ndash; if your &ldquo;cancel flight&rdquo; call gets retried twice due to a network hiccup, it must be safe to run twice. Compensation that isn&rsquo;t idempotent will make your failure recovery worse than the original failure.</li>
+</ul>
+<table>
+  <thead>
+      <tr>
+          <th>Property</th>
+          <th>2PC</th>
+          <th>Saga</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>Atomicity</td>
+          <td>Global</td>
+          <td>Per-step only</td>
+      </tr>
+      <tr>
+          <td>Isolation</td>
+          <td>Full</td>
+          <td>Intermediate state visible</td>
+      </tr>
+      <tr>
+          <td>Availability</td>
+          <td>Blocks on coordinator failure</td>
+          <td>Always makes progress</td>
+      </tr>
+      <tr>
+          <td>Scalability</td>
+          <td>Locks across services</td>
+          <td>No cross-service locks</td>
+      </tr>
+  </tbody>
+</table>
+<h2 id="where-it-shows-up">Where It Shows Up</h2>
+<p>Basically every large-scale order or booking flow:</p>
+<ul>
+<li><strong>Uber</strong> &ndash; ride booking, driver assignment, payment charge, all as separate service transactions</li>
+<li><strong>Amazon</strong> &ndash; order placement, inventory reservation, fulfillment, shipping</li>
+<li><strong>Netflix</strong> &ndash; subscription management, content licensing flows</li>
+</ul>
+<p>These systems can&rsquo;t afford to hold cross-service locks for the duration of a user-facing transaction. They accept that intermediate states exist and design their compensating logic carefully.</p>
+<p>The saga pattern doesn&rsquo;t make distributed transactions easy. It makes the tradeoffs explicit and gives you a way to build systems that stay available even when individual steps fail.</p>
+]]></content:encoded>
+    </item>
+  </channel>
+</rss>

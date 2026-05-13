@@ -1,0 +1,697 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>Self-Hosting on Krishnatejaswi S</title>
+    <link>https://KTS-o7.github.io/bear/tags/self-hosting/</link>
+    <description>Recent content in Self-Hosting on Krishnatejaswi S</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <managingEditor>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</managingEditor>
+    <webMaster>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</webMaster>
+    <copyright>Krishnatejaswi S</copyright>
+    <lastBuildDate>Sat, 02 May 2026 00:00:00 +0530</lastBuildDate>
+    <atom:link href="https://KTS-o7.github.io/bear/tags/self-hosting/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>A $22/Year VPS Running Three Self-Hosted Services</title>
+      <link>https://KTS-o7.github.io/bear/infra/vps_self_hosting/</link>
+      <pubDate>Sat, 02 May 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/infra/vps_self_hosting/</guid>
+      <description>&lt;p&gt;I wanted three things: a private Obsidian sync server, a Matrix chat instance for personal use, and a self-hosted book library. The obvious path is a cheap VPS, a few Docker containers, and nginx as a reverse proxy in front of everything.&lt;/p&gt;&#xA;&lt;p&gt;The whole stack runs on a budget VPS &amp;ndash; 1 vCPU, 2.9GB RAM, 30GB disk, $22/year. All three services are running with room to spare.&lt;/p&gt;&#xA;&lt;h2 id=&#34;initial-setup&#34;&gt;Initial Setup&lt;/h2&gt;&#xA;&lt;p&gt;&lt;strong&gt;SSH key auth first, password auth off:&lt;/strong&gt;&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>I wanted three things: a private Obsidian sync server, a Matrix chat instance for personal use, and a self-hosted book library. The obvious path is a cheap VPS, a few Docker containers, and nginx as a reverse proxy in front of everything.</p>
+<p>The whole stack runs on a budget VPS &ndash; 1 vCPU, 2.9GB RAM, 30GB disk, $22/year. All three services are running with room to spare.</p>
+<h2 id="initial-setup">Initial Setup</h2>
+<p><strong>SSH key auth first, password auth off:</strong></p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl"><span class="c1"># local: generate key if you don&#39;t have one</span>
+</span></span><span class="line"><span class="ln">2</span><span class="cl">ssh-keygen -t ed25519 -C <span class="s2">&#34;your_email@example.com&#34;</span>
+</span></span><span class="line"><span class="ln">3</span><span class="cl"><span class="c1"># paste ~/.ssh/id_ed25519.pub into your provider&#39;s SSH key field</span>
+</span></span><span class="line"><span class="ln">4</span><span class="cl">
+</span></span><span class="line"><span class="ln">5</span><span class="cl"><span class="c1"># on the server: disable password login</span>
+</span></span><span class="line"><span class="ln">6</span><span class="cl">sed -i <span class="s1">&#39;s/^PasswordAuthentication yes/PasswordAuthentication no/&#39;</span> /etc/ssh/sshd_config
+</span></span><span class="line"><span class="ln">7</span><span class="cl">systemctl restart sshd</span></span></code></pre></div><p>Test key login before disabling password auth. If you lock yourself out, you&rsquo;re recovering via the provider&rsquo;s console.</p>
+<p><strong>Swap &ndash; critical on 3GB RAM:</strong></p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">fallocate -l 2G /swapfile
+</span></span><span class="line"><span class="ln">2</span><span class="cl">chmod <span class="m">600</span> /swapfile
+</span></span><span class="line"><span class="ln">3</span><span class="cl">mkswap /swapfile
+</span></span><span class="line"><span class="ln">4</span><span class="cl">swapon /swapfile
+</span></span><span class="line"><span class="ln">5</span><span class="cl"><span class="nb">echo</span> <span class="s1">&#39;/swapfile none swap sw 0 0&#39;</span> &gt;&gt; /etc/fstab</span></span></code></pre></div><p>Without this, CouchDB and Conduit together will occasionally OOM under load.</p>
+<p><strong>Firewall:</strong></p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">ufw allow ssh
+</span></span><span class="line"><span class="ln">2</span><span class="cl">ufw allow 80/tcp
+</span></span><span class="line"><span class="ln">3</span><span class="cl">ufw allow 443/tcp
+</span></span><span class="line"><span class="ln">4</span><span class="cl">ufw allow <span class="m">3478</span>        <span class="c1"># TURN (UDP+TCP)</span>
+</span></span><span class="line"><span class="ln">5</span><span class="cl">ufw allow <span class="m">5349</span>        <span class="c1"># TURN TLS</span>
+</span></span><span class="line"><span class="ln">6</span><span class="cl">ufw allow 49152:65535/udp  <span class="c1"># TURN relay range</span>
+</span></span><span class="line"><span class="ln">7</span><span class="cl">ufw enable</span></span></code></pre></div><p>The TURN ports are for Matrix voice/video &ndash; skip them if you&rsquo;re not setting up coturn.</p>
+<p><strong>Docker:</strong></p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">curl -fsSL https://get.docker.com <span class="p">|</span> sh</span></span></code></pre></div><h2 id="service-1-obsidian-livesync-couchdb">Service 1: Obsidian LiveSync (CouchDB)</h2>
+<p>LiveSync uses CouchDB as the sync backend. Install it directly on the host rather than in Docker &ndash; it&rsquo;s simpler to configure and easier to troubleshoot.</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">apt install -y couchdb</span></span></code></pre></div><p>The installer prompts for admin credentials. Set them and keep them somewhere safe.</p>
+<p>Configure <code>/opt/couchdb/etc/local.ini</code>:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-ini" data-lang="ini"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="k">[chttpd]</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl"><span class="na">bind_address</span> <span class="o">=</span> <span class="s">127.0.0.1</span>
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl">
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl"><span class="k">[couch_httpd_auth]</span>
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl"><span class="na">require_valid_user</span> <span class="o">=</span> <span class="s">true</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl"><span class="k">[httpd]</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl"><span class="na">enable_cors</span> <span class="o">=</span> <span class="s">true</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">
+</span></span><span class="line"><span class="ln">10</span><span class="cl"><span class="k">[cors]</span>
+</span></span><span class="line"><span class="ln">11</span><span class="cl"><span class="na">origins</span> <span class="o">=</span> <span class="s">app://obsidian.md, capacitor://localhost, http://localhost</span>
+</span></span><span class="line"><span class="ln">12</span><span class="cl"><span class="na">credentials</span> <span class="o">=</span> <span class="s">true</span>
+</span></span><span class="line"><span class="ln">13</span><span class="cl"><span class="na">headers</span> <span class="o">=</span> <span class="s">accept, authorization, content-type, origin, referer</span>
+</span></span><span class="line"><span class="ln">14</span><span class="cl"><span class="na">methods</span> <span class="o">=</span> <span class="s">GET, PUT, POST, HEAD, DELETE</span>
+</span></span><span class="line"><span class="ln">15</span><span class="cl"><span class="na">max_age</span> <span class="o">=</span> <span class="s">3600</span></span></span></code></pre></div>
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">systemctl restart couchdb
+</span></span><span class="line"><span class="ln">2</span><span class="cl">curl -X PUT http://admin:PASSWORD@localhost:5984/obsidian-sync</span></span></code></pre></div><p>nginx config:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-nginx" data-lang="nginx"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="k">server</span> <span class="p">{</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl">    <span class="kn">listen</span> <span class="mi">80</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl">    <span class="kn">server_name</span> <span class="s">sync.your.domain</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl">    <span class="kn">location</span> <span class="s">/</span> <span class="p">{</span>
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl">        <span class="kn">proxy_pass</span> <span class="s">http://127.0.0.1:5984</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">        <span class="kn">proxy_set_header</span> <span class="s">Host</span> <span class="nv">$host</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl">        <span class="kn">proxy_set_header</span> <span class="s">X-Real-IP</span> <span class="nv">$remote_addr</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl">        <span class="kn">proxy_set_header</span> <span class="s">X-Forwarded-For</span> <span class="nv">$proxy_add_x_forwarded_for</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="ln">10</span><span class="cl"><span class="p">}</span></span></span></code></pre></div><p>Get a cert: <code>certbot --nginx -d sync.your.domain</code></p>
+<p>In Obsidian: install the LiveSync community plugin, set the CouchDB URI to your domain, enter credentials, set a database name and an E2E passphrase. Enable sync. The passphrase encrypts vault content before it leaves your device &ndash; CouchDB never sees plaintext.</p>
+<h2 id="service-2-private-matrix-chat-conduit--coturn">Service 2: Private Matrix Chat (Conduit + coturn)</h2>
+<p>Conduit is a Matrix homeserver written in Rust &ndash; much lighter than Synapse, which would be too heavy for 3GB RAM. I run it with federation disabled &ndash; this is a personal instance, not connected to the public Matrix network.</p>
+<p><code>/opt/conduit/docker-compose.yml</code>:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="nt">services</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 2</span><span class="cl"><span class="w">  </span><span class="nt">conduit</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 3</span><span class="cl"><span class="w">    </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l">matrixconduit/matrix-conduit:latest</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 4</span><span class="cl"><span class="w">    </span><span class="nt">restart</span><span class="p">:</span><span class="w"> </span><span class="l">unless-stopped</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 5</span><span class="cl"><span class="w">    </span><span class="nt">volumes</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 6</span><span class="cl"><span class="w">      </span>- <span class="l">conduit_data:/var/lib/matrix-conduit</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 7</span><span class="cl"><span class="w">    </span><span class="nt">environment</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 8</span><span class="cl"><span class="w">      </span><span class="nt">CONDUIT_SERVER_NAME</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;chat.your.domain&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 9</span><span class="cl"><span class="w">      </span><span class="nt">CONDUIT_DATABASE_BACKEND</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;rocksdb&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="ln">10</span><span class="cl"><span class="w">      </span><span class="nt">CONDUIT_ALLOW_REGISTRATION</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;true&#34;</span><span class="w">      </span><span class="c"># flip to false after accounts created</span><span class="w">
+</span></span></span><span class="line"><span class="ln">11</span><span class="cl"><span class="w">      </span><span class="nt">CONDUIT_ALLOW_FEDERATION</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;false&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="ln">12</span><span class="cl"><span class="w">      </span><span class="nt">CONDUIT_MAX_REQUEST_SIZE</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;20000000&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="ln">13</span><span class="cl"><span class="w">      </span><span class="nt">CONDUIT_LOG</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;warn&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="ln">14</span><span class="cl"><span class="w">    </span><span class="nt">ports</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln">15</span><span class="cl"><span class="w">      </span>- <span class="s2">&#34;127.0.0.1:6167:6167&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="ln">16</span><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="ln">17</span><span class="cl"><span class="nt">volumes</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln">18</span><span class="cl"><span class="w">  </span><span class="l">conduit_data:</span></span></span></code></pre></div>
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl"><span class="nb">cd</span> /opt/conduit <span class="o">&amp;&amp;</span> docker compose up -d</span></span></code></pre></div><p>For voice and video calls, Matrix uses WebRTC &ndash; which needs a TURN server to traverse NAT. coturn handles this:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">apt install -y coturn
+</span></span><span class="line"><span class="ln">2</span><span class="cl">openssl rand -hex <span class="m">32</span>   <span class="c1"># generate a static auth secret, keep it</span></span></span></code></pre></div><p><code>/etc/turnserver.conf</code>:</p>
+
+
+
+
+
+<pre tabindex="0"><code>listening-port=3478
+tls-listening-port=5349
+fingerprint
+use-auth-secret
+static-auth-secret=YOUR_SECRET
+realm=chat.your.domain
+cert=/etc/letsencrypt/live/chat.your.domain/fullchain.pem
+pkey=/etc/letsencrypt/live/chat.your.domain/privkey.pem
+min-port=49152
+max-port=65535</code></pre><p>nginx config:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-nginx" data-lang="nginx"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="k">server</span> <span class="p">{</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl">    <span class="kn">listen</span> <span class="mi">80</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl">    <span class="kn">server_name</span> <span class="s">chat.your.domain</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl">    <span class="kn">location</span> <span class="s">/</span> <span class="p">{</span>
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl">        <span class="kn">proxy_pass</span> <span class="s">http://127.0.0.1:6167</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">        <span class="kn">proxy_set_header</span> <span class="s">Host</span> <span class="nv">$host</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl">        <span class="kn">proxy_set_header</span> <span class="s">X-Real-IP</span> <span class="nv">$remote_addr</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl">        <span class="kn">proxy_set_header</span> <span class="s">Upgrade</span> <span class="nv">$http_upgrade</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">        <span class="kn">proxy_set_header</span> <span class="s">Connection</span> <span class="s">&#34;upgrade&#34;</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln">10</span><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="ln">11</span><span class="cl"><span class="p">}</span></span></span></code></pre></div><p>Once Conduit is up: go to Element Web, set homeserver to your domain, register your accounts while <code>ALLOW_REGISTRATION</code> is true, then flip it to false and restart the container. Anyone who finds your homeserver URL can register while it&rsquo;s open.</p>
+<h2 id="service-3-calibre-web">Service 3: Calibre-Web</h2>
+<p>Calibre-Web gives you a browser-based library for EPUB, PDF, and MOBI files. The Docker image is from linuxserver.io.</p>
+<p><strong>Critical step before starting the container:</strong> Calibre-Web needs a properly initialized <code>metadata.db</code>. Not an empty file, not a directory &ndash; a valid Calibre library database. It must be created by <code>calibredb</code>.</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">apt install -y calibre   <span class="c1"># ~300MB, takes a few minutes</span>
+</span></span><span class="line"><span class="ln">2</span><span class="cl">mkdir -p /opt/calibre/books
+</span></span><span class="line"><span class="ln">3</span><span class="cl">calibredb --with-library /opt/calibre/books list   <span class="c1"># initializes metadata.db</span>
+</span></span><span class="line"><span class="ln">4</span><span class="cl">chown -R 1000:1000 /opt/calibre/books              <span class="c1"># container runs as uid 1000</span>
+</span></span><span class="line"><span class="ln">5</span><span class="cl">chmod -R <span class="m">755</span> /opt/calibre/books</span></span></code></pre></div><p>Do this before starting the container. If you start it first and hit &ldquo;invalid path&rdquo; or &ldquo;DB not writable&rdquo;, this is why.</p>
+<p><code>/opt/calibre/docker-compose.yml</code>:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="nt">services</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 2</span><span class="cl"><span class="w">  </span><span class="nt">calibre-web</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 3</span><span class="cl"><span class="w">    </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l">lscr.io/linuxserver/calibre-web:latest</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 4</span><span class="cl"><span class="w">    </span><span class="nt">restart</span><span class="p">:</span><span class="w"> </span><span class="l">unless-stopped</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 5</span><span class="cl"><span class="w">    </span><span class="nt">environment</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 6</span><span class="cl"><span class="w">      </span>- <span class="l">PUID=1000</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 7</span><span class="cl"><span class="w">      </span>- <span class="l">PGID=1000</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 8</span><span class="cl"><span class="w">      </span>- <span class="l">TZ=Asia/Kolkata</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 9</span><span class="cl"><span class="w">    </span><span class="nt">volumes</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln">10</span><span class="cl"><span class="w">      </span>- <span class="l">calibre_config:/config</span><span class="w">
+</span></span></span><span class="line"><span class="ln">11</span><span class="cl"><span class="w">      </span>- <span class="l">/opt/calibre/books:/books</span><span class="w">
+</span></span></span><span class="line"><span class="ln">12</span><span class="cl"><span class="w">    </span><span class="nt">ports</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln">13</span><span class="cl"><span class="w">      </span>- <span class="s2">&#34;127.0.0.1:8083:8083&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="ln">14</span><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="ln">15</span><span class="cl"><span class="nt">volumes</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln">16</span><span class="cl"><span class="w">  </span><span class="l">calibre_config:</span></span></span></code></pre></div><p>nginx config:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-nginx" data-lang="nginx"><span class="line"><span class="ln">1</span><span class="cl"><span class="k">server</span> <span class="p">{</span>
+</span></span><span class="line"><span class="ln">2</span><span class="cl">    <span class="kn">listen</span> <span class="mi">80</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln">3</span><span class="cl">    <span class="kn">server_name</span> <span class="s">books.your.domain</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln">4</span><span class="cl">    <span class="kn">location</span> <span class="s">/</span> <span class="p">{</span>
+</span></span><span class="line"><span class="ln">5</span><span class="cl">        <span class="kn">proxy_pass</span> <span class="s">http://127.0.0.1:8083</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln">6</span><span class="cl">        <span class="kn">proxy_set_header</span> <span class="s">Host</span> <span class="nv">$host</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln">7</span><span class="cl">        <span class="kn">proxy_set_header</span> <span class="s">X-Real-IP</span> <span class="nv">$remote_addr</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln">8</span><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="ln">9</span><span class="cl"><span class="p">}</span></span></span></code></pre></div><p>Default login is <code>admin</code> / <code>admin123</code>. Change it immediately. Set library path to <code>/books</code>.</p>
+<h2 id="cloudflare-in-front">Cloudflare in Front</h2>
+<p>All three subdomains go through Cloudflare. DNS A records point to the VPS IP, proxy status set to orange cloud (proxied) for all three. SSL mode set to Full &ndash; not Full Strict, since the Let&rsquo;s Encrypt cert on origin is valid enough and Full Strict adds complexity for no real benefit here.</p>
+<p>certbot handles the Let&rsquo;s Encrypt certs on the origin:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">certbot --nginx -d sync.your.domain
+</span></span><span class="line"><span class="ln">2</span><span class="cl">certbot --nginx -d chat.your.domain
+</span></span><span class="line"><span class="ln">3</span><span class="cl">certbot --nginx -d books.your.domain</span></span></code></pre></div><h2 id="resource-usage">Resource Usage</h2>
+<p>All three services running simultaneously:</p>
+<table>
+  <thead>
+      <tr>
+          <th>Service</th>
+          <th>RAM</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>Calibre-Web</td>
+          <td>~159MB</td>
+      </tr>
+      <tr>
+          <td>Conduit</td>
+          <td>~62MB</td>
+      </tr>
+      <tr>
+          <td>CouchDB</td>
+          <td>~80MB</td>
+      </tr>
+      <tr>
+          <td>nginx + OS</td>
+          <td>~453MB</td>
+      </tr>
+      <tr>
+          <td><strong>Total</strong></td>
+          <td><strong>~754MB / 2.9GB (26%)</strong></td>
+      </tr>
+  </tbody>
+</table>
+<p>Swap barely touched. Disk at ~6GB of 30GB. Plenty of headroom for adding services.</p>
+<h2 id="pitfalls">Pitfalls</h2>
+<table>
+  <thead>
+      <tr>
+          <th>Problem</th>
+          <th>Cause</th>
+          <th>Fix</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>SSH asks for password after key setup</td>
+          <td>Public key not on server</td>
+          <td><code>ssh-copy-id</code> or paste key in provider panel</td>
+      </tr>
+      <tr>
+          <td>Calibre-Web says &ldquo;invalid path&rdquo;</td>
+          <td>metadata.db missing or wrong schema</td>
+          <td>Install calibre on host, run <code>calibredb list</code> to init</td>
+      </tr>
+      <tr>
+          <td>Calibre-Web says &ldquo;DB not writable&rdquo;</td>
+          <td>Files owned by root, container runs as uid 1000</td>
+          <td><code>chown -R 1000:1000 /opt/calibre/books</code></td>
+      </tr>
+      <tr>
+          <td>Voice/video calls fail in Matrix</td>
+          <td>WebRTC can&rsquo;t traverse NAT</td>
+          <td>Install coturn, configure static-auth-secret</td>
+      </tr>
+      <tr>
+          <td>CouchDB sync drops randomly</td>
+          <td>Missing CORS headers</td>
+          <td>Double-check the <code>[cors]</code> section in local.ini</td>
+      </tr>
+  </tbody>
+</table>
+<p>The whole thing took an afternoon to set up. $22/year for services I fully control and can inspect end to end.</p>
+]]></content:encoded>
+    </item>
+    <item>
+      <title>Three Useful Services on a $22/Year VPS</title>
+      <link>https://KTS-o7.github.io/bear/infra/vps_self_hosting_stack/</link>
+      <pubDate>Wed, 22 Apr 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/infra/vps_self_hosting_stack/</guid>
+      <description>&lt;p&gt;I bought a budget VPS for $22/year &amp;ndash; 1 vCPU, 2.9GB RAM, 30GB disk, Dallas datacenter, Ubuntu 24.04. The plan was to run bots and experiments. I ended up setting up three services that are immediately useful: Obsidian note sync, a private Matrix chat server, and a personal book library.&lt;/p&gt;&#xA;&lt;p&gt;This post covers what I set up, what broke, and what actually works now.&lt;/p&gt;&#xA;&lt;h2 id=&#34;starting-point&#34;&gt;Starting point&lt;/h2&gt;&#xA;&lt;p&gt;The provider gives you a root password on first boot. First thing I did was generate an ed25519 SSH key pair locally, paste the public key into the VPS control panel, add a &lt;code&gt;Host personal&lt;/code&gt; entry to &lt;code&gt;~/.ssh/config&lt;/code&gt;, and verify key auth works before touching anything else. Then disabling password login:&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>I bought a budget VPS for $22/year &ndash; 1 vCPU, 2.9GB RAM, 30GB disk, Dallas datacenter, Ubuntu 24.04. The plan was to run bots and experiments. I ended up setting up three services that are immediately useful: Obsidian note sync, a private Matrix chat server, and a personal book library.</p>
+<p>This post covers what I set up, what broke, and what actually works now.</p>
+<h2 id="starting-point">Starting point</h2>
+<p>The provider gives you a root password on first boot. First thing I did was generate an ed25519 SSH key pair locally, paste the public key into the VPS control panel, add a <code>Host personal</code> entry to <code>~/.ssh/config</code>, and verify key auth works before touching anything else. Then disabling password login:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">sed -i <span class="s1">&#39;s/^PasswordAuthentication yes/PasswordAuthentication no/&#39;</span> /etc/ssh/sshd_config
+</span></span><span class="line"><span class="ln">2</span><span class="cl">systemctl restart sshd</span></span></code></pre></div><p>Don&rsquo;t close your existing SSH session before confirming you can open a new one with key auth. Classic footgun.</p>
+<p>Before any services: add swap. 2.9GB of RAM is workable but tight once Docker gets involved.</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">fallocate -l 2G /swapfile
+</span></span><span class="line"><span class="ln">2</span><span class="cl">chmod <span class="m">600</span> /swapfile
+</span></span><span class="line"><span class="ln">3</span><span class="cl">mkswap /swapfile
+</span></span><span class="line"><span class="ln">4</span><span class="cl">swapon /swapfile
+</span></span><span class="line"><span class="ln">5</span><span class="cl"><span class="nb">echo</span> <span class="s1">&#39;/swapfile none swap sw 0 0&#39;</span> &gt;&gt; /etc/fstab</span></span></code></pre></div><p>Then update packages, set up UFW to allow SSH, HTTP, HTTPS, and the TURN port range (3478, 5349, 49152:65535), and drop everything else.</p>
+<p>After all that, the box looked like this:</p>
+
+
+
+
+
+<pre tabindex="0"><code>OS: Ubuntu 24.04 LTS
+RAM: 2.9GB (470MB used, 2.4GB free)
+Disk: 30GB (2.4GB used, 26GB free)
+Swap: 2GB (none used yet)
+CPU: 1 core</code></pre><p>Plenty of room to work with.</p>
+<h2 id="service-1-obsidian-livesync">Service 1: Obsidian LiveSync</h2>
+<p>CouchDB as the backend for Obsidian&rsquo;s LiveSync community plugin. The plugin syncs your vault across devices using a CouchDB instance you control. End-to-end encrypted via a passphrase set in the plugin &ndash; CouchDB stores ciphertext only.</p>
+<p>Install CouchDB natively (not Docker &ndash; LiveSync requires specific CouchDB config that&rsquo;s simpler to manage directly):</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">apt install -y couchdb</span></span></code></pre></div><p>The installer asks for admin credentials. Set them and remember them. Then configure CouchDB to accept external connections by editing <code>/opt/couchdb/etc/local.ini</code>:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-ini" data-lang="ini"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="k">[chttpd]</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl"><span class="na">bind_address</span> <span class="o">=</span> <span class="s">127.0.0.1  ; nginx will proxy, no need to expose directly</span>
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl">
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl"><span class="k">[couch_httpd_auth]</span>
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl"><span class="na">require_valid_user</span> <span class="o">=</span> <span class="s">true</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl"><span class="k">[httpd]</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl"><span class="na">enable_cors</span> <span class="o">=</span> <span class="s">true</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">
+</span></span><span class="line"><span class="ln">10</span><span class="cl"><span class="k">[cors]</span>
+</span></span><span class="line"><span class="ln">11</span><span class="cl"><span class="na">origins</span> <span class="o">=</span> <span class="s">app://obsidian.md, capacitor://localhost, http://localhost</span>
+</span></span><span class="line"><span class="ln">12</span><span class="cl"><span class="na">credentials</span> <span class="o">=</span> <span class="s">true</span>
+</span></span><span class="line"><span class="ln">13</span><span class="cl"><span class="na">headers</span> <span class="o">=</span> <span class="s">accept, authorization, content-type, origin, referer</span>
+</span></span><span class="line"><span class="ln">14</span><span class="cl"><span class="na">methods</span> <span class="o">=</span> <span class="s">GET, PUT, POST, HEAD, DELETE</span>
+</span></span><span class="line"><span class="ln">15</span><span class="cl"><span class="na">max_age</span> <span class="o">=</span> <span class="s">3600</span></span></span></code></pre></div><p>Then create the sync database:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">curl -X PUT http://admin:password@localhost:5984/obsidian-sync</span></span></code></pre></div><p>nginx proxies the sync subdomain to <code>localhost:5984</code>. Cloudflare sits in front with Full SSL mode. In the Obsidian LiveSync plugin settings, point it at your CouchDB subdomain, enter the credentials, set your E2E passphrase, and enable sync.</p>
+<p>It just works after that. Notes push from Mac, pull on iPhone, no iCloud dependency.</p>
+<h2 id="service-2-private-matrix-chat">Service 2: Private Matrix Chat</h2>
+<p>Conduit is a Matrix homeserver written in Rust. It&rsquo;s small (62MB RAM), single-binary, and handles everything a private two-person server needs. Element Web as the client &ndash; works in any browser, no app required.</p>
+<p>Docker Compose setup:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="nt">services</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 2</span><span class="cl"><span class="w">  </span><span class="nt">conduit</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 3</span><span class="cl"><span class="w">    </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l">matrixconduit/matrix-conduit:latest</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 4</span><span class="cl"><span class="w">    </span><span class="nt">restart</span><span class="p">:</span><span class="w"> </span><span class="l">unless-stopped</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 5</span><span class="cl"><span class="w">    </span><span class="nt">volumes</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 6</span><span class="cl"><span class="w">      </span>- <span class="l">conduit_data:/var/lib/matrix-conduit</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 7</span><span class="cl"><span class="w">    </span><span class="nt">environment</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 8</span><span class="cl"><span class="w">      </span><span class="nt">CONDUIT_SERVER_NAME</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;your.chat.domain&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 9</span><span class="cl"><span class="w">      </span><span class="nt">CONDUIT_DATABASE_BACKEND</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;rocksdb&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="ln">10</span><span class="cl"><span class="w">      </span><span class="nt">CONDUIT_ALLOW_REGISTRATION</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;true&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="ln">11</span><span class="cl"><span class="w">      </span><span class="nt">CONDUIT_ALLOW_FEDERATION</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;false&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="ln">12</span><span class="cl"><span class="w">      </span><span class="nt">CONDUIT_MAX_REQUEST_SIZE</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;20000000&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="ln">13</span><span class="cl"><span class="w">      </span><span class="nt">CONDUIT_TRUSTED_SERVERS</span><span class="p">:</span><span class="w"> </span><span class="s1">&#39;[&#34;matrix.org&#34;]&#39;</span><span class="w">
+</span></span></span><span class="line"><span class="ln">14</span><span class="cl"><span class="w">      </span><span class="nt">CONDUIT_LOG</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;warn&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="ln">15</span><span class="cl"><span class="w">    </span><span class="nt">ports</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln">16</span><span class="cl"><span class="w">      </span>- <span class="s2">&#34;127.0.0.1:6167:6167&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="ln">17</span><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="ln">18</span><span class="cl"><span class="nt">volumes</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln">19</span><span class="cl"><span class="w">  </span><span class="l">conduit_data:</span></span></span></code></pre></div><p><code>ALLOW_FEDERATION: false</code> is important for a private server. No traffic leaves your machine to federate with matrix.org or anyone else.</p>
+<p>For Element Web, the easiest route is the hosted version at <code>app.element.io</code> &ndash; just point it at your homeserver URL when logging in. If you want it self-hosted too, serve the static build from nginx.</p>
+<p>For voice and video calls, WebRTC needs a TURN server or calls fail behind NAT. coturn handles this:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">apt install -y coturn</span></span></code></pre></div><p>Configure <code>/etc/turnserver.conf</code>:</p>
+
+
+
+
+
+<pre tabindex="0"><code>listening-port=3478
+tls-listening-port=5349
+fingerprint
+use-auth-secret
+static-auth-secret=&lt;generate with: openssl rand -hex 32&gt;
+realm=your.chat.domain
+cert=/etc/letsencrypt/live/your.chat.domain/fullchain.pem
+pkey=/etc/letsencrypt/live/your.chat.domain/privkey.pem</code></pre><p>Add the TURN server details in Conduit&rsquo;s config, then tell Element where to find it in the Synapse well-known file. After that, voice and video calls work reliably regardless of NAT.</p>
+<p>Create user accounts via the Conduit admin API or by registering through Element while <code>ALLOW_REGISTRATION: true</code>. After both accounts are created, set <code>ALLOW_REGISTRATION: false</code> so no new accounts can be made.</p>
+<h2 id="service-3-personal-book-library">Service 3: Personal Book Library</h2>
+<p>Calibre-Web in Docker. Serves EPUB, PDF, MOBI with a clean browser interface. Can read books directly in the browser without downloading.</p>
+<p>The setup hit two non-obvious problems worth documenting.</p>
+<p><strong>Problem 1: Calibre-Web needs a real metadata.db</strong></p>
+<p>The container starts and asks for a library path. I pointed it at <code>/books</code> (mapped to <code>/opt/calibre/books</code> on the host). It said &ldquo;invalid path.&rdquo;</p>
+<p>The issue is that Calibre-Web expects a valid Calibre library database (<code>metadata.db</code>) to already exist at that path. An empty directory is not enough. The database needs to have the correct schema &ndash; not just the file.</p>
+<p>The fix is to install Calibre on the host and use <code>calibredb</code> to initialize the library properly:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">apt install -y calibre  <span class="c1"># takes a while, ~300MB</span>
+</span></span><span class="line"><span class="ln">2</span><span class="cl">calibredb --with-library /opt/calibre/books list</span></span></code></pre></div><p>The <code>calibredb list</code> call creates a properly initialized <code>metadata.db</code> if one doesn&rsquo;t exist. After this, <code>/books</code> becomes a valid library path.</p>
+<p><strong>Problem 2: Permissions</strong></p>
+<p>Even after the database exists, Calibre-Web may refuse to write to it. The linuxserver/calibre-web Docker image runs as user 1000 internally. If the files on the host are owned by root, the container can&rsquo;t write.</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">chown -R 1000:1000 /opt/calibre/books
+</span></span><span class="line"><span class="ln">2</span><span class="cl">chmod -R <span class="m">755</span> /opt/calibre/books</span></span></code></pre></div><p>After both fixes, the setup page accepted <code>/books</code> and the library came up clean.</p>
+<p>Docker Compose:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="nt">services</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 2</span><span class="cl"><span class="w">  </span><span class="nt">calibre-web</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 3</span><span class="cl"><span class="w">    </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l">lscr.io/linuxserver/calibre-web:latest</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 4</span><span class="cl"><span class="w">    </span><span class="nt">restart</span><span class="p">:</span><span class="w"> </span><span class="l">unless-stopped</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 5</span><span class="cl"><span class="w">    </span><span class="nt">environment</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 6</span><span class="cl"><span class="w">      </span>- <span class="l">PUID=1000</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 7</span><span class="cl"><span class="w">      </span>- <span class="l">PGID=1000</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 8</span><span class="cl"><span class="w">      </span>- <span class="l">TZ=Asia/Kolkata</span><span class="w">
+</span></span></span><span class="line"><span class="ln"> 9</span><span class="cl"><span class="w">    </span><span class="nt">volumes</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln">10</span><span class="cl"><span class="w">      </span>- <span class="l">calibre_config:/config</span><span class="w">
+</span></span></span><span class="line"><span class="ln">11</span><span class="cl"><span class="w">      </span>- <span class="l">/opt/calibre/books:/books</span><span class="w">
+</span></span></span><span class="line"><span class="ln">12</span><span class="cl"><span class="w">    </span><span class="nt">ports</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln">13</span><span class="cl"><span class="w">      </span>- <span class="s2">&#34;127.0.0.1:8083:8083&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="ln">14</span><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="ln">15</span><span class="cl"><span class="nt">volumes</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="ln">16</span><span class="cl"><span class="w">  </span><span class="l">calibre_config:</span></span></span></code></pre></div><p>Default login after first start: <code>admin</code> / <code>admin123</code>. Change it immediately.</p>
+<h2 id="nginx-and-cloudflare">nginx and Cloudflare</h2>
+<p>All three services sit behind nginx. Each subdomain gets a server block that proxies to the local port:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-nginx" data-lang="nginx"><span class="line"><span class="ln">1</span><span class="cl"><span class="k">server</span> <span class="p">{</span>
+</span></span><span class="line"><span class="ln">2</span><span class="cl">    <span class="kn">listen</span> <span class="mi">80</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln">3</span><span class="cl">    <span class="kn">server_name</span> <span class="s">your.sync.domain</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln">4</span><span class="cl">    <span class="kn">location</span> <span class="s">/</span> <span class="p">{</span>
+</span></span><span class="line"><span class="ln">5</span><span class="cl">        <span class="kn">proxy_pass</span> <span class="s">http://127.0.0.1:5984</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln">6</span><span class="cl">        <span class="kn">proxy_set_header</span> <span class="s">Host</span> <span class="nv">$host</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln">7</span><span class="cl">        <span class="kn">proxy_set_header</span> <span class="s">X-Real-IP</span> <span class="nv">$remote_addr</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln">8</span><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="ln">9</span><span class="cl"><span class="p">}</span></span></span></code></pre></div><p>Cloudflare handles DNS and acts as the TLS terminator in Full mode. Let&rsquo;s Encrypt issues certs on each subdomain via certbot. The certs auto-renew &ndash; I won&rsquo;t have to touch them.</p>
+<p>Credentials stored in <code>pass</code> on the Mac, encrypted with a GPG key. No plaintext passwords in config files or notes.</p>
+<h2 id="resource-usage-after-all-three-services">Resource usage after all three services</h2>
+
+
+
+
+
+<pre tabindex="0"><code>Service          RAM
+---------        ----
+Calibre-Web      159MB
+Conduit          62MB
+CouchDB          ~80MB
+nginx + system   ~453MB
+---------        ------
+Total            754MB / 2.9GB  (26% used)
+Swap used        780KB
+Disk used        ~6GB / 30GB</code></pre><p>74% of RAM still free. The 2GB swap sits untouched. There&rsquo;s room for more things.</p>
+<h2 id="whats-next">What&rsquo;s next</h2>
+<p>The daily note has some ideas: run Bifrost on the VPS and wire up a blog-writing pipeline, use the unlimited bandwidth for a VPN, set up a small agent. The RAM budget will tighten but there&rsquo;s headroom to experiment.</p>
+<p>For $22/year, the box is already earning its keep.</p>
+<hr>
+<p>Tools: Ubuntu 24.04, Docker, nginx, Cloudflare, Let&rsquo;s Encrypt, CouchDB, Conduit (Matrix), Element Web, Calibre-Web, coturn, UFW, pass + GPG, certbot.</p>
+<h2 id="references">References</h2>
+<ul>
+<li>LandChad.net &ndash; practical self-hosting guides, covers nginx, certbot, and many services: <a href="https://landchad.net">https://landchad.net</a></li>
+<li>Conduit (Matrix homeserver in Rust): <a href="https://conduit.rs">https://conduit.rs</a></li>
+<li>Obsidian LiveSync plugin: <a href="https://github.com/vrtmrz/obsidian-livesync">https://github.com/vrtmrz/obsidian-livesync</a></li>
+<li>Calibre-Web: <a href="https://github.com/janeczku/calibre-web">https://github.com/janeczku/calibre-web</a></li>
+<li>coturn TURN server: <a href="https://github.com/coturn/coturn">https://github.com/coturn/coturn</a></li>
+</ul>
+]]></content:encoded>
+    </item>
+    <item>
+      <title>Building a Local AI Stack: Hermes, Bifrost, Telegram, and Camoufox</title>
+      <link>https://KTS-o7.github.io/bear/notes/hermes_local_ai_stack/</link>
+      <pubDate>Wed, 15 Apr 2026 00:00:00 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/notes/hermes_local_ai_stack/</guid>
+      <description>&lt;p&gt;I wanted a persistent AI agent that lives on my machine, reaches cloud models through a single gateway, and talks back to me on Telegram. Not a SaaS. Not a wrapper. Something I own end-to-end.&lt;/p&gt;&#xA;&lt;p&gt;This is the story of setting that up in one session, and the parts that went sideways.&lt;/p&gt;&#xA;&lt;h2 id=&#34;the-stack&#34;&gt;The Stack&lt;/h2&gt;&#xA;&lt;p&gt;Four moving parts:&lt;/p&gt;&#xA;&lt;ul&gt;&#xA;&lt;li&gt;&lt;strong&gt;Bifrost&lt;/strong&gt; &amp;ndash; LLM gateway already running on localhost:24242, routing to Ollama cloud models&lt;/li&gt;&#xA;&lt;li&gt;&lt;strong&gt;Hermes Agent&lt;/strong&gt; &amp;ndash; open-source AI agent framework by Nous Research, pointed at Bifrost&lt;/li&gt;&#xA;&lt;li&gt;&lt;strong&gt;Ollama&lt;/strong&gt; &amp;ndash; cloud relay for gemma4 and qwen3.5 cloud models via ollama.com&lt;/li&gt;&#xA;&lt;li&gt;&lt;strong&gt;Camoufox&lt;/strong&gt; &amp;ndash; Firefox fork with TLS fingerprint spoofing for scraping tasks&lt;/li&gt;&#xA;&lt;/ul&gt;&#xA;&lt;p&gt;The goal was to have Hermes run as a Telegram bot so I could assign it tasks from my phone, with all model traffic flowing through Bifrost so routing stays centralized.&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>I wanted a persistent AI agent that lives on my machine, reaches cloud models through a single gateway, and talks back to me on Telegram. Not a SaaS. Not a wrapper. Something I own end-to-end.</p>
+<p>This is the story of setting that up in one session, and the parts that went sideways.</p>
+<h2 id="the-stack">The Stack</h2>
+<p>Four moving parts:</p>
+<ul>
+<li><strong>Bifrost</strong> &ndash; LLM gateway already running on localhost:24242, routing to Ollama cloud models</li>
+<li><strong>Hermes Agent</strong> &ndash; open-source AI agent framework by Nous Research, pointed at Bifrost</li>
+<li><strong>Ollama</strong> &ndash; cloud relay for gemma4 and qwen3.5 cloud models via ollama.com</li>
+<li><strong>Camoufox</strong> &ndash; Firefox fork with TLS fingerprint spoofing for scraping tasks</li>
+</ul>
+<p>The goal was to have Hermes run as a Telegram bot so I could assign it tasks from my phone, with all model traffic flowing through Bifrost so routing stays centralized.</p>
+<h2 id="bifrost-first">Bifrost First</h2>
+<p>Bifrost was already up on port 24242 with Ollama configured. The only addition needed was an <code>ollama-cloud</code> provider pointing at <code>https://ollama.com</code> rather than localhost. This is a non-obvious distinction.</p>
+<p>The trap: Ollama&rsquo;s OpenAI-compatible endpoint (<code>/v1/chat/completions</code>) does not work for cloud models. It hangs. Cloud models only work through Ollama&rsquo;s native <code>/api/chat</code> endpoint. Pointing Bifrost directly at <code>https://ollama.com</code> instead of <code>localhost:11434</code> bypasses the broken compat layer and hits the right path.</p>
+<p>Once the provider was registered and <code>OLLAMA_API_KEY</code> was set in <code>.zshrc</code>, both cloud models confirmed working:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">ollama pull gemma4:31b-cloud
+</span></span><span class="line"><span class="ln">2</span><span class="cl">ollama pull qwen3.5:cloud</span></span></code></pre></div><h2 id="installing-hermes">Installing Hermes</h2>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh <span class="p">|</span> bash</span></span></code></pre></div><p>That puts everything under <code>~/.hermes/</code>. The setup wizard runs next:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">hermes setup</span></span></code></pre></div><p>It walks through provider selection interactively. I pointed it at the Bifrost custom endpoint (<code>http://localhost:24242/v1</code>) and picked <code>ollama-cloud/gemma4:31b-cloud</code> as the default model.</p>
+<p>Key config paths:</p>
+
+
+
+
+
+<pre tabindex="0"><code>~/.hermes/config.yaml    -- main settings
+~/.hermes/.env           -- secrets and API keys
+~/.hermes/skills/        -- reusable agent procedures
+~/.hermes/sessions/      -- full conversation history (searchable)</code></pre><p>After setup, a quick smoke test confirmed the agent was up and routing through Bifrost correctly:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">hermes chat -q <span class="s2">&#34;what model are you using and where does traffic go&#34;</span></span></span></code></pre></div><h2 id="context-window">Context Window</h2>
+<p>The default context length was under 20k tokens. Ollama cloud models support much larger windows. One config set:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">hermes config <span class="nb">set</span> model.context_length <span class="m">200000</span></span></span></code></pre></div><p>Takes effect on the next session restart.</p>
+<h2 id="telegram-bot">Telegram Bot</h2>
+<p>This is where Hermes gets genuinely useful. The gateway turns it into a bot that accepts tasks from any platform you connect.</p>
+<p>Create a bot via BotFather, get the token, then add it to <code>~/.hermes/.env</code>:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl"><span class="nv">TELEGRAM_BOT_TOKEN</span><span class="o">=</span>&lt;your-bot-token&gt;
+</span></span><span class="line"><span class="ln">2</span><span class="cl"><span class="nv">TELEGRAM_ALLOWED_USERS</span><span class="o">=</span>&lt;your-numeric-telegram-id&gt;</span></span></code></pre></div><p><code>TELEGRAM_ALLOWED_USERS</code> takes the numeric user ID, not the username. Lock it down. Anyone who finds the bot URL can send it commands if this is not set.</p>
+<p>Start the gateway:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">hermes gateway run</span></span></code></pre></div><p>For persistent background operation, install it as a service:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">hermes gateway install
+</span></span><span class="line"><span class="ln">2</span><span class="cl">hermes gateway start</span></span></code></pre></div><p>A set of aliases in <code>.zshrc</code> makes it easier to manage day to day:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl"><span class="nb">alias</span> hermes-gateway-start<span class="o">=</span><span class="s2">&#34;hermes gateway start&#34;</span>
+</span></span><span class="line"><span class="ln">2</span><span class="cl"><span class="nb">alias</span> hermes-gateway-stop<span class="o">=</span><span class="s2">&#34;hermes gateway stop&#34;</span>
+</span></span><span class="line"><span class="ln">3</span><span class="cl"><span class="nb">alias</span> hermes-gateway-log<span class="o">=</span><span class="s2">&#34;tail -f ~/.hermes/logs/gateway.log&#34;</span></span></span></code></pre></div><p>First run hit a missing Python dependency and failed silently. The fix was running <code>hermes gateway run</code> in the foreground once to see the real error, installing the missing package, then moving back to the service.</p>
+<h2 id="camoufox">Camoufox</h2>
+<p>Camoufox is a Firefox fork built for scraping. It spoofs TLS fingerprints so sites see a legitimate browser rather than a Playwright or CDP signature. It exposes a CDP endpoint that Hermes&rsquo;s browser tool connects to.</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">git clone https://github.com/daijro/camoufox
+</span></span><span class="line"><span class="ln">2</span><span class="cl"><span class="nb">cd</span> camoufox <span class="o">&amp;&amp;</span> npm install
+</span></span><span class="line"><span class="ln">3</span><span class="cl">python -m camoufox fetch   <span class="c1"># ~300MB download</span></span></span></code></pre></div><p>The <code>camoufox fetch</code> step downloads the actual browser binary and does not run automatically via postinstall. If you skip it, the first start fails silently. Run it manually and wait for the download to finish before starting the server.</p>
+<p>Start it on port 9377:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">python -m camoufox server --port <span class="m">9377</span> <span class="p">&amp;</span></span></span></code></pre></div><p>Smoke test via Hermes:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">hermes chat -q <span class="s2">&#34;use the browser to fetch the title of example.com&#34;</span></span></span></code></pre></div><p>Aliases for day-to-day:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl"><span class="nb">alias</span> camofox-start<span class="o">=</span><span class="s2">&#34;python -m camoufox server --port 9377 &amp;&#34;</span>
+</span></span><span class="line"><span class="ln">2</span><span class="cl"><span class="nb">alias</span> camofox-stop<span class="o">=</span><span class="s2">&#34;pkill -f &#39;camoufox server&#39;&#34;</span></span></span></code></pre></div><h2 id="what-actually-went-wrong">What Actually Went Wrong</h2>
+<p><strong>Ollama native vs compat endpoint.</strong> Already covered above, but it cost a couple of hours. If a cloud model hangs at the provider level, check whether your gateway is talking to the right API path.</p>
+<p><strong>Camoufox silent failure.</strong> The binary fetch is not in postinstall. No error, just no browser. Always run <code>python -m camoufox fetch</code> explicitly before the first start.</p>
+<p><strong>Hermes gateway dependency.</strong> First start printed nothing useful. Run in foreground before daemonizing so you can see the actual error.</p>
+<p><strong>Bifrost and empty API keys.</strong> Ollama initially rejected non-empty dummy keys in the Authorization header. Setting the key to an empty string before switching to the real <code>OLLAMA_API_KEY</code> got things unstuck. The order mattered.</p>
+<p><strong>Session corruption in OpenCode.</strong> An OpenCode session used to orchestrate this setup got a zombie assistant message from an interrupted stream. The message had an empty string for content. Bifrost converted that empty string to null before forwarding, and the upstream provider rejected the entire next request with <code>messages.315.member.content must not be null</code>. Every retry included the same zombie in history, so the error was permanent until manually fixed.</p>
+<p>The fix is to delete the zombie row directly from the OpenCode SQLite database:</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="ln">1</span><span class="cl">sqlite3 ~/.local/share/opencode/opencode.db <span class="se">\
+</span></span></span><span class="line"><span class="ln">2</span><span class="cl">  <span class="s2">&#34;DELETE FROM message WHERE id = &#39;&lt;zombie-message-id&gt;&#39; AND session_id = &#39;&lt;session-id&gt;&#39;;&#34;</span></span></span></code></pre></div><p>There is no built-in repair command. Back up the database before editing it.</p>
+<h2 id="final-state">Final State</h2>
+<p>Services running when done:</p>
+
+
+
+
+
+<pre tabindex="0"><code>bifrost    :24242  -- Ollama cloud routes
+ollama     :11434  -- cloud relay (gemma4, qwen3.5)
+camoufox   :9377   -- CDP browser endpoint
+hermes     gateway -- Telegram bot (restricted to single user)</code></pre><p>The agent receives messages on Telegram, runs tool calls locally (terminal, browser, file ops, web search), and routes all model traffic through Bifrost.</p>
+<h2 id="whats-left">What&rsquo;s Left</h2>
+<p>The original plan included running a local Qwen3.5-27B model via llama.cpp with Metal acceleration. That is a 13.5GB download and a build-from-source step, so it was deferred to the next session. The cloud routing setup works fine in the meantime.</p>
+<h2 id="references">References</h2>
+<ul>
+<li>Hermes Agent: <a href="https://github.com/NousResearch/hermes-agent">https://github.com/NousResearch/hermes-agent</a></li>
+<li>Hermes docs: <a href="https://hermes-agent.nousresearch.com/docs/">https://hermes-agent.nousresearch.com/docs/</a></li>
+<li>Bifrost: <a href="https://github.com/maximhq/bifrost">https://github.com/maximhq/bifrost</a></li>
+<li>Camoufox: <a href="https://github.com/daijro/camoufox">https://github.com/daijro/camoufox</a></li>
+<li>OpenCode: <a href="https://opencode.ai">https://opencode.ai</a></li>
+</ul>
+]]></content:encoded>
+    </item>
+  </channel>
+</rss>

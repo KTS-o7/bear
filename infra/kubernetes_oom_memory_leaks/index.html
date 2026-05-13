@@ -6,12 +6,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <link rel="shortcut icon" href="https://KTS-o7.github.io/bear/images/favicon.png" />
-<title>Hunting OOMKilled in Kubernetes: Four Memory Leaks That Almost Took Down Our Platform | </title>
+<title>Hunting OOMKilled in Kubernetes: Four Memory Leaks That Almost Took Down Our Platform | Krishnatejaswi S</title>
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
 <meta name="title" content="Hunting OOMKilled in Kubernetes: Four Memory Leaks That Almost Took Down Our Platform" />
-<meta name="description" content="A pod restarts at 3 AM. Then again at 3:14. By 3:30 it&rsquo;s in a CrashLoopBackOff. The dashboard shows memory climbing in a clean line - no spikes, no sudden jumps - just a slow, relentless climb until the OOM killer steps in.
-This is the story of how I tracked down four distinct memory leaks across two Python services running on Kubernetes. Each one was a different flavor of &ldquo;silent accumulation,&rdquo; and each one taught me something about how easy it is to bleed memory in async Python without any obvious errors." />
-<meta name="author" content="" />
-<meta name="keywords" content="" />
+<meta name="description" content="Four memory leaks inside OOMKilled Kubernetes pods — slow async accumulation in Python services, unclosed client sessions, unbounded caches, and how to track each one down without a profiler." />
+<meta name="author" content="Krishnatejaswi S" />
+<meta name="keywords" content="infra,kubernetes,python,debugging,memory," />
 
 
 
@@ -20,39 +20,69 @@ This is the story of how I tracked down four distinct memory leaks across two Py
 
   
   <meta property="og:url" content="https://KTS-o7.github.io/bear/infra/kubernetes_oom_memory_leaks/">
+  <meta property="og:site_name" content="Krishnatejaswi S">
   <meta property="og:title" content="Hunting OOMKilled in Kubernetes: Four Memory Leaks That Almost Took Down Our Platform">
-  <meta property="og:description" content="A pod restarts at 3 AM. Then again at 3:14. By 3:30 it’s in a CrashLoopBackOff. The dashboard shows memory climbing in a clean line - no spikes, no sudden jumps - just a slow, relentless climb until the OOM killer steps in.
-This is the story of how I tracked down four distinct memory leaks across two Python services running on Kubernetes. Each one was a different flavor of “silent accumulation,” and each one taught me something about how easy it is to bleed memory in async Python without any obvious errors.">
+  <meta property="og:description" content="Four memory leaks inside OOMKilled Kubernetes pods — slow async accumulation in Python services, unclosed client sessions, unbounded caches, and how to track each one down without a profiler.">
   <meta property="og:locale" content="en_us">
   <meta property="og:type" content="article">
     <meta property="article:section" content="infra">
     <meta property="article:published_time" content="2026-02-16T00:00:00+00:00">
     <meta property="article:modified_time" content="2026-02-16T00:00:00+00:00">
+    <meta property="article:tag" content="Infra">
+    <meta property="article:tag" content="Kubernetes">
+    <meta property="article:tag" content="Python">
+    <meta property="article:tag" content="Debugging">
+    <meta property="article:tag" content="Memory">
     <meta property="og:image" content="https://KTS-o7.github.io/bear/images/share.webp">
 
+  
+  <meta property="og:site_name" content="Krishnatejaswi S" />
 
   
   
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:image" content="https://KTS-o7.github.io/bear/images/share.webp">
   <meta name="twitter:title" content="Hunting OOMKilled in Kubernetes: Four Memory Leaks That Almost Took Down Our Platform">
-  <meta name="twitter:description" content="A pod restarts at 3 AM. Then again at 3:14. By 3:30 it’s in a CrashLoopBackOff. The dashboard shows memory climbing in a clean line - no spikes, no sudden jumps - just a slow, relentless climb until the OOM killer steps in.
-This is the story of how I tracked down four distinct memory leaks across two Python services running on Kubernetes. Each one was a different flavor of “silent accumulation,” and each one taught me something about how easy it is to bleed memory in async Python without any obvious errors.">
+  <meta name="twitter:description" content="Four memory leaks inside OOMKilled Kubernetes pods — slow async accumulation in Python services, unclosed client sessions, unbounded caches, and how to track each one down without a profiler.">
 
+  <meta name="twitter:site" content="@KTS_o7" />
 
   
   
   <meta itemprop="name" content="Hunting OOMKilled in Kubernetes: Four Memory Leaks That Almost Took Down Our Platform">
-  <meta itemprop="description" content="A pod restarts at 3 AM. Then again at 3:14. By 3:30 it’s in a CrashLoopBackOff. The dashboard shows memory climbing in a clean line - no spikes, no sudden jumps - just a slow, relentless climb until the OOM killer steps in.
-This is the story of how I tracked down four distinct memory leaks across two Python services running on Kubernetes. Each one was a different flavor of “silent accumulation,” and each one taught me something about how easy it is to bleed memory in async Python without any obvious errors.">
+  <meta itemprop="description" content="Four memory leaks inside OOMKilled Kubernetes pods — slow async accumulation in Python services, unclosed client sessions, unbounded caches, and how to track each one down without a profiler.">
   <meta itemprop="datePublished" content="2026-02-16T00:00:00+00:00">
   <meta itemprop="dateModified" content="2026-02-16T00:00:00+00:00">
   <meta itemprop="wordCount" content="2548">
   <meta itemprop="image" content="https://KTS-o7.github.io/bear/images/share.webp">
+  <meta itemprop="keywords" content="Infra,Kubernetes,Python,Debugging,Memory">
 
-<meta name="referrer" content="no-referrer-when-downgrade" />
-
-  
+<link rel="canonical" href="https://KTS-o7.github.io/bear/infra/kubernetes_oom_memory_leaks/" />
+  <meta name="referrer" content="no-referrer-when-downgrade" /><script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https:\/\/KTS-o7.github.io\/bear\/infra\/kubernetes_oom_memory_leaks\/"
+  },
+  "headline": "Hunting OOMKilled in Kubernetes: Four Memory Leaks That Almost Took Down Our Platform",
+  "description": "Four memory leaks inside OOMKilled Kubernetes pods — slow async accumulation in Python services, unclosed client sessions, unbounded caches, and how to track each one down without a profiler.",
+  "datePublished": "2026-02-16",
+  "dateModified": "2026-02-16",
+  "author": {
+    "@type": "Person",
+    "name": "Krishnatejaswi S",
+    "url": "https:\/\/KTS-o7.github.io\/bear\/"
+  },
+  "publisher": {
+    "@type": "Person",
+    "name": "Krishnatejaswi S"
+  },
+  "url": "https:\/\/KTS-o7.github.io\/bear\/infra\/kubernetes_oom_memory_leaks\/",
+  "keywords": ["infra", "kubernetes", "python", "debugging", "memory"]
+}
+</script>
   <link href="/bear/herman.min.css" rel="stylesheet">
 
   
@@ -71,7 +101,7 @@ This is the story of how I tracked down four distinct memory leaks across two Py
   <header><a class="skip-link" href="#main-content">Skip to main content</a>
 
 <div style="display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
-  <a href="/bear/" class="title"><h1></h1></a>
+  <a href="/bear/" class="title"><h1>Krishnatejaswi S</h1></a>
   <button id="theme-toggle" aria-label="Toggle light/dark mode" title="Toggle theme">
     <span id="theme-toggle-label">○●</span>
   </button>
@@ -104,7 +134,7 @@ This is the story of how I tracked down four distinct memory leaks across two Py
   <time datetime='2026-02-16' pubdate>
     2026-02-16
   </time>
-  
+  · Krishnatejaswi S
 </p>
 
 <content>
@@ -550,6 +580,19 @@ This is the story of how I tracked down four distinct memory leaks across two Py
 
 
 
+<p style="margin-top: 1.5rem;">
+  
+    <a class="blog-tags" href="/bear/tags/infra/">#infra</a>
+  
+    <a class="blog-tags" href="/bear/tags/kubernetes/">#kubernetes</a>
+  
+    <a class="blog-tags" href="/bear/tags/python/">#python</a>
+  
+    <a class="blog-tags" href="/bear/tags/debugging/">#debugging</a>
+  
+    <a class="blog-tags" href="/bear/tags/memory/">#memory</a>
+  
+</p>
 
 
 
@@ -557,6 +600,36 @@ This is the story of how I tracked down four distinct memory leaks across two Py
 
 
 
+
+
+
+
+<div class="related-notes">
+  <h4>Related Notes</h4>
+  <ul>
+    
+    <li>
+      <a href="/bear/infra/cicd_docker_buildx_sha_deploys/">From Manual Deploys to SHA-Tagged Containers: CI/CD for a K8s Platform</a>
+      <span class="note-date">2026-02-17</span>
+    </li>
+    
+    <li>
+      <a href="/bear/infra/sse_disconnect_handling/">SSE in FastAPI: The Tab Closed and My “Done” Code Never Ran</a>
+      <span class="note-date">2026-01-23</span>
+    </li>
+    
+    <li>
+      <a href="/bear/systems/connection_pool_exhaustion/">MongoDB Connection Pool Exhaustion: Diagnosis, Fixes, and SDAM</a>
+      <span class="note-date">2025-12-06</span>
+    </li>
+    
+    <li>
+      <a href="/bear/infra/vps_self_hosting/">A $22/Year VPS Running Three Self-Hosted Services</a>
+      <span class="note-date">2026-05-02</span>
+    </li>
+    
+  </ul>
+</div>
 
 
 

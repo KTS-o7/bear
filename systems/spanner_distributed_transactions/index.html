@@ -6,12 +6,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <link rel="shortcut icon" href="https://KTS-o7.github.io/bear/images/favicon.png" />
-<title>How Spanner Does Distributed Transactions Without Classic 2PC | </title>
+<title>How Spanner Does Distributed Transactions Without Classic 2PC | Krishnatejaswi S</title>
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
 <meta name="title" content="How Spanner Does Distributed Transactions Without Classic 2PC" />
-<meta name="description" content="Two-phase commit has a well-known problem: crash the coordinator between Phase 1 and Phase 2 and every participant is stuck holding locks, waiting, with no safe way to proceed. 2PC is a blocking protocol.
-Google Spanner runs distributed transactions across a globally replicated database at scale. It can&rsquo;t afford to block on coordinator failure. Its solution is to not use a standalone coordinator at all &ndash; it runs 2PC on top of Paxos groups, which means the coordinator itself is fault-tolerant." />
-<meta name="author" content="" />
-<meta name="keywords" content="" />
+<meta name="description" content="Google Spanner achieves globally consistent distributed transactions using TrueTime — bounded clock uncertainty instead of classic 2PC, enabling external consistency at planetary scale." />
+<meta name="author" content="Krishnatejaswi S" />
+<meta name="keywords" content="distributed-systems,databases,spanner,transactions,consistency," />
 
 
 
@@ -20,39 +20,69 @@ Google Spanner runs distributed transactions across a globally replicated databa
 
   
   <meta property="og:url" content="https://KTS-o7.github.io/bear/systems/spanner_distributed_transactions/">
+  <meta property="og:site_name" content="Krishnatejaswi S">
   <meta property="og:title" content="How Spanner Does Distributed Transactions Without Classic 2PC">
-  <meta property="og:description" content="Two-phase commit has a well-known problem: crash the coordinator between Phase 1 and Phase 2 and every participant is stuck holding locks, waiting, with no safe way to proceed. 2PC is a blocking protocol.
-Google Spanner runs distributed transactions across a globally replicated database at scale. It can’t afford to block on coordinator failure. Its solution is to not use a standalone coordinator at all – it runs 2PC on top of Paxos groups, which means the coordinator itself is fault-tolerant.">
+  <meta property="og:description" content="Google Spanner achieves globally consistent distributed transactions using TrueTime — bounded clock uncertainty instead of classic 2PC, enabling external consistency at planetary scale.">
   <meta property="og:locale" content="en_us">
   <meta property="og:type" content="article">
     <meta property="article:section" content="systems">
     <meta property="article:published_time" content="2026-05-03T00:00:00+05:30">
     <meta property="article:modified_time" content="2026-05-03T00:00:00+05:30">
+    <meta property="article:tag" content="Distributed-Systems">
+    <meta property="article:tag" content="Databases">
+    <meta property="article:tag" content="Spanner">
+    <meta property="article:tag" content="Transactions">
+    <meta property="article:tag" content="Consistency">
     <meta property="og:image" content="https://KTS-o7.github.io/bear/images/share.webp">
 
+  
+  <meta property="og:site_name" content="Krishnatejaswi S" />
 
   
   
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:image" content="https://KTS-o7.github.io/bear/images/share.webp">
   <meta name="twitter:title" content="How Spanner Does Distributed Transactions Without Classic 2PC">
-  <meta name="twitter:description" content="Two-phase commit has a well-known problem: crash the coordinator between Phase 1 and Phase 2 and every participant is stuck holding locks, waiting, with no safe way to proceed. 2PC is a blocking protocol.
-Google Spanner runs distributed transactions across a globally replicated database at scale. It can’t afford to block on coordinator failure. Its solution is to not use a standalone coordinator at all – it runs 2PC on top of Paxos groups, which means the coordinator itself is fault-tolerant.">
+  <meta name="twitter:description" content="Google Spanner achieves globally consistent distributed transactions using TrueTime — bounded clock uncertainty instead of classic 2PC, enabling external consistency at planetary scale.">
 
+  <meta name="twitter:site" content="@KTS_o7" />
 
   
   
   <meta itemprop="name" content="How Spanner Does Distributed Transactions Without Classic 2PC">
-  <meta itemprop="description" content="Two-phase commit has a well-known problem: crash the coordinator between Phase 1 and Phase 2 and every participant is stuck holding locks, waiting, with no safe way to proceed. 2PC is a blocking protocol.
-Google Spanner runs distributed transactions across a globally replicated database at scale. It can’t afford to block on coordinator failure. Its solution is to not use a standalone coordinator at all – it runs 2PC on top of Paxos groups, which means the coordinator itself is fault-tolerant.">
+  <meta itemprop="description" content="Google Spanner achieves globally consistent distributed transactions using TrueTime — bounded clock uncertainty instead of classic 2PC, enabling external consistency at planetary scale.">
   <meta itemprop="datePublished" content="2026-05-03T00:00:00+05:30">
   <meta itemprop="dateModified" content="2026-05-03T00:00:00+05:30">
   <meta itemprop="wordCount" content="763">
   <meta itemprop="image" content="https://KTS-o7.github.io/bear/images/share.webp">
+  <meta itemprop="keywords" content="Distributed-Systems,Databases,Spanner,Transactions,Consistency">
 
-<meta name="referrer" content="no-referrer-when-downgrade" />
-
-  
+<link rel="canonical" href="https://KTS-o7.github.io/bear/systems/spanner_distributed_transactions/" />
+  <meta name="referrer" content="no-referrer-when-downgrade" /><script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https:\/\/KTS-o7.github.io\/bear\/systems\/spanner_distributed_transactions\/"
+  },
+  "headline": "How Spanner Does Distributed Transactions Without Classic 2PC",
+  "description": "Google Spanner achieves globally consistent distributed transactions using TrueTime — bounded clock uncertainty instead of classic 2PC, enabling external consistency at planetary scale.",
+  "datePublished": "2026-05-03",
+  "dateModified": "2026-05-03",
+  "author": {
+    "@type": "Person",
+    "name": "Krishnatejaswi S",
+    "url": "https:\/\/KTS-o7.github.io\/bear\/"
+  },
+  "publisher": {
+    "@type": "Person",
+    "name": "Krishnatejaswi S"
+  },
+  "url": "https:\/\/KTS-o7.github.io\/bear\/systems\/spanner_distributed_transactions\/",
+  "keywords": ["distributed-systems", "databases", "spanner", "transactions", "consistency"]
+}
+</script>
   <link href="/bear/herman.min.css" rel="stylesheet">
 
   
@@ -68,7 +98,7 @@ Google Spanner runs distributed transactions across a globally replicated databa
   <header><a class="skip-link" href="#main-content">Skip to main content</a>
 
 <div style="display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
-  <a href="/bear/" class="title"><h1></h1></a>
+  <a href="/bear/" class="title"><h1>Krishnatejaswi S</h1></a>
   <button id="theme-toggle" aria-label="Toggle light/dark mode" title="Toggle theme">
     <span id="theme-toggle-label">○●</span>
   </button>
@@ -101,7 +131,7 @@ Google Spanner runs distributed transactions across a globally replicated databa
   <time datetime='2026-05-03' pubdate>
     2026-05-03
   </time>
-  
+  · Krishnatejaswi S
 </p>
 
 <content>
@@ -148,6 +178,19 @@ Google Spanner runs distributed transactions across a globally replicated databa
 
 
 
+<p style="margin-top: 1.5rem;">
+  
+    <a class="blog-tags" href="/bear/tags/distributed-systems/">#distributed-systems</a>
+  
+    <a class="blog-tags" href="/bear/tags/databases/">#databases</a>
+  
+    <a class="blog-tags" href="/bear/tags/spanner/">#spanner</a>
+  
+    <a class="blog-tags" href="/bear/tags/transactions/">#transactions</a>
+  
+    <a class="blog-tags" href="/bear/tags/consistency/">#consistency</a>
+  
+</p>
 
 
 
@@ -155,6 +198,36 @@ Google Spanner runs distributed transactions across a globally replicated databa
 
 
 
+
+
+
+
+<div class="related-notes">
+  <h4>Related Notes</h4>
+  <ul>
+    
+    <li>
+      <a href="/bear/systems/two_phase_commit/">Two-Phase Commit: Distributed Atomicity and Its Fatal Flaw</a>
+      <span class="note-date">2026-05-02</span>
+    </li>
+    
+    <li>
+      <a href="/bear/systems/why_mysql_is_not_ca/">Why MySQL is not CA</a>
+      <span class="note-date">2025-09-05</span>
+    </li>
+    
+    <li>
+      <a href="/bear/systems/crdts/">CRDTs: Conflict-Free Replicated Data Types</a>
+      <span class="note-date">2026-05-03</span>
+    </li>
+    
+    <li>
+      <a href="/bear/systems/saga_outbox_pattern/">The Saga Outbox Pattern: Reliable Event Delivery Without Two-Phase Commit</a>
+      <span class="note-date">2026-05-03</span>
+    </li>
+    
+  </ul>
+</div>
 
 
 

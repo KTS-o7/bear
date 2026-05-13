@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>Generative-Ai on Krishnatejaswi S</title>
+    <link>http://localhost:1313/bear/tags/generative-ai/</link>
+    <description>Recent content in Generative-Ai on Krishnatejaswi S</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <managingEditor>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</managingEditor>
+    <webMaster>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</webMaster>
+    <copyright>Krishnatejaswi S</copyright>
+    <lastBuildDate>Fri, 12 Sep 2025 17:28:47 +0530</lastBuildDate>
+    <atom:link href="http://localhost:1313/bear/tags/generative-ai/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Twenty things about gen ai</title>
+      <link>http://localhost:1313/bear/ml/twenty_things_about_gen_ai/</link>
+      <pubDate>Fri, 12 Sep 2025 17:28:47 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>http://localhost:1313/bear/ml/twenty_things_about_gen_ai/</guid>
+      <description></description>
+      <content:encoded><![CDATA[]]></content:encoded>
+    </item>
+  </channel>
+</rss>

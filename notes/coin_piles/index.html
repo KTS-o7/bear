@@ -6,31 +6,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <link rel="shortcut icon" href="http://localhost:1313/bear/images/favicon.png" />
-<title>Coin Piles | </title>
+<title>Coin Piles | Krishnatejaswi S</title>
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
 <meta name="title" content="Coin Piles" />
-<meta name="description" content="Link to the problem : Coin Piles
-Intuition
-From the two piles we can perform the following operations:
-
-Remove 1 coin from pile A and 2 coins from pile B
-OR
-Remove 2 coins from pile A and 1 coin from pile B
-
-We need to check if we can make these operations to make both piles empty.
-So thinking about it we can understand the following points
-
-Each time we are reducing the total count by 3.
-So if the total count is not divisible by 3, then it is not possible to make both piles empty.
-Another case is when one of the pile is substantially greater than the other, then it is not possible to make both piles empty.
-To find the limiting conditions we need to see like this
-
-The count of coins in smaller piles shud be atleast be equal to half of the counts of coins in the larger pile.
-This is the limiting condition because we can only remove 1 coin from pile A and 2 coins from pile B or 2 coins from pile A and 1 coin from pile B.
-so mathematically it can be written as
-if a&lt;=b then we need to check if a &gt;= b/2
-because if  a &lt; b/2 then a goes to 0 faster than b" />
-<meta name="author" content="" />
-<meta name="keywords" content="" />
+<meta name="description" content="CSES coin piles problem — determining whether two piles can be emptied with operations that remove one coin from one pile or one from each, using divisibility reasoning." />
+<meta name="author" content="Krishnatejaswi S" />
+<meta name="keywords" content="competitive-programming,cses,mathematics,algorithms," />
 
 
 
@@ -39,48 +20,68 @@ because if  a &lt; b/2 then a goes to 0 faster than b" />
 
   
   <meta property="og:url" content="http://localhost:1313/bear/notes/coin_piles/">
+  <meta property="og:site_name" content="Krishnatejaswi S">
   <meta property="og:title" content="Coin Piles">
-  <meta property="og:description" content="Link to the problem : Coin Piles
-Intuition From the two piles we can perform the following operations:
-Remove 1 coin from pile A and 2 coins from pile B OR Remove 2 coins from pile A and 1 coin from pile B We need to check if we can make these operations to make both piles empty.
-So thinking about it we can understand the following points
-Each time we are reducing the total count by 3. So if the total count is not divisible by 3, then it is not possible to make both piles empty. Another case is when one of the pile is substantially greater than the other, then it is not possible to make both piles empty. To find the limiting conditions we need to see like this The count of coins in smaller piles shud be atleast be equal to half of the counts of coins in the larger pile. This is the limiting condition because we can only remove 1 coin from pile A and 2 coins from pile B or 2 coins from pile A and 1 coin from pile B. so mathematically it can be written as if a&lt;=b then we need to check if a &gt;= b/2 because if a &lt; b/2 then a goes to 0 faster than b">
+  <meta property="og:description" content="CSES coin piles problem — determining whether two piles can be emptied with operations that remove one coin from one pile or one from each, using divisibility reasoning.">
   <meta property="og:locale" content="en_us">
   <meta property="og:type" content="article">
     <meta property="article:section" content="notes">
     <meta property="article:published_time" content="2025-09-23T14:38:08+05:30">
     <meta property="article:modified_time" content="2025-09-23T14:38:08+05:30">
+    <meta property="article:tag" content="Competitive-Programming">
+    <meta property="article:tag" content="Cses">
+    <meta property="article:tag" content="Mathematics">
+    <meta property="article:tag" content="Algorithms">
     <meta property="og:image" content="http://localhost:1313/bear/images/share.webp">
 
+  
+  <meta property="og:site_name" content="Krishnatejaswi S" />
 
   
   
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:image" content="http://localhost:1313/bear/images/share.webp">
   <meta name="twitter:title" content="Coin Piles">
-  <meta name="twitter:description" content="Link to the problem : Coin Piles
-Intuition From the two piles we can perform the following operations:
-Remove 1 coin from pile A and 2 coins from pile B OR Remove 2 coins from pile A and 1 coin from pile B We need to check if we can make these operations to make both piles empty.
-So thinking about it we can understand the following points
-Each time we are reducing the total count by 3. So if the total count is not divisible by 3, then it is not possible to make both piles empty. Another case is when one of the pile is substantially greater than the other, then it is not possible to make both piles empty. To find the limiting conditions we need to see like this The count of coins in smaller piles shud be atleast be equal to half of the counts of coins in the larger pile. This is the limiting condition because we can only remove 1 coin from pile A and 2 coins from pile B or 2 coins from pile A and 1 coin from pile B. so mathematically it can be written as if a&lt;=b then we need to check if a &gt;= b/2 because if a &lt; b/2 then a goes to 0 faster than b">
+  <meta name="twitter:description" content="CSES coin piles problem — determining whether two piles can be emptied with operations that remove one coin from one pile or one from each, using divisibility reasoning.">
 
+  <meta name="twitter:site" content="@KTS_o7" />
 
   
   
   <meta itemprop="name" content="Coin Piles">
-  <meta itemprop="description" content="Link to the problem : Coin Piles
-Intuition From the two piles we can perform the following operations:
-Remove 1 coin from pile A and 2 coins from pile B OR Remove 2 coins from pile A and 1 coin from pile B We need to check if we can make these operations to make both piles empty.
-So thinking about it we can understand the following points
-Each time we are reducing the total count by 3. So if the total count is not divisible by 3, then it is not possible to make both piles empty. Another case is when one of the pile is substantially greater than the other, then it is not possible to make both piles empty. To find the limiting conditions we need to see like this The count of coins in smaller piles shud be atleast be equal to half of the counts of coins in the larger pile. This is the limiting condition because we can only remove 1 coin from pile A and 2 coins from pile B or 2 coins from pile A and 1 coin from pile B. so mathematically it can be written as if a&lt;=b then we need to check if a &gt;= b/2 because if a &lt; b/2 then a goes to 0 faster than b">
+  <meta itemprop="description" content="CSES coin piles problem — determining whether two piles can be emptied with operations that remove one coin from one pile or one from each, using divisibility reasoning.">
   <meta itemprop="datePublished" content="2025-09-23T14:38:08+05:30">
   <meta itemprop="dateModified" content="2025-09-23T14:38:08+05:30">
   <meta itemprop="wordCount" content="220">
   <meta itemprop="image" content="http://localhost:1313/bear/images/share.webp">
+  <meta itemprop="keywords" content="Competitive-Programming,Cses,Mathematics,Algorithms">
 
-<meta name="referrer" content="no-referrer-when-downgrade" />
-
-  
+<link rel="canonical" href="http://localhost:1313/bear/notes/coin_piles/" />
+  <meta name="referrer" content="no-referrer-when-downgrade" /><script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "http:\/\/localhost:1313\/bear\/notes\/coin_piles\/"
+  },
+  "headline": "Coin Piles",
+  "description": "CSES coin piles problem — determining whether two piles can be emptied with operations that remove one coin from one pile or one from each, using divisibility reasoning.",
+  "datePublished": "2025-09-23",
+  "dateModified": "2025-09-23",
+  "author": {
+    "@type": "Person",
+    "name": "Krishnatejaswi S",
+    "url": "http:\/\/localhost:1313\/bear\/"
+  },
+  "publisher": {
+    "@type": "Person",
+    "name": "Krishnatejaswi S"
+  },
+  "url": "http:\/\/localhost:1313\/bear\/notes\/coin_piles\/",
+  "keywords": ["competitive-programming", "cses", "mathematics", "algorithms"]
+}
+</script>
   <link href="/bear/herman.min.css" rel="stylesheet">
 
   
@@ -147,7 +148,7 @@ Each time we are reducing the total count by 3. So if the total count is not div
   <header><a class="skip-link" href="#main-content">Skip to main content</a>
 
 <div style="display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
-  <a href="/bear/" class="title"><h1></h1></a>
+  <a href="/bear/" class="title"><h1>Krishnatejaswi S</h1></a>
   <button id="theme-toggle" aria-label="Toggle light/dark mode" title="Toggle theme">
     <span id="theme-toggle-label">○●</span>
   </button>
@@ -156,8 +157,6 @@ Each time we are reducing the total count by 3. So if the total count is not div
   <a href="/bear/">Home</a>
 
   <a href="/bear/notes/">Notes</a>
-
-  <a href="/bear/posts/">Posts</a>
 
   <a href="/bear/about/">About</a>
 
@@ -182,7 +181,7 @@ Each time we are reducing the total count by 3. So if the total count is not div
   <time datetime='2025-09-23' pubdate>
     2025-09-23
   </time>
-  
+  · Krishnatejaswi S
 </p>
 
 <content>
@@ -212,6 +211,17 @@ because if  a &lt; b/2 then a goes to 0 faster than b</p>
 
 
 
+<p style="margin-top: 1.5rem;">
+  
+    <a class="blog-tags" href="/bear/tags/competitive-programming/">#competitive-programming</a>
+  
+    <a class="blog-tags" href="/bear/tags/cses/">#cses</a>
+  
+    <a class="blog-tags" href="/bear/tags/mathematics/">#mathematics</a>
+  
+    <a class="blog-tags" href="/bear/tags/algorithms/">#algorithms</a>
+  
+</p>
 
 
 
@@ -219,6 +229,36 @@ because if  a &lt; b/2 then a goes to 0 faster than b</p>
 
 
 
+
+
+
+
+<div class="related-notes">
+  <h4>Related Notes</h4>
+  <ul>
+    
+    <li>
+      <a href="/bear/notes/two_sets/">Two Sets</a>
+      <span class="note-date">2025-09-19</span>
+    </li>
+    
+    <li>
+      <a href="/bear/notes/missing_number/">Missing Number</a>
+      <span class="note-date">2025-09-18</span>
+    </li>
+    
+    <li>
+      <a href="/bear/notes/weird_algorithm/">Weird Algorithm</a>
+      <span class="note-date">2025-09-18</span>
+    </li>
+    
+    <li>
+      <a href="/bear/notes/gray_code/">Gray Code</a>
+      <span class="note-date">2025-09-19</span>
+    </li>
+    
+  </ul>
+</div>
 
 
 

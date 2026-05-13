@@ -1,0 +1,635 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>Cses on Krishnatejaswi S</title>
+    <link>https://KTS-o7.github.io/bear/tags/cses/</link>
+    <description>Recent content in Cses on Krishnatejaswi S</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <managingEditor>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</managingEditor>
+    <webMaster>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</webMaster>
+    <copyright>Krishnatejaswi S</copyright>
+    <lastBuildDate>Fri, 19 Sep 2025 23:03:51 +0530</lastBuildDate>
+    <atom:link href="https://KTS-o7.github.io/bear/tags/cses/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Gray Code</title>
+      <link>https://KTS-o7.github.io/bear/notes/gray_code/</link>
+      <pubDate>Fri, 19 Sep 2025 23:03:51 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/notes/gray_code/</guid>
+      <description>&lt;p&gt;Link to the problem : &lt;a href=&#34;https://cses.fi/problemset/task/2205&#34;&gt;Gray Code&lt;/a&gt;&lt;/p&gt;&#xA;&lt;h2 id=&#34;intuition&#34;&gt;Intuition&lt;/h2&gt;&#xA;&lt;p&gt;The problem is asking us to generate the gray code for a given number n.&lt;/p&gt;&#xA;&lt;p&gt;Gray code is a binary numeral system where two successive values differ in only one bit.&#xA;This is similar to bit strings problem. But instead of printing the binary representation of the number, we need to print the gray code.&lt;/p&gt;&#xA;&lt;p&gt;The formula to generate the gray code for a given number n is:&#xA;&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>Link to the problem : <a href="https://cses.fi/problemset/task/2205">Gray Code</a></p>
+<h2 id="intuition">Intuition</h2>
+<p>The problem is asking us to generate the gray code for a given number n.</p>
+<p>Gray code is a binary numeral system where two successive values differ in only one bit.
+This is similar to bit strings problem. But instead of printing the binary representation of the number, we need to print the gray code.</p>
+<p>The formula to generate the gray code for a given number n is:
+</p>
+$$G(n) = n \oplus (n >> 1)$$<h2 id="solution">Solution</h2>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="ln">1</span><span class="cl"><span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+</span></span><span class="line"><span class="ln">2</span><span class="cl">    <span class="n">n</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">input</span><span class="p">())</span>
+</span></span><span class="line"><span class="ln">3</span><span class="cl">    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="o">**</span><span class="n">n</span><span class="p">):</span>   
+</span></span><span class="line"><span class="ln">4</span><span class="cl">        <span class="n">num</span> <span class="o">=</span> <span class="n">i</span><span class="o">^</span><span class="p">(</span><span class="n">i</span><span class="o">&gt;&gt;</span><span class="mi">1</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">5</span><span class="cl">        <span class="n">num_str</span> <span class="o">=</span> <span class="nb">bin</span><span class="p">(</span><span class="n">num</span><span class="p">)[</span><span class="mi">2</span><span class="p">:]</span><span class="o">.</span><span class="n">zfill</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">6</span><span class="cl">        <span class="nb">print</span><span class="p">(</span><span class="n">num_str</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s2">&#34;</span><span class="se">\n</span><span class="s2">&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">7</span><span class="cl">
+</span></span><span class="line"><span class="ln">8</span><span class="cl"><span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&#34;__main__&#34;</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">9</span><span class="cl">    <span class="n">main</span><span class="p">()</span></span></span></code></pre></div><h2 id="other-possible-solutions">Other possible solutions</h2>
+<h3 id="bit-by-bit-approach">Bit-by-Bit Approach</h3>
+<p>This approach constructs the Gray code by calculating each bit position individually using the property that the i-th bit of the Gray code is the XOR of the i-th and (i+1)-th bits of the binary representation.</p>
+<h4 id="dry-run-for-n--2">Dry Run for n = 2</h4>
+<p>For n = 2, we need to generate 4 Gray codes (2² = 4). Let&rsquo;s walk through each iteration:</p>
+<p><strong>Iteration 1: i = 0</strong></p>
+<ul>
+<li>Binary representation: 00</li>
+<li><strong>Bit position 0 (rightmost):</strong>
+<ul>
+<li>Current bit: (0 &raquo; 0) &amp; 1 = 0 &amp; 1 = 0</li>
+<li>Next bit: (0 &raquo; 1) &amp; 1 = 0 &amp; 1 = 0 (since bit position 1 &lt; n=2)</li>
+<li>Gray bit: 0 ⊕ 0 = 0</li>
+<li>Set bit: gray = 0 | (0 &laquo; 0) = 0</li>
+</ul>
+</li>
+<li><strong>Bit position 1:</strong>
+<ul>
+<li>Current bit: (0 &raquo; 1) &amp; 1 = 0 &amp; 1 = 0</li>
+<li>Next bit: 0 (since bit position 2 &gt;= n=2)</li>
+<li>Gray bit: 0 ⊕ 0 = 0</li>
+<li>Set bit: gray = 0 | (0 &laquo; 1) = 0</li>
+</ul>
+</li>
+<li>Result: 00</li>
+</ul>
+<p><strong>Iteration 2: i = 1</strong></p>
+<ul>
+<li>Binary representation: 01</li>
+<li><strong>Bit position 0:</strong>
+<ul>
+<li>Current bit: (1 &raquo; 0) &amp; 1 = 1 &amp; 1 = 1</li>
+<li>Next bit: (1 &raquo; 1) &amp; 1 = 0 &amp; 1 = 0</li>
+<li>Gray bit: 1 ⊕ 0 = 1</li>
+<li>Set bit: gray = 0 | (1 &laquo; 0) = 1</li>
+</ul>
+</li>
+<li><strong>Bit position 1:</strong>
+<ul>
+<li>Current bit: (1 &raquo; 1) &amp; 1 = 0 &amp; 1 = 0</li>
+<li>Next bit: 0 (since bit position 2 &gt;= n=2)</li>
+<li>Gray bit: 0 ⊕ 0 = 0</li>
+<li>Set bit: gray = 1 | (0 &laquo; 1) = 1</li>
+</ul>
+</li>
+<li>Result: 01</li>
+</ul>
+<p><strong>Iteration 3: i = 2</strong></p>
+<ul>
+<li>Binary representation: 10</li>
+<li><strong>Bit position 0:</strong>
+<ul>
+<li>Current bit: (2 &raquo; 0) &amp; 1 = 2 &amp; 1 = 0 (2 in binary is 10, rightmost bit is 0)</li>
+<li>Next bit: (2 &raquo; 1) &amp; 1 = 1 &amp; 1 = 1</li>
+<li>Gray bit: 0 ⊕ 1 = 1</li>
+<li>Set bit: gray = 0 | (1 &laquo; 0) = 1</li>
+</ul>
+</li>
+<li><strong>Bit position 1:</strong>
+<ul>
+<li>Current bit: (2 &raquo; 1) &amp; 1 = 1 &amp; 1 = 1</li>
+<li>Next bit: 0 (since bit position 2 &gt;= n=2)</li>
+<li>Gray bit: 1 ⊕ 0 = 1</li>
+<li>Set bit: gray = 1 | (1 &laquo; 1) = 1 | 2 = 3</li>
+</ul>
+</li>
+<li>Result: 11</li>
+</ul>
+<p><strong>Iteration 4: i = 3</strong></p>
+<ul>
+<li>Binary representation: 11</li>
+<li><strong>Bit position 0:</strong>
+<ul>
+<li>Current bit: (3 &raquo; 0) &amp; 1 = 3 &amp; 1 = 1 (3 in binary is 11, rightmost bit is 1)</li>
+<li>Next bit: (3 &raquo; 1) &amp; 1 = 1 &amp; 1 = 1</li>
+<li>Gray bit: 1 ⊕ 1 = 0</li>
+<li>Set bit: gray = 0 | (0 &laquo; 0) = 0</li>
+</ul>
+</li>
+<li><strong>Bit position 1:</strong>
+<ul>
+<li>Current bit: (3 &raquo; 1) &amp; 1 = 1 &amp; 1 = 1</li>
+<li>Next bit: 0 (since bit position 2 &gt;= n=2)</li>
+<li>Gray bit: 1 ⊕ 0 = 1</li>
+<li>Set bit: gray = 0 | (1 &laquo; 1) = 2</li>
+</ul>
+</li>
+<li>Result: 10</li>
+</ul>
+<p><strong>Final Gray Code Sequence:</strong> 00, 01, 11, 10</p>
+<p>Notice how each consecutive Gray code differs by only one bit:</p>
+<ul>
+<li>00 → 01 (bit 0 changes: 0→1)</li>
+<li>01 → 11 (bit 1 changes: 0→1)</li>
+<li>11 → 10 (bit 0 changes: 1→0)</li>
+</ul>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="k">def</span> <span class="nf">generate_gray_code_bitwise</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl">    <span class="n">result</span> <span class="o">=</span> <span class="p">[]</span>
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl">    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="o">**</span><span class="n">n</span><span class="p">):</span>
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl">        <span class="n">gray</span> <span class="o">=</span> <span class="mi">0</span>
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl">        <span class="k">for</span> <span class="n">bit</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">            <span class="c1"># Gray bit is XOR of current bit and next bit</span>
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl">            <span class="n">current_bit</span> <span class="o">=</span> <span class="p">(</span><span class="n">i</span> <span class="o">&gt;&gt;</span> <span class="n">bit</span><span class="p">)</span> <span class="o">&amp;</span> <span class="mi">1</span> <span class="c1"># this step get the current bit using bitwise shift and bitwise and</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl">            <span class="n">next_bit</span> <span class="o">=</span> <span class="p">(</span><span class="n">i</span> <span class="o">&gt;&gt;</span> <span class="p">(</span><span class="n">bit</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span> <span class="o">&amp;</span> <span class="mi">1</span> <span class="k">if</span> <span class="n">bit</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">&lt;</span> <span class="n">n</span> <span class="k">else</span> <span class="mi">0</span> <span class="c1"># this step get the next bit using bitwise shift and bitwise and</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">            <span class="n">gray_bit</span> <span class="o">=</span> <span class="n">current_bit</span> <span class="o">^</span> <span class="n">next_bit</span> <span class="c1"># this step get the gray bit using bitwise xor</span>
+</span></span><span class="line"><span class="ln">10</span><span class="cl">            <span class="n">gray</span> <span class="o">|=</span> <span class="p">(</span><span class="n">gray_bit</span> <span class="o">&lt;&lt;</span> <span class="n">bit</span><span class="p">)</span> <span class="c1"># this step set the gray bit using bitwise or</span>
+</span></span><span class="line"><span class="ln">11</span><span class="cl">        <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">bin</span><span class="p">(</span><span class="n">gray</span><span class="p">)[</span><span class="mi">2</span><span class="p">:]</span><span class="o">.</span><span class="n">zfill</span><span class="p">(</span><span class="n">n</span><span class="p">))</span>
+</span></span><span class="line"><span class="ln">12</span><span class="cl">    <span class="k">return</span> <span class="n">result</span>
+</span></span><span class="line"><span class="ln">13</span><span class="cl">
+</span></span><span class="line"><span class="ln">14</span><span class="cl"><span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+</span></span><span class="line"><span class="ln">15</span><span class="cl">    <span class="n">n</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">input</span><span class="p">())</span>
+</span></span><span class="line"><span class="ln">16</span><span class="cl">    <span class="n">gray_codes</span> <span class="o">=</span> <span class="n">generate_gray_code_bitwise</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">17</span><span class="cl">    <span class="k">for</span> <span class="n">code</span> <span class="ow">in</span> <span class="n">gray_codes</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">18</span><span class="cl">        <span class="nb">print</span><span class="p">(</span><span class="n">code</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">19</span><span class="cl">
+</span></span><span class="line"><span class="ln">20</span><span class="cl"><span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&#34;__main__&#34;</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">21</span><span class="cl">    <span class="n">main</span><span class="p">()</span></span></span></code></pre></div>]]></content:encoded>
+    </item>
+    <item>
+      <title>Bit Strings</title>
+      <link>https://KTS-o7.github.io/bear/notes/bit_strings/</link>
+      <pubDate>Fri, 19 Sep 2025 22:53:15 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/notes/bit_strings/</guid>
+      <description>&lt;p&gt;Link to the problem : &lt;a href=&#34;https://cses.fi/problemset/task/1617&#34;&gt;Bit Strings&lt;/a&gt;&lt;/p&gt;&#xA;&lt;h2 id=&#34;intuition&#34;&gt;Intuition&lt;/h2&gt;&#xA;&lt;p&gt;Problem is asking us to find the number of combinations of 0s and 1s of length n.&#xA;Basically its 2^n combinations.&lt;/p&gt;&#xA;&lt;h2 id=&#34;solution&#34;&gt;Solution&lt;/h2&gt;&#xA;&#xA;&#xA;&#xA;&#xA;&#xA;&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-python&#34; data-lang=&#34;python&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;ln&#34;&gt;1&lt;/span&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;k&#34;&gt;def&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;main&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;():&lt;/span&gt;&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;ln&#34;&gt;2&lt;/span&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;n&#34;&gt;n&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;nb&#34;&gt;int&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nb&#34;&gt;input&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;())&lt;/span&gt;&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;ln&#34;&gt;3&lt;/span&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;nb&#34;&gt;print&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;2&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;**&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;n&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;%&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;1000000007&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;ln&#34;&gt;4&lt;/span&gt;&lt;span class=&#34;cl&#34;&gt;&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;ln&#34;&gt;5&lt;/span&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;vm&#34;&gt;__name__&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;==&lt;/span&gt; &lt;span class=&#34;s2&#34;&gt;&amp;#34;__main__&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;ln&#34;&gt;6&lt;/span&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;n&#34;&gt;main&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;In python it feels cheating to use the power operator **, but it is a valid way to solve the problem.&lt;/p&gt;&#xA;&lt;p&gt;In lower level languages like C, C++, Java, we need to use a loop to calculate the power of 2 and each time we take modulo 1e9+7.&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>Link to the problem : <a href="https://cses.fi/problemset/task/1617">Bit Strings</a></p>
+<h2 id="intuition">Intuition</h2>
+<p>Problem is asking us to find the number of combinations of 0s and 1s of length n.
+Basically its 2^n combinations.</p>
+<h2 id="solution">Solution</h2>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="ln">1</span><span class="cl"><span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+</span></span><span class="line"><span class="ln">2</span><span class="cl">    <span class="n">n</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">input</span><span class="p">())</span>
+</span></span><span class="line"><span class="ln">3</span><span class="cl">    <span class="nb">print</span><span class="p">(</span><span class="mi">2</span><span class="o">**</span><span class="n">n</span> <span class="o">%</span> <span class="mi">1000000007</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">4</span><span class="cl">
+</span></span><span class="line"><span class="ln">5</span><span class="cl"><span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&#34;__main__&#34;</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">6</span><span class="cl">    <span class="n">main</span><span class="p">()</span></span></span></code></pre></div><p>In python it feels cheating to use the power operator **, but it is a valid way to solve the problem.</p>
+<p>In lower level languages like C, C++, Java, we need to use a loop to calculate the power of 2 and each time we take modulo 1e9+7.</p>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;stdio.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="ln"> 2</span><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;stdlib.h&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="ln"> 3</span><span class="cl">
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl"><span class="kt">int</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl">    <span class="kt">int</span> <span class="n">n</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">    <span class="nf">scanf</span><span class="p">(</span><span class="s">&#34;%d&#34;</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">n</span><span class="p">);</span>
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl">    <span class="kt">long</span> <span class="kt">long</span> <span class="n">result</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl">    <span class="k">for</span><span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">n</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">        <span class="n">result</span> <span class="o">=</span> <span class="p">(</span><span class="n">result</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="o">%</span> <span class="mi">1000000007</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln">10</span><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="ln">11</span><span class="cl">    <span class="nf">printf</span><span class="p">(</span><span class="s">&#34;%lld</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span> <span class="n">result</span><span class="p">);</span>
+</span></span><span class="line"><span class="ln">12</span><span class="cl">    <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="ln">13</span><span class="cl"><span class="p">}</span></span></span></code></pre></div>]]></content:encoded>
+    </item>
+    <item>
+      <title>Two Sets</title>
+      <link>https://KTS-o7.github.io/bear/notes/two_sets/</link>
+      <pubDate>Fri, 19 Sep 2025 15:41:11 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/notes/two_sets/</guid>
+      <description>&lt;p&gt;Link to the problem : &lt;a href=&#34;https://cses.fi/problemset/task/1092&#34;&gt;Two Sets&lt;/a&gt;&lt;/p&gt;&#xA;&lt;h2 id=&#34;intuition&#34;&gt;Intuition&lt;/h2&gt;&#xA;&lt;p&gt;The problem asking us to partition the given set of numbers into two sets such that the sum of the numbers in the two sets are equal.&lt;/p&gt;&#xA;&lt;p&gt;For the sum of two sets to be equal the total sum of the numbers must be even.&#xA;That means sum(numbers) % 2 == 0.&#xA;by the forumla for the sum of the first n natural numbers, sum(numbers) = n * (n + 1) / 2.&#xA;So that means sum of each set must be n * (n + 1) / 4.&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>Link to the problem : <a href="https://cses.fi/problemset/task/1092">Two Sets</a></p>
+<h2 id="intuition">Intuition</h2>
+<p>The problem asking us to partition the given set of numbers into two sets such that the sum of the numbers in the two sets are equal.</p>
+<p>For the sum of two sets to be equal the total sum of the numbers must be even.
+That means sum(numbers) % 2 == 0.
+by the forumla for the sum of the first n natural numbers, sum(numbers) = n * (n + 1) / 2.
+So that means sum of each set must be n * (n + 1) / 4.</p>
+<p>Hence we got that n mod 4 is 0  or (n+1) mod 4 is 0, combining both we get n mod 4 must be 0 or 3 to be able to partition the numbers into two sets.
+So this becomes a necessary condition for the problem to be solvable.</p>
+<p>but this is not a sufficient condition.</p>
+<p>When
+n mod 4 = 0:
+Total sum is even, partition is possible.
+The set can be split so both subsets have the same number of elements (equal size).</p>
+<p>Example:
+n=8</p>
+<p>Pairs: (8,1), (7,2), (6,3), (5,4)</p>
+<p>Assign two pairs to one set, the other two pairs to the other set—both sum to 18.</p>
+<p>When n mod 4 = 3:
+Total sum is even, partition is possible.</p>
+<p>The sets will have different sizes (one will have one more element).
+Example:
+n=7</p>
+<p>Pairs: (7,1,6) sums to 14, rest (2,3,4,5) sum to 14.</p>
+<p>The sum of each smallest–largest pair is always n+1.</p>
+<p>For  n mod 4 = 0: you can split pairs alternately between the two sets.</p>
+<p>For n mod 4 = 3:  this is a tricky case
+Consider some integer k such that we have n = 4k+3. that means n mod 4 = 3.
+Now sum of n numbers is n * (n + 1) / 2 = (4k+3) * (4k+4) / 2 = (4k+3) * (2k+2)</p>
+<hr>
+<h3 id="mathematical-derivation">Mathematical Derivation</h3>
+<p>For n = 4k + 3, we assign:</p>
+<ul>
+<li><strong>Set 1</strong>: numbers where i ≡ 1 or 2 (mod 4)</li>
+<li><strong>Set 2</strong>: numbers where i ≡ 0 or 3 (mod 4)</li>
+</ul>
+<h4 id="count-of-numbers-in-each-residue-class">Count of numbers in each residue class:</h4>
+<ul>
+<li><strong>≡ 0 mod 4</strong>: k numbers (4, 8, &hellip;, 4k)</li>
+<li><strong>≡ 1 mod 4</strong>: k+1 numbers (1, 5, &hellip;, 4k+1)</li>
+<li><strong>≡ 2 mod 4</strong>: k+1 numbers (2, 6, &hellip;, 4k+2)</li>
+<li><strong>≡ 3 mod 4</strong>: k+1 numbers (3, 7, &hellip;, 4k+3)</li>
+</ul>
+<h4 id="sum-of-each-residue-class">Sum of each residue class:</h4>
+<p><strong>≡ 0 mod 4</strong>:</p>
+
+
+
+
+
+<pre tabindex="0"><code>4 + 8 + ... + 4k = 4(1 + 2 + ... + k) = 4 × k(k+1)/2 = 2k(k+1)</code></pre><p><strong>≡ 1 mod 4</strong>:</p>
+
+
+
+
+
+<pre tabindex="0"><code>1 + 5 + 9 + ... + (4k+1)</code></pre><p>Arithmetic series: first term = 1, last term = 4k+1, common difference = 4, terms = k+1</p>
+
+
+
+
+
+<pre tabindex="0"><code>Sum = (k+1) × (1 + 4k+1)/2 = (k+1) × (4k+2)/2 = (k+1) × 2(k+1) = 2(k+1)²</code></pre><p><strong>≡ 2 mod 4</strong>:</p>
+
+
+
+
+
+<pre tabindex="0"><code>2 + 6 + 10 + ... + (4k+2)</code></pre><p>Arithmetic series: first term = 2, last term = 4k+2, common difference = 4, terms = k+1</p>
+
+
+
+
+
+<pre tabindex="0"><code>Sum = (k+1) × (2 + 4k+2)/2 = (k+1) × (4k+4)/2 = (k+1) × 2(k+2) = 2(k+1)(k+2)</code></pre><p><strong>≡ 3 mod 4</strong>:</p>
+
+
+
+
+
+<pre tabindex="0"><code>3 + 7 + 11 + ... + (4k+3)</code></pre><p>Arithmetic series: first term = 3, last term = 4k+3, common difference = 4, terms = k+1</p>
+
+
+
+
+
+<pre tabindex="0"><code>Sum = (k+1) × (3 + 4k+3)/2 = (k+1) × (4k+6)/2 = (k+1) × 2(k+3) = 2(k+1)(k+3)</code></pre><h4 id="total-sum-verification">Total sum verification:</h4>
+
+
+
+
+
+<pre tabindex="0"><code>Total sum = 2k(k+1) + 2(k+1)² + 2(k+1)(k+2) + 2(k+1)(k+3)
+         = 2(k+1) × [k + (k+1) + (k+2) + (k+3)]
+         = 2(k+1) × (4k + 6)
+         = 2(k+1) × 2(2k + 3)
+         = 4(k+1)(2k + 3)</code></pre><p>Each set should sum to: <strong>2(k+1)(2k + 3)</strong></p>
+<h4 id="sum-of-each-set">Sum of each set:</h4>
+<p><strong>Set 1 (≡1 or ≡2 mod 4)</strong>:</p>
+
+
+
+
+
+<pre tabindex="0"><code>Sum = 2(k+1)² + 2(k+1)(k+2) = 2(k+1) × [(k+1) + (k+2)] = 2(k+1) × (2k + 3)</code></pre><p><strong>Set 2 (≡0 or ≡3 mod 4)</strong>:</p>
+
+
+
+
+
+<pre tabindex="0"><code>Sum = 2k(k+1) + 2(k+1)(k+3) = 2(k+1) × [k + (k+3)] = 2(k+1) × (2k + 3)</code></pre><p>Both sets sum to <strong>2(k+1)(2k + 3)</strong>, which is exactly half the total sum.</p>
+<hr>
+<h2 id="solution">Solution</h2>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl">    <span class="n">n</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">input</span><span class="p">())</span>
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl">    <span class="k">if</span> <span class="n">n</span> <span class="o">%</span> <span class="mi">4</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">):</span>
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl">        <span class="nb">print</span><span class="p">(</span><span class="s2">&#34;NO&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl">        <span class="k">return</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">    
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl">    <span class="n">set1</span> <span class="o">=</span> <span class="p">[]</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl">    <span class="n">set2</span> <span class="o">=</span> <span class="p">[]</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">    <span class="n">toggle</span> <span class="o">=</span> <span class="kc">True</span>
+</span></span><span class="line"><span class="ln">10</span><span class="cl">    
+</span></span><span class="line"><span class="ln">11</span><span class="cl">    <span class="k">if</span> <span class="n">n</span> <span class="o">%</span> <span class="mi">4</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">12</span><span class="cl">        <span class="n">low</span> <span class="o">=</span> <span class="mi">1</span>
+</span></span><span class="line"><span class="ln">13</span><span class="cl">        <span class="n">high</span> <span class="o">=</span> <span class="n">n</span>
+</span></span><span class="line"><span class="ln">14</span><span class="cl">        <span class="k">while</span> <span class="n">low</span> <span class="o">&lt;=</span> <span class="n">high</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">15</span><span class="cl">            <span class="k">if</span> <span class="n">toggle</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">16</span><span class="cl">                <span class="n">set1</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">low</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">17</span><span class="cl">                <span class="n">set1</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">high</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">18</span><span class="cl">            <span class="k">else</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">19</span><span class="cl">                <span class="n">set2</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">low</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">20</span><span class="cl">                <span class="n">set2</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">high</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">21</span><span class="cl">            <span class="n">low</span> <span class="o">+=</span> <span class="mi">1</span>
+</span></span><span class="line"><span class="ln">22</span><span class="cl">            <span class="n">high</span> <span class="o">-=</span> <span class="mi">1</span>
+</span></span><span class="line"><span class="ln">23</span><span class="cl">            <span class="n">toggle</span> <span class="o">=</span> <span class="ow">not</span> <span class="n">toggle</span>
+</span></span><span class="line"><span class="ln">24</span><span class="cl">    <span class="k">else</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">25</span><span class="cl">        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">n</span><span class="o">+</span><span class="mi">1</span><span class="p">):</span>
+</span></span><span class="line"><span class="ln">26</span><span class="cl">            <span class="k">if</span> <span class="n">i</span> <span class="o">%</span> <span class="mi">4</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">or</span> <span class="n">i</span> <span class="o">%</span> <span class="mi">4</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span> <span class="c1"># </span>
+</span></span><span class="line"><span class="ln">27</span><span class="cl">                <span class="n">set1</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">28</span><span class="cl">            <span class="k">else</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">29</span><span class="cl">                <span class="n">set2</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">30</span><span class="cl">    
+</span></span><span class="line"><span class="ln">31</span><span class="cl">    <span class="c1"># Output the result</span>
+</span></span><span class="line"><span class="ln">32</span><span class="cl">    <span class="nb">print</span><span class="p">(</span><span class="s2">&#34;YES&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">33</span><span class="cl">    <span class="nb">print</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">set1</span><span class="p">))</span>
+</span></span><span class="line"><span class="ln">34</span><span class="cl">    <span class="nb">print</span><span class="p">(</span><span class="s2">&#34; &#34;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">set1</span><span class="p">)))</span>
+</span></span><span class="line"><span class="ln">35</span><span class="cl">    <span class="nb">print</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">set2</span><span class="p">))</span>
+</span></span><span class="line"><span class="ln">36</span><span class="cl">    <span class="nb">print</span><span class="p">(</span><span class="s2">&#34; &#34;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">set2</span><span class="p">)))</span>
+</span></span><span class="line"><span class="ln">37</span><span class="cl">
+</span></span><span class="line"><span class="ln">38</span><span class="cl"><span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&#34;__main__&#34;</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">39</span><span class="cl">    <span class="n">main</span><span class="p">()</span></span></span></code></pre></div>]]></content:encoded>
+    </item>
+    <item>
+      <title>Permutations</title>
+      <link>https://KTS-o7.github.io/bear/notes/permutations/</link>
+      <pubDate>Thu, 18 Sep 2025 22:49:10 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/notes/permutations/</guid>
+      <description>&lt;p&gt;Link to the problem : &lt;a href=&#34;https://cses.fi/problemset/task/1070&#34;&gt;Permutations&lt;/a&gt;&lt;/p&gt;&#xA;&lt;h2 id=&#34;intuition&#34;&gt;Intuition&lt;/h2&gt;&#xA;&lt;p&gt;The idea is to generate a permutation of the numbers from 1 to n such that the difference between any two consecutive elements is at least greater than 1.&lt;/p&gt;&#xA;&lt;p&gt;One way to do this is to first write all the even numbers between 1 and n in increasing order and then write all the odd numbers between 1 and n in increasing order.&lt;/p&gt;&#xA;&lt;p&gt;This is only one such solution. There are other solutions as well.&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>Link to the problem : <a href="https://cses.fi/problemset/task/1070">Permutations</a></p>
+<h2 id="intuition">Intuition</h2>
+<p>The idea is to generate a permutation of the numbers from 1 to n such that the difference between any two consecutive elements is at least greater than 1.</p>
+<p>One way to do this is to first write all the even numbers between 1 and n in increasing order and then write all the odd numbers between 1 and n in increasing order.</p>
+<p>This is only one such solution. There are other solutions as well.</p>
+<p>Edge case:</p>
+<ul>
+<li>If n is 1, print 1. this is  because there are no consecutive elements in the permutation, hence is a valid permutation.</li>
+<li>If n is less than 4, print &ldquo;NO SOLUTION&rdquo;.
+because for n &lt; 4, any permutation will have a difference between any two consecutive elements less than 1.
+example
+1 2 3 4, 1 3 2 4, 1 3 4 2, etc are not valid permutations.</li>
+</ul>
+<h2 id="solution">Solution</h2>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl">    <span class="n">n</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">input</span><span class="p">())</span>
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl">    <span class="k">if</span> <span class="n">n</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl">        <span class="nb">print</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl">        <span class="k">return</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">    <span class="k">if</span> <span class="n">n</span> <span class="o">&lt;</span> <span class="mi">4</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl">        <span class="nb">print</span><span class="p">(</span><span class="s2">&#34;NO SOLUTION&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl">        <span class="k">return</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span><span class="n">n</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">):</span>
+</span></span><span class="line"><span class="ln">10</span><span class="cl">        <span class="nb">print</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s2">&#34; &#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">11</span><span class="cl">    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="n">n</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">):</span>
+</span></span><span class="line"><span class="ln">12</span><span class="cl">        <span class="nb">print</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s2">&#34; &#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">13</span><span class="cl">
+</span></span><span class="line"><span class="ln">14</span><span class="cl"><span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&#34;__main__&#34;</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">15</span><span class="cl">    <span class="n">main</span><span class="p">()</span></span></span></code></pre></div><h3 id="other-possible-solutions">Other possible solutions</h3>
+<ul>
+<li>Write all the odd numbers between 1 and n in increasing order and then write all the even numbers between 1 and n in increasing order.</li>
+<li>Write all the odd numbers between 1 and n in decreasing order and then write all the even numbers between 1 and n in decreasing order.</li>
+<li>Write all the even numbers between 1 and n in increasing order and then write all the odd numbers between 1 and n in decreasing order.</li>
+</ul>
+]]></content:encoded>
+    </item>
+    <item>
+      <title>Increasing Array</title>
+      <link>https://KTS-o7.github.io/bear/notes/increasing_array/</link>
+      <pubDate>Thu, 18 Sep 2025 22:37:39 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/notes/increasing_array/</guid>
+      <description>&lt;p&gt;Link to the problem : &lt;a href=&#34;https://cses.fi/problemset/task/1094&#34;&gt;Increasing Array&lt;/a&gt;&lt;/p&gt;&#xA;&lt;h2 id=&#34;intuition&#34;&gt;Intuition&lt;/h2&gt;&#xA;&lt;p&gt;The idea is to make an array increasing by making the current element equal to or greater than the previous element.&#xA;and in each step we can increase the value of a single element by 1.&lt;/p&gt;&#xA;&lt;p&gt;That means for &lt;code&gt;i&lt;/code&gt;th element which is less than the &lt;code&gt;i-1&lt;/code&gt;th element, we need &lt;code&gt;elem[i-1] - elem[i]&lt;/code&gt; steps to make it equal to or greater than the &lt;code&gt;i-1&lt;/code&gt;th element.&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>Link to the problem : <a href="https://cses.fi/problemset/task/1094">Increasing Array</a></p>
+<h2 id="intuition">Intuition</h2>
+<p>The idea is to make an array increasing by making the current element equal to or greater than the previous element.
+and in each step we can increase the value of a single element by 1.</p>
+<p>That means for <code>i</code>th element which is less than the <code>i-1</code>th element, we need <code>elem[i-1] - elem[i]</code> steps to make it equal to or greater than the <code>i-1</code>th element.</p>
+<p>So we can come up with the following algorithm:</p>
+<ul>
+<li>Loop through the array</li>
+<li>If the current element is less than the previous element, we need to increase the current element to the previous element.</li>
+<li>Increment the count by the difference between the previous element and the current element.</li>
+<li>Update the current element to the previous element.</li>
+</ul>
+<p>At the end of the loop, we will have the minimum number of steps to make the array increasing.</p>
+<h2 id="solution">Solution</h2>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl">    <span class="n">n</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">input</span><span class="p">())</span>
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl">    <span class="n">nums</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">input</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">()))</span>
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl">    <span class="n">count</span> <span class="o">=</span> <span class="mi">0</span>
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl">    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="n">n</span><span class="o">-</span><span class="mi">1</span><span class="p">):</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">        <span class="k">if</span> <span class="n">nums</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">nums</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">]:</span>
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl">            <span class="n">count</span> <span class="o">+=</span> <span class="n">nums</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">-</span> <span class="n">nums</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl">            <span class="n">nums</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">nums</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">    <span class="nb">print</span><span class="p">(</span><span class="n">count</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">10</span><span class="cl">
+</span></span><span class="line"><span class="ln">11</span><span class="cl"><span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&#34;__main__&#34;</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">12</span><span class="cl">    <span class="n">main</span><span class="p">()</span></span></span></code></pre></div><h3 id="mathematical-proof">Mathematical Proof</h3>
+<p><strong>Theorem:</strong> The greedy algorithm that ensures each element is at least as large as its predecessor gives the minimum total cost to make the array non-decreasing.</p>
+<p><strong>Proof by Induction:</strong></p>
+<p><strong>Base Cases:</strong></p>
+<ul>
+<li>For an array of size 1: The cost is 0, which is trivially optimal.</li>
+<li>For an array of size 2: If <code>nums[0] ≤ nums[1]</code>, cost is 0. If <code>nums[0] &gt; nums[1]</code>, we must increment <code>nums[1]</code> by <code>nums[0] - nums[1]</code> to make it ≥ <code>nums[0]</code>. This is optimal since we must satisfy <code>nums[1] ≥ nums[0]</code>.</li>
+</ul>
+<p><strong>Inductive Hypothesis:</strong> Assume the greedy algorithm is optimal for arrays of size ≤ k.</p>
+<p><strong>Inductive Step:</strong> Consider an array of size k+1. Let the array be <code>a[0], a[1], ..., a[k]</code>.</p>
+<p>Apply the greedy algorithm:</p>
+<ol>
+<li>Process the first k elements optimally (by inductive hypothesis)</li>
+<li>For the last element <code>a[k]</code>, if <code>a[k-1] ≤ a[k]</code>, no change needed (cost 0)</li>
+<li>If <code>a[k-1] &gt; a[k]</code>, increment <code>a[k]</code> to <code>a[k-1]</code>, costing <code>a[k-1] - a[k]</code></li>
+</ol>
+<p><strong>Why this is optimal:</strong> Any optimal solution must satisfy <code>a'[i] ≥ a'[i-1]</code> for all i, where <code>a'</code> is the final array.</p>
+<p>For the prefix <code>a'[0] ... a'[k-1]</code>, the inductive hypothesis says our greedy choices give the minimum cost.</p>
+<p>For the last pair <code>a'[k-1]</code> and <code>a'[k]</code>:</p>
+<ul>
+<li>We must have <code>a'[k] ≥ a'[k-1]</code></li>
+<li>The minimum cost to achieve this is exactly <code>max(0, a'[k-1] - a'[k])</code></li>
+<li>Our greedy algorithm achieves exactly this minimum cost</li>
+</ul>
+<p><strong>Key insight:</strong> The greedy choice doesn&rsquo;t affect the optimality of the prefix because:</p>
+<ol>
+<li>The prefix constraints are already satisfied optimally</li>
+<li>Setting <code>a[k] = max(a[k], a[k-1])</code> only affects the relationship between a[k-1] and a[k]</li>
+<li>This choice is independent of future elements since there are none</li>
+</ol>
+<p><strong>Proof by Contradiction :</strong>
+Suppose there exists an optimal solution with lower total cost than the greedy algorithm.
+Let the greedy algorithm produce array <code>g</code> with cost <code>C_g</code>.
+Let the optimal solution produce array <code>o</code> with cost <code>C_o &lt; C_g</code>.</p>
+<p>Since both <code>g</code> and <code>o</code> must satisfy <code>g[i] ≥ g[i-1]</code> and <code>o[i] ≥ o[i-1]</code> for all i:</p>
+<ul>
+<li>At the first position where <code>g</code> and <code>o</code> differ, the optimal solution must have made a different choice</li>
+<li>But making a different choice would either violate the non-decreasing constraint or require more operations later, contradicting optimality</li>
+</ul>
+<p>Therefore, the greedy algorithm is optimal.</p>
+]]></content:encoded>
+    </item>
+    <item>
+      <title>Repeatations</title>
+      <link>https://KTS-o7.github.io/bear/notes/repeatations/</link>
+      <pubDate>Thu, 18 Sep 2025 17:23:25 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/notes/repeatations/</guid>
+      <description>&lt;p&gt;Link to the problem : &lt;a href=&#34;https://cses.fi/problemset/task/1069&#34;&gt;Repeatations&lt;/a&gt;&lt;/p&gt;&#xA;&lt;h2 id=&#34;intuition&#34;&gt;Intuition&lt;/h2&gt;&#xA;&lt;p&gt;This problem wants us to find the longest substring of a string that has only 1 type of character.&#xA;input has A,G,C and T only.&lt;/p&gt;&#xA;&lt;p&gt;Edge case: if the string is empty, return 0.&lt;/p&gt;&#xA;&lt;p&gt;We need to keep track of the current length of the substring and the maximum length of the substring seen so far which satisfies the condition.&lt;/p&gt;&#xA;&lt;p&gt;Loop through the string and check if the current character is the same as the previous character.&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>Link to the problem : <a href="https://cses.fi/problemset/task/1069">Repeatations</a></p>
+<h2 id="intuition">Intuition</h2>
+<p>This problem wants us to find the longest substring of a string that has only 1 type of character.
+input has A,G,C and T only.</p>
+<p>Edge case: if the string is empty, return 0.</p>
+<p>We need to keep track of the current length of the substring and the maximum length of the substring seen so far which satisfies the condition.</p>
+<p>Loop through the string and check if the current character is the same as the previous character.</p>
+<ul>
+<li>If it is, increment the current length.
+Update the maximum length if the current length is greater than the maximum length.</li>
+<li>If it is not, reset the current length to 1.</li>
+</ul>
+<h2 id="solution">Solution</h2>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl">    <span class="n">string</span> <span class="o">=</span> <span class="nb">input</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl">    <span class="k">if</span> <span class="ow">not</span> <span class="n">string</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl">        <span class="nb">print</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl">        <span class="k">return</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">    
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl">    <span class="n">max_len</span> <span class="o">=</span> <span class="mi">1</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl">    <span class="n">current_len</span> <span class="o">=</span> <span class="mi">1</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">    
+</span></span><span class="line"><span class="ln">10</span><span class="cl">    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">string</span><span class="p">)):</span>
+</span></span><span class="line"><span class="ln">11</span><span class="cl">        <span class="k">if</span> <span class="n">string</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">==</span> <span class="n">string</span><span class="p">[</span><span class="n">i</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span>
+</span></span><span class="line"><span class="ln">12</span><span class="cl">            <span class="n">current_len</span> <span class="o">+=</span> <span class="mi">1</span>
+</span></span><span class="line"><span class="ln">13</span><span class="cl">            <span class="n">max_len</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">max_len</span><span class="p">,</span> <span class="n">current_len</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">14</span><span class="cl">        <span class="k">else</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">15</span><span class="cl">            <span class="n">current_len</span> <span class="o">=</span> <span class="mi">1</span>
+</span></span><span class="line"><span class="ln">16</span><span class="cl">    
+</span></span><span class="line"><span class="ln">17</span><span class="cl">    <span class="nb">print</span><span class="p">(</span><span class="n">max_len</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">18</span><span class="cl">
+</span></span><span class="line"><span class="ln">19</span><span class="cl"><span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&#34;__main__&#34;</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">20</span><span class="cl">    <span class="n">main</span><span class="p">()</span></span></span></code></pre></div><h3 id="time-complexity">Time complexity</h3>
+<p>O(n)</p>
+<h3 id="space-complexity">Space complexity</h3>
+<p>O(1)</p>
+<p>This is a greedy problem.
+A greedy approach is something that makes the best local choice at each step in the hope that this choice will lead to the global optimal solution.</p>
+<p>here the best local choice is to increment the current length if the current character is the same as the previous character.</p>
+]]></content:encoded>
+    </item>
+    <item>
+      <title>Missing Number</title>
+      <link>https://KTS-o7.github.io/bear/notes/missing_number/</link>
+      <pubDate>Thu, 18 Sep 2025 17:17:22 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/notes/missing_number/</guid>
+      <description>&lt;p&gt;Link to the problem : &lt;a href=&#34;https://cses.fi/problemset/task/1083&#34;&gt;Missing Number&lt;/a&gt;&lt;/p&gt;&#xA;&lt;h2 id=&#34;intuition&#34;&gt;Intuition&lt;/h2&gt;&#xA;&lt;p&gt;This problem wants us to find the missing number in a sequence of numbers from 1 to n.&#xA;The naive approach is to use a hash map to store the numbers and then find the missing number.&#xA;But this is not efficient.&lt;/p&gt;&#xA;&lt;p&gt;The idea is to use the formula for the sum of an arithmetic series.&#xA;The sum of an arithmetic series is given by the formula:&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>Link to the problem : <a href="https://cses.fi/problemset/task/1083">Missing Number</a></p>
+<h2 id="intuition">Intuition</h2>
+<p>This problem wants us to find the missing number in a sequence of numbers from 1 to n.
+The naive approach is to use a hash map to store the numbers and then find the missing number.
+But this is not efficient.</p>
+<p>The idea is to use the formula for the sum of an arithmetic series.
+The sum of an arithmetic series is given by the formula:</p>
+$$S = \frac{n}{2} (a + l)$$<p>
+where <code>n</code> is the number of terms, <code>a</code> is the first term, and <code>l</code> is the last term.
+In this problem, the first term is 1 and the last term is <code>n</code>.
+So the sum of the series is given by the formula:
+</p>
+$$S = \frac{n}{2} (1 + n)$$<p>now if we accumulate the sum of the numbers in the list, we can find the missing number by subtracting the sum of the numbers in the list from the sum of the series.
+Since only one number is missing, the sum of the numbers in the list will be less than the sum of the series and the difference will be the missing number.</p>
+<h2 id="solution">Solution</h2>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="ln"> 1</span><span class="cl"><span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+</span></span><span class="line"><span class="ln"> 2</span><span class="cl">    <span class="n">n</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">input</span><span class="p">())</span>
+</span></span><span class="line"><span class="ln"> 3</span><span class="cl">    <span class="n">nums_list</span> <span class="o">=</span> <span class="nb">input</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+</span></span><span class="line"><span class="ln"> 4</span><span class="cl">    <span class="n">nums</span> <span class="o">=</span> <span class="n">nums_list</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+</span></span><span class="line"><span class="ln"> 5</span><span class="cl">    <span class="n">total</span> <span class="o">=</span> <span class="mi">0</span>
+</span></span><span class="line"><span class="ln"> 6</span><span class="cl">    <span class="k">for</span> <span class="n">num</span> <span class="ow">in</span> <span class="n">nums</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln"> 7</span><span class="cl">        <span class="n">total</span> <span class="o">+=</span> <span class="nb">int</span><span class="p">(</span><span class="n">num</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln"> 8</span><span class="cl">    <span class="n">tot</span> <span class="o">=</span> <span class="n">n</span> <span class="o">*</span> <span class="p">(</span><span class="n">n</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span>
+</span></span><span class="line"><span class="ln"> 9</span><span class="cl">    <span class="nb">print</span><span class="p">(</span><span class="n">tot</span> <span class="o">-</span> <span class="n">total</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">10</span><span class="cl">
+</span></span><span class="line"><span class="ln">11</span><span class="cl">
+</span></span><span class="line"><span class="ln">12</span><span class="cl"><span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&#34;__main__&#34;</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">13</span><span class="cl">    <span class="n">main</span><span class="p">()</span></span></span></code></pre></div><h2 id="some-formulae-for-arithmetic-series">Some formulae for arithmetic series</h2>
+<h3 id="nth-term">nth term</h3>
+$$a_n = a + (n-1)d$$<p>
+where <code>a</code> is the first term, <code>d</code> is the common difference, and <code>n</code> is the number of terms.</p>
+<h3 id="sum-of-the-first-n-terms">sum of the first n terms</h3>
+$$S = \frac{n}{2} (a + l)$$<p>
+where <code>n</code> is the number of terms, <code>a</code> is the first term, and <code>l</code> is the last term.</p>
+<h3 id="sum-of-the-first-n-terms-1">sum of the first n terms</h3>
+$$S = \frac{n}{2} (2a + (n-1)d)$$<p>
+where <code>n</code> is the number of terms, <code>a</code> is the first term, and <code>d</code> is the common difference.</p>
+]]></content:encoded>
+    </item>
+    <item>
+      <title>Weird Algorithm</title>
+      <link>https://KTS-o7.github.io/bear/notes/weird_algorithm/</link>
+      <pubDate>Thu, 18 Sep 2025 17:05:38 +0530</pubDate><author>shentharkrishnatejaswi@gmail.com (Krishnatejaswi S)</author>
+      <guid>https://KTS-o7.github.io/bear/notes/weird_algorithm/</guid>
+      <description>&lt;p&gt;Link to the problem: &lt;a href=&#34;https://cses.fi/problemset/task/1068&#34;&gt;Weird Algorithm&lt;/a&gt;&lt;/p&gt;&#xA;&lt;h2 id=&#34;intuition&#34;&gt;Intuition&lt;/h2&gt;&#xA;&lt;p&gt;This problem is a direct implementation of the algorithm described in the problem statement.&lt;/p&gt;&#xA;&lt;p&gt;Given a number &lt;code&gt;n&lt;/code&gt;, we need to apply the following algorithm:&lt;/p&gt;&#xA;&lt;ol&gt;&#xA;&lt;li&gt;If &lt;code&gt;n&lt;/code&gt; is even, divide it by 2.&lt;/li&gt;&#xA;&lt;li&gt;If &lt;code&gt;n&lt;/code&gt; is odd, multiply it by 3 and add 1.&lt;/li&gt;&#xA;&lt;li&gt;Repeat the process until &lt;code&gt;n&lt;/code&gt; becomes 1.&lt;/li&gt;&#xA;&lt;/ol&gt;&#xA;&lt;h2 id=&#34;solution&#34;&gt;Solution&lt;/h2&gt;&#xA;&#xA;&#xA;&#xA;&#xA;&#xA;&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-python&#34; data-lang=&#34;python&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;ln&#34;&gt;1&lt;/span&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;k&#34;&gt;def&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;weird_algorithm&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;n&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;):&lt;/span&gt;&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;ln&#34;&gt;2&lt;/span&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;k&#34;&gt;while&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;n&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;!=&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;1&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;ln&#34;&gt;3&lt;/span&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;nb&#34;&gt;print&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;n&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;end&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;#34; &amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;ln&#34;&gt;4&lt;/span&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;n&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;%&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;2&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;==&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;ln&#34;&gt;5&lt;/span&gt;&lt;span class=&#34;cl&#34;&gt;            &lt;span class=&#34;n&#34;&gt;n&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;n&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;//&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;2&lt;/span&gt;&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;ln&#34;&gt;6&lt;/span&gt;&lt;span class=&#34;cl&#34;&gt;        &lt;span class=&#34;k&#34;&gt;else&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt;&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;ln&#34;&gt;7&lt;/span&gt;&lt;span class=&#34;cl&#34;&gt;            &lt;span class=&#34;n&#34;&gt;n&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;3&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;n&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;+&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;1&lt;/span&gt;&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;ln&#34;&gt;8&lt;/span&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;nb&#34;&gt;print&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;n&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h2 id=&#34;geek-fact&#34;&gt;Geek fact&lt;/h2&gt;&#xA;&lt;p&gt;This is a famous problem in the field math called the Collatz conjecture.&lt;/p&gt;</description>
+      <content:encoded><![CDATA[<p>Link to the problem: <a href="https://cses.fi/problemset/task/1068">Weird Algorithm</a></p>
+<h2 id="intuition">Intuition</h2>
+<p>This problem is a direct implementation of the algorithm described in the problem statement.</p>
+<p>Given a number <code>n</code>, we need to apply the following algorithm:</p>
+<ol>
+<li>If <code>n</code> is even, divide it by 2.</li>
+<li>If <code>n</code> is odd, multiply it by 3 and add 1.</li>
+<li>Repeat the process until <code>n</code> becomes 1.</li>
+</ol>
+<h2 id="solution">Solution</h2>
+
+
+
+
+
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="ln">1</span><span class="cl"><span class="k">def</span> <span class="nf">weird_algorithm</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
+</span></span><span class="line"><span class="ln">2</span><span class="cl">    <span class="k">while</span> <span class="n">n</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">3</span><span class="cl">        <span class="nb">print</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s2">&#34; &#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="ln">4</span><span class="cl">        <span class="k">if</span> <span class="n">n</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">5</span><span class="cl">            <span class="n">n</span> <span class="o">=</span> <span class="n">n</span> <span class="o">//</span> <span class="mi">2</span>
+</span></span><span class="line"><span class="ln">6</span><span class="cl">        <span class="k">else</span><span class="p">:</span>
+</span></span><span class="line"><span class="ln">7</span><span class="cl">            <span class="n">n</span> <span class="o">=</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">n</span> <span class="o">+</span> <span class="mi">1</span>
+</span></span><span class="line"><span class="ln">8</span><span class="cl">    <span class="nb">print</span><span class="p">(</span><span class="n">n</span><span class="p">)</span></span></span></code></pre></div><h2 id="geek-fact">Geek fact</h2>
+<p>This is a famous problem in the field math called the Collatz conjecture.</p>
+<p>Collatz conjecture is a conjecture in mathematics that states that for any positive integer <code>n</code>, the sequence of numbers generated by the following algorithm will eventually reach 1.</p>
+<p>So far, the conjecture has been verified for all positive integers up to 2^68.</p>
+<blockquote>
+<p>Wikipedia link: <a href="https://en.wikipedia.org/wiki/Collatz_conjecture">Collatz conjecture</a></p>
+</blockquote>
+]]></content:encoded>
+    </item>
+  </channel>
+</rss>
